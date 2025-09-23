@@ -2,7 +2,7 @@ class CleanMac < Formula
   desc "Clean Mac - Deep Clean Your Mac with One Click"
   homepage "https://github.com/tw93/clean-mac"
   url "https://github.com/tw93/clean-mac/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "PLACEHOLDER_SHA256"
+  sha256 "a579f941ab52b7605fcd6d13e816db5e0fcb292211a27f83fd7ba9b04dc24e52"
   license "MIT"
   head "https://github.com/tw93/clean-mac.git", branch: "main"
 

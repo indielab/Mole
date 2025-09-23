@@ -11,8 +11,6 @@
 
 </div>
 
----
-
 ## Features
 
 - 🔥 **More Thorough** - Cleans significantly more cache than other tools
@@ -87,46 +85,7 @@ clean --help       # Show help information
 | **🛠️ IDEs** | Xcode, VS Code, JetBrains, Android Studio, Unity, Figma | ✅ Safe |
 | **📱 Apps** | Discord, Slack, Teams, Notion, 1Password, Steam, Epic Games | ✅ Safe |
 | **🍎 Apple Silicon** | Rosetta 2, M-series media cache, user activity cache | ✅ Safe |
-| **🔒 System Deep** | Font caches, iCloud sync, Adobe, VMs, system logs | ⚠️ --system flag |
-
-<table>
-<tr>
-<td width="50%">
-
-**🌐 Web Browsers**
-
-- Safari cache & storage
-- Chrome/Chromium cache
-- Edge, Arc, Brave cache
-- Firefox, Opera cache
-
-**💻 Development Tools**
-
-- npm, yarn, pnpm cache
-- pip, poetry, conda cache
-- Docker images & containers
-- Xcode derived data
-
-</td>
-<td width="50%">
-
-**📱 Applications**
-
-- Discord, Slack cache
-- VS Code extensions cache
-- JetBrains IDE logs
-- Steam, Epic Games cache
-
-**🍎 Apple Silicon**
-
-- Rosetta 2 cache
-- M-series optimizations
-- iOS device backups
-- Simulator cache
-
-</td>
-</tr>
-</table>
+| **🔒 System Deep** | Font caches, iCloud sync, Adobe, VMs, system logs | 🌚 --system flag |
 
 ## Support
 
@@ -138,4 +97,4 @@ If Clean Mac has been helpful to you:
 
 ## License
 
-MIT License © [tw93](https://github.com/tw93) - Feel free to enjoy and contribute to open source
+MIT License © [tw93](https://github.com/tw93) - Feel free to enjoy and contribute to open source.

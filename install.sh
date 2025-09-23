@@ -134,39 +134,15 @@ install_direct() {
     return 0
 }
 
-# Choose installation method
+# Choose installation method - always use direct installation for now
 if [[ "$FORCE_DIRECT" == "true" ]]; then
     install_direct
     INSTALL_SUCCESS=$?
 else
-    # Try Homebrew first, fallback to direct
-    if command -v brew >/dev/null 2>&1; then
-        echo ""
-        echo "Choose installation method:"
-        echo "1) Homebrew (recommended)"
-        echo "2) Direct installation"
-        echo ""
-        read -p "Enter choice (1-2, default: 1): " -n 1 -r
-        echo ""
-
-        if [[ $REPLY =~ ^[2]$ ]]; then
-            install_direct
-            INSTALL_SUCCESS=$?
-        else
-            install_via_homebrew
-            INSTALL_SUCCESS=$?
-
-            if [[ $INSTALL_SUCCESS -ne 0 ]]; then
-                log_warning "Homebrew installation failed, trying direct installation..."
-                install_direct
-                INSTALL_SUCCESS=$?
-            fi
-        fi
-    else
-        log_info "Homebrew not found, using direct installation..."
-        install_direct
-        INSTALL_SUCCESS=$?
-    fi
+    # Always use direct installation until homebrew-tap is ready
+    log_info "Using direct installation..."
+    install_direct
+    INSTALL_SUCCESS=$?
 fi
 
 # Verify installation

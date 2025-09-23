@@ -1,0 +1,21 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Homebrew formula
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
+          formula: clean-mac
+          tap: tw93/homebrew-tap
+          create_pullrequest: true
+          commit_message: |
+            Update clean-mac to {{version}}
+
+            Created by action-homebrew-bump-formula

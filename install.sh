@@ -87,14 +87,8 @@ install_via_homebrew() {
         return 1
     fi
 
-    # Add tap if not already added
-    if ! brew tap | grep -q "tw93/tap"; then
-        log_info "Adding tap: tw93/tap"
-        brew tap tw93/tap
-    fi
-
-    # Install clean-mac
-    brew install clean-mac
+    # Install with automatic tap addition
+    brew install tw93/tap/clean-mac
     return $?
 }
 

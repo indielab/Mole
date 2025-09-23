@@ -23,10 +23,10 @@
 curl -fsSL https://raw.githubusercontent.com/tw93/clean-mac/main/install.sh | bash
 ```
 
-### Homebrew (Coming Soon)
+### Homebrew
 
 ```bash
-# Will be available soon
+brew tap tw93/tap
 brew install clean-mac
 ```
 

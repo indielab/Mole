@@ -6,9 +6,6 @@
 **🧹 Deep Clean Your Mac with One Click**
 
 [![GitHub release](https://img.shields.io/github/release/tw93/clean-mac.svg)](https://github.com/tw93/clean-mac/releases) [![Homebrew](https://img.shields.io/badge/Homebrew-available-green.svg)](https://formulae.brew.sh/formula/clean-mac) [![License](https://img.shields.io/github/license/tw93/clean-mac.svg)](https://github.com/tw93/clean-mac/blob/main/LICENSE) [![macOS](https://img.shields.io/badge/macOS-10.14+-blue.svg)](https://github.com/tw93/clean-mac)
-
-[Installation](#installation) · [Usage](#usage) · [What Gets Cleaned](#what-gets-cleaned) · [Support](#support)
-
 </div>
 
 ## Features

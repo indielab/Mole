@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="https://cdn.tw93.fun/pic/cole.jpg" alt="Mole Logo" width="96" height="96" style="border-radius:50%" />
+  <img src="https://cdn.tw93.fun/pic/cole.jpg" alt="Mole Logo" width="120" height="120" style="border-radius:50%" />
   <h1 style="margin: 12px 0 6px;">Mole</h1>
-  <p><em>Like a mole, dig deep to clean your mac.</em></p>
+  <p><em>🧹 Like a mole, dig deep to clean your mac.</em></p>
 </div>
 
 ## Features

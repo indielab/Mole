@@ -25,8 +25,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 VERSION="1.0.0"
 
 show_help() {
-    cat << EOF
-Mole v$VERSION - Dig deep to clean your mac.
+    cat <<'EOF'
+Mole can dig deep to clean your mac.
 =====================================
 
 USAGE:
@@ -34,7 +34,7 @@ USAGE:
 
 COMMANDS:
     mole                         # Interactive main menu
-    mole clean                   # Clean system (will ask for password if needed)
+    mole clean                   # Deeper system cleanup
     mole uninstall               # Remove applications completely
     mole --help                  # Show this help message
 
@@ -48,7 +48,7 @@ show_main_menu() {
 
     if [[ "$redraw_full" == "true" ]]; then
         echo ""
-        echo "  🌚 Mole can dig deep to clean your mac."
+        echo "Mole can dig deep to clean your mac."
         echo ""
     fi
 
@@ -73,6 +73,10 @@ interactive_main_menu() {
 
     # Set up signal trapping to handle Ctrl+C gracefully
     trap 'echo ""; echo "Thank you for using Mole!"; exit 0' INT
+
+    cleanup_menu_display() {
+        printf '\033[u\033[J'
+    }
 
     while true; do
         if [[ "$first_draw" == "true" ]]; then
@@ -101,6 +105,7 @@ interactive_main_menu() {
                 ((current_option < total_options)) && ((current_option++))
                 ;;
             "ENTER")
+                cleanup_menu_display
                 case $current_option in
                     1)
                         exec "$SCRIPT_DIR/bin/clean.sh"
@@ -109,10 +114,12 @@ interactive_main_menu() {
                         exec "$SCRIPT_DIR/bin/uninstall.sh"
                         ;;
                     3)
+                        clear_screen
                         show_help
                         exit 0
                         ;;
                     4)
+                        clear_screen
                         echo ""
                         echo "Thank you for using Mole!"
                         exit 0
@@ -120,16 +127,19 @@ interactive_main_menu() {
                 esac
                 ;;
             "QUIT"|"ESC")
+                cleanup_menu_display
+                clear_screen
                 echo ""
                 echo "Thank you for using Mole!"
                 exit 0
                 ;;
             "1"|"2"|"3"|"4")
+                cleanup_menu_display
                 case $key in
                     1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
-                    3) show_help; exit 0 ;;
-                    4) echo ""; echo "Thank you for using Mole!"; exit 0 ;;
+                    3) clear_screen; show_help; exit 0 ;;
+                    4) clear_screen; echo ""; echo "Thank you for using Mole!"; exit 0 ;;
                 esac
                 ;;
             *)

@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 
 ```bash
 mole               # Interactive main menu
-mole clean         # Deep clean (smart sudo handling)
+mole clean         # Deeper system cleanup
 mole uninstall     # Interactive app uninstaller
 mole --help        # Show help
 ```
@@ -29,7 +29,7 @@ mole --help        # Show help
 ### Example Output
 
 ```bash
-🕳️ Mole - System Cleanup
+🕳️ Mole - Deeper system cleanup
 ========================
 🍎 Detected: Apple Silicon | 💾 Free space: 45.2GB
 🚀 Mode: User-level cleanup (no password required)

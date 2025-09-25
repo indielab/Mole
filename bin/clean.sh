@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mole - System Cleanup Module
+# Mole - Deeper system cleanup
 # Complete cleanup with smart password handling
 
 set -euo pipefail
@@ -295,8 +295,8 @@ safe_clean() {
 
 start_cleanup() {
     clear
-    echo "🕳️ Mole - System Cleanup"
-    echo "========================="
+    echo "🕳️ Mole - Deeper system cleanup"
+    echo "=================================================="
     echo ""
     echo "This will clean:"
     echo "  • App caches and logs"
@@ -336,7 +336,7 @@ start_cleanup() {
 
 perform_cleanup() {
     echo ""
-    echo "🕳️ Mole - System Cleanup"
+    echo "🕳️ Mole - Deeper system cleanup"
     echo "========================"
     echo "🍎 Detected: $(detect_architecture) | 💾 Free space: $(get_free_space)"
 
@@ -869,7 +869,7 @@ perform_cleanup() {
 main() {
     case "${1:-""}" in
         "--help"|"-h")
-            echo "Mole - System Cleanup"
+            echo "Mole - Deeper system cleanup"
             echo "Usage: clean.sh [options]"
             echo ""
             echo "Options:"

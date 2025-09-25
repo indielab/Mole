@@ -19,7 +19,8 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 
 # Default installation directory
 INSTALL_DIR="/usr/local/bin"
-CONFIG_DIR="$HOME/.config/clean"
+CONFIG_DIR="$HOME/.config/mole"
+SOURCE_DIR=""
 
 show_help() {
     cat << 'EOF'
@@ -31,7 +32,7 @@ USAGE:
 
 OPTIONS:
     --prefix PATH       Install to custom directory (default: /usr/local/bin)
-    --config PATH       Config directory (default: ~/.config/clean)
+    --config PATH       Config directory (default: ~/.config/mole)
     --uninstall         Uninstall mole
     --help, -h          Show this help
 
@@ -45,6 +46,54 @@ The installer will:
 2. Set up config directory with all modules
 3. Make the mole command available system-wide
 EOF
+}
+
+# Resolve the directory containing source files (supports curl | bash)
+resolve_source_dir() {
+    # 1) If script is on disk, use its directory
+    if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [[ -f "$script_dir/mole" || -d "$script_dir/bin" || -d "$script_dir/lib" ]]; then
+            SOURCE_DIR="$script_dir"
+            return 0
+        fi
+    fi
+
+    # 2) If CLEAN_SOURCE_DIR env is provided, honor it
+    if [[ -n "${CLEAN_SOURCE_DIR:-}" && -d "$CLEAN_SOURCE_DIR" ]]; then
+        SOURCE_DIR="$CLEAN_SOURCE_DIR"
+        return 0
+    fi
+
+    # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
+    local tmp
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+
+    echo "Fetching Mole source..."
+    if command -v curl >/dev/null 2>&1; then
+        # Download main branch tarball
+        if curl -fsSL -o "$tmp/mole.tar.gz" "https://github.com/tw93/mole/archive/refs/heads/main.tar.gz"; then
+            tar -xzf "$tmp/mole.tar.gz" -C "$tmp"
+            # Extracted folder name: mole-main
+            if [[ -d "$tmp/mole-main" ]]; then
+                SOURCE_DIR="$tmp/mole-main"
+                return 0
+            fi
+        fi
+    fi
+
+    # 4) Fallback to git if available
+    if command -v git >/dev/null 2>&1; then
+        if git clone --depth=1 https://github.com/tw93/mole.git "$tmp/mole" >/dev/null 2>&1; then
+            SOURCE_DIR="$tmp/mole"
+            return 0
+        fi
+    fi
+
+    log_error "Failed to fetch source files. Ensure curl or git is available."
+    exit 1
 }
 
 # Parse command line arguments
@@ -125,40 +174,39 @@ create_directories() {
 install_files() {
     log_info "Installing mole files..."
 
-    # Get the directory where this script is located
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    resolve_source_dir
 
     # Copy main executable
-    if [[ -f "$SCRIPT_DIR/mole" ]]; then
+    if [[ -f "$SOURCE_DIR/mole" ]]; then
         if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
-            sudo cp "$SCRIPT_DIR/mole" "$INSTALL_DIR/mole"
+            sudo cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
             sudo chmod +x "$INSTALL_DIR/mole"
         else
-            cp "$SCRIPT_DIR/mole" "$INSTALL_DIR/mole"
+            cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
             chmod +x "$INSTALL_DIR/mole"
         fi
         log_success "Main executable installed to $INSTALL_DIR/mole"
     else
-        log_error "mole executable not found in $SCRIPT_DIR"
+        log_error "mole executable not found in ${SOURCE_DIR:-unknown}"
         exit 1
     fi
 
     # Copy configuration and modules
-    if [[ -d "$SCRIPT_DIR/bin" ]]; then
-        cp -r "$SCRIPT_DIR/bin"/* "$CONFIG_DIR/bin/"
+    if [[ -d "$SOURCE_DIR/bin" ]]; then
+        cp -r "$SOURCE_DIR/bin"/* "$CONFIG_DIR/bin/"
         chmod +x "$CONFIG_DIR/bin"/*
         log_success "Modules copied to $CONFIG_DIR/bin"
     fi
 
-    if [[ -d "$SCRIPT_DIR/lib" ]]; then
-        cp -r "$SCRIPT_DIR/lib"/* "$CONFIG_DIR/lib/"
+    if [[ -d "$SOURCE_DIR/lib" ]]; then
+        cp -r "$SOURCE_DIR/lib"/* "$CONFIG_DIR/lib/"
         log_success "Libraries copied to $CONFIG_DIR/lib"
     fi
 
     # Copy other files if they exist
     for file in README.md LICENSE; do
-        if [[ -f "$SCRIPT_DIR/$file" ]]; then
-            cp "$SCRIPT_DIR/$file" "$CONFIG_DIR/"
+        if [[ -f "$SOURCE_DIR/$file" ]]; then
+            cp "$SOURCE_DIR/$file" "$CONFIG_DIR/"
         fi
     done
 

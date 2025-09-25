@@ -38,7 +38,7 @@ COMMANDS:
     mole uninstall               # Remove applications completely
     mole --help                  # Show this help message
 
-For more information, visit: https://github.com/tw93/clean-mac
+For more information, visit: https://github.com/tw93/mole
 EOF
 }
 
@@ -60,7 +60,7 @@ show_main_menu() {
     show_menu_option 1 "Clean System - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
     show_menu_option 2 "Uninstall Apps - Completely remove applications" "$([[ $selected -eq 2 ]] && echo true || echo false)"
     show_menu_option 3 "Help & Information - Usage guide and tips" "$([[ $selected -eq 3 ]] && echo true || echo false)"
-    show_menu_option 4 "Exit - Close Clean" "$([[ $selected -eq 4 ]] && echo true || echo false)"
+    show_menu_option 4 "Exit - Close Mole" "$([[ $selected -eq 4 ]] && echo true || echo false)"
 
     if [[ "$redraw_full" == "true" ]]; then
         echo ""

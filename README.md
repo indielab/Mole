@@ -14,7 +14,7 @@
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tw93/clean-mac/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 
 ## Usage
@@ -86,7 +86,7 @@ If Mole has been helpful to you:
 
 - **Star this repository** and share with fellow Mac users
 - **Report issues** or suggest new cleanup targets
-- I have two cats, if you think Clean helps you, you can <a href="https://miaoyan.app/cats.html?name=CleanMac" target="_blank">feed them canned food 🥩🍤</a>
+- I have two cats. If Mole helps you, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food 🥩🍤</a>
 
 ## License
 

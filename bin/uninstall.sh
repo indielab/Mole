@@ -34,7 +34,7 @@ should_preserve_bundle() {
 
 # Help information
 show_help() {
-    echo "Clean Mac - Interactive App Uninstaller"
+    echo "Mole - Interactive App Uninstaller"
     echo "========================================"
     echo ""
     echo "Description: Interactive tool to uninstall applications and clean their data"
@@ -394,7 +394,7 @@ trap cleanup EXIT INT TERM
 
 # Main function
 main() {
-    echo "🗑️  Clean Mac - Interactive App Uninstaller"
+    echo "🗑️  Mole - Interactive App Uninstaller"
     echo "============================================"
     echo
 

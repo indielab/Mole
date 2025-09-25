@@ -14,6 +14,7 @@ log_error() { printf "Error: %s\n" "$1"; }
 INSTALL_DIR="/usr/local/bin"
 CONFIG_DIR="$HOME/.config/mole"
 SOURCE_DIR=""
+VERBOSE=0
 
 show_help() {
     cat << 'EOF'
@@ -239,7 +240,7 @@ verify_installation() {
 # Add to PATH if needed
 setup_path() {
     # Only output in verbose mode
-    if [[ ${VERBOSE} -eq 1 ]]; then
+    if [[ ${VERBOSE:-0} -eq 1 ]]; then
         # Check if install directory is in PATH
         if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
             log_success "$INSTALL_DIR is already in PATH"
@@ -290,9 +291,9 @@ uninstall_mole() {
 
 # Main installation function
 main() {
-    if [[ ${VERBOSE} -eq 1 ]]; then
-        echo "🕳️  Mole Installation Script"
-        echo "============================"
+    if [[ ${VERBOSE:-0} -eq 1 ]]; then
+        echo "Mole Installation"
+        echo "-----------------"
         echo ""
     fi
 
@@ -302,9 +303,9 @@ main() {
     verify_installation
     setup_path
 
-    if [[ ${VERBOSE} -eq 1 ]]; then
+    if [[ ${VERBOSE:-0} -eq 1 ]]; then
         echo ""
-        log_success "Mole installed successfully!"
+        log_success "Mole installed successfully"
         echo ""
         echo "Usage:"
         if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then

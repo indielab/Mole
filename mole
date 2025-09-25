@@ -26,7 +26,7 @@ VERSION="1.0.0"
 
 show_help() {
     cat << EOF
-Mole v$VERSION - System Cleanup Tool
+Mole v$VERSION - Dig deep to clean your mac.
 =====================================
 
 USAGE:
@@ -47,7 +47,7 @@ show_main_menu() {
     local redraw_full="${2:-true}"
 
     if [[ "$redraw_full" == "true" ]]; then
-        show_header "🕳️ Mole v$VERSION" "System Cleanup Tool"
+        show_header "🕳️ Mole v$VERSION" "Dig deep to clean your mac."
         echo "🍎 Detected: $(detect_architecture) | 💾 Free space: $(get_free_space)"
         echo ""
         echo "What would you like to do?"

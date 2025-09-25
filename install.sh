@@ -4,17 +4,23 @@
 
 set -euo pipefail
 
-# Plain logging (no colors/emojis)
-log_info() { printf "%s\n" "$1"; }
-log_success() { printf "%s\n" "$1"; }
-log_warning() { printf "Warning: %s\n" "$1"; }
-log_error() { printf "Error: %s\n" "$1"; }
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Logging functions
+log_info() { echo -e "${BLUE}$1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+log_error() { echo -e "${RED}❌ $1${NC}"; }
 
 # Default installation directory
 INSTALL_DIR="/usr/local/bin"
 CONFIG_DIR="$HOME/.config/mole"
 SOURCE_DIR=""
-VERBOSE=0
 
 show_help() {
     cat << 'EOF'
@@ -26,9 +32,8 @@ USAGE:
 
 OPTIONS:
     --prefix PATH       Install to custom directory (default: /usr/local/bin)
-    --config PATH       Config directory (default: ~/.config/mole)
+    --config PATH       Config directory (default: ~/.config/clean)
     --uninstall         Uninstall mole
-    --verbose, -v       Print progress and success messages
     --help, -h          Show this help
 
 EXAMPLES:
@@ -64,10 +69,9 @@ resolve_source_dir() {
     # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
     local tmp
     tmp="$(mktemp -d)"
-    # Expand tmp now so trap doesn't depend on local scope
-    trap "rm -rf '$tmp'" EXIT
+    trap 'rm -rf "$tmp"' EXIT
 
-    log_info "Fetching Mole source..."
+    echo "Fetching Mole source..."
     if command -v curl >/dev/null 2>&1; then
         # Download main branch tarball
         if curl -fsSL -o "$tmp/mole.tar.gz" "https://github.com/tw93/mole/archive/refs/heads/main.tar.gz"; then
@@ -107,10 +111,6 @@ parse_args() {
             --uninstall)
                 uninstall_mole
                 exit 0
-                ;;
-            --verbose|-v)
-                VERBOSE=1
-                shift 1
                 ;;
             --help|-h)
                 show_help
@@ -239,23 +239,20 @@ verify_installation() {
 
 # Add to PATH if needed
 setup_path() {
-    # Only output in verbose mode
-    if [[ ${VERBOSE:-0} -eq 1 ]]; then
-        # Check if install directory is in PATH
-        if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-            log_success "$INSTALL_DIR is already in PATH"
-            return
-        fi
+    # Check if install directory is in PATH
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        log_success "$INSTALL_DIR is already in PATH"
+        return
+    fi
 
-        # Only suggest PATH setup for custom directories
-        if [[ "$INSTALL_DIR" != "/usr/local/bin" ]]; then
-            log_warning "$INSTALL_DIR is not in your PATH"
-            echo ""
-            echo "To use mole from anywhere, add this line to your shell profile:"
-            echo "export PATH=\"$INSTALL_DIR:\$PATH\""
-            echo ""
-            echo "For example, add it to ~/.zshrc or ~/.bash_profile"
-        fi
+    # Only suggest PATH setup for custom directories
+    if [[ "$INSTALL_DIR" != "/usr/local/bin" ]]; then
+        log_warning "$INSTALL_DIR is not in your PATH"
+        echo ""
+        echo "To use mole from anywhere, add this line to your shell profile:"
+        echo "export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo ""
+        echo "For example, add it to ~/.zshrc or ~/.bash_profile"
     fi
 }
 
@@ -291,11 +288,9 @@ uninstall_mole() {
 
 # Main installation function
 main() {
-    if [[ ${VERBOSE:-0} -eq 1 ]]; then
-        echo "Mole Installation"
-        echo "-----------------"
-        echo ""
-    fi
+    echo "🕳️  Mole Installation Script"
+    echo "============================"
+    echo ""
 
     check_requirements
     create_directories
@@ -303,22 +298,23 @@ main() {
     verify_installation
     setup_path
 
-    if [[ ${VERBOSE:-0} -eq 1 ]]; then
-        echo ""
-        log_success "Mole installed successfully"
-        echo ""
-        echo "Usage:"
-        if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-            echo "  mole              # Interactive menu"
-            echo "  mole clean        # System cleanup"
-            echo "  mole uninstall    # Remove applications"
-        else
-            echo "  $INSTALL_DIR/mole              # Interactive menu"
-            echo "  $INSTALL_DIR/mole clean        # System cleanup"
-            echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
-        fi
-        echo ""
+    echo ""
+    echo "══════════════════════════════════════════════════════════════════════"
+    log_success "Mole installed successfully!"
+    echo ""
+    echo "Usage:"
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        echo "  mole              # Interactive menu"
+        echo "  mole clean        # System cleanup"
+        echo "  mole uninstall    # Remove applications"
+    else
+        echo "  $INSTALL_DIR/mole              # Interactive menu"
+        echo "  $INSTALL_DIR/mole clean        # System cleanup"
+        echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
     fi
+    echo ""
+    echo "Configuration stored in: $CONFIG_DIR"
+    echo "══════════════════════════════════════════════════════════════════════"
 }
 
 # Run installation

@@ -13,9 +13,9 @@ NC='\033[0m'
 
 # Logging functions
 log_info() { echo -e "${BLUE}$1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-log_error() { echo -e "${RED}❌ $1${NC}"; }
+log_success() { echo -e "${GREEN}$1${NC}"; }
+log_warning() { echo -e "${YELLOW}$1${NC}"; }
+log_error() { echo -e "${RED}$1${NC}"; }
 
 # Default installation directory
 INSTALL_DIR="/usr/local/bin"
@@ -313,8 +313,6 @@ main() {
         echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
     fi
     echo ""
-    echo "Configuration stored in: $CONFIG_DIR"
-    echo "══════════════════════════════════════════════════════════════════════"
 }
 
 # Run installation

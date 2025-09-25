@@ -35,19 +35,6 @@ clear_screen() {
     printf '\033[2J\033[H'
 }
 
-show_header() {
-    local title="$1"
-    local subtitle="$2"
-
-    clear_screen
-    echo -e "${BLUE}$title${NC}"
-    echo "================================================="
-    if [[ -n "$subtitle" ]]; then
-        echo -e "${PURPLE}$subtitle${NC}"
-        echo ""
-    fi
-}
-
 # Keyboard input handling (simple and robust)
 read_key() {
     local key rest

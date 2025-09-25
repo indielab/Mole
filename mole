@@ -47,11 +47,8 @@ show_main_menu() {
     local redraw_full="${2:-true}"
 
     if [[ "$redraw_full" == "true" ]]; then
-        show_header "🧹Mole - Dig deep to clean your mac."
-        echo "🍎 Detected: $(detect_architecture) | 💾 Free space: $(get_free_space)"
         echo ""
-        echo "What would you like to do?"
-        echo ""
+        echo "❤️  What do you want Mole to do for you?"
     fi
 
     # Save cursor position before printing menu items

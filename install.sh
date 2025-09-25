@@ -69,7 +69,8 @@ resolve_source_dir() {
     # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
     local tmp
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
+    # Guard against set -u when trap runs outside the local scope
+    trap '[[ -n "${tmp:-}" ]] && rm -rf "$tmp"' EXIT
 
     echo "Fetching Mole source..."
     if command -v curl >/dev/null 2>&1; then
@@ -299,7 +300,6 @@ main() {
     setup_path
 
     echo ""
-    echo "══════════════════════════════════════════════════════════════════════"
     log_success "Mole installed successfully!"
     echo ""
     echo "Usage:"
@@ -313,8 +313,6 @@ main() {
         echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
     fi
     echo ""
-    echo "Configuration stored in: $CONFIG_DIR"
-    echo "══════════════════════════════════════════════════════════════════════"
 }
 
 # Run installation

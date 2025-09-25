@@ -48,7 +48,8 @@ show_main_menu() {
 
     if [[ "$redraw_full" == "true" ]]; then
         echo ""
-        echo "❤️  What do you want Mole to do for you?"
+        echo "  🌚 Mole can dig deep to clean your mac."
+        echo ""
     fi
 
     # Save cursor position before printing menu items

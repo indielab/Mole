@@ -4,21 +4,11 @@
 
 set -euo pipefail
 
-# Colors
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-# Verbosity (0 = quiet, 1 = verbose)
-VERBOSE=0
-
-# Logging functions (quiet by default)
-log_info() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}$1${NC}"; }
-log_success() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${GREEN}✅ $1${NC}"; }
-log_warning() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${YELLOW}⚠️  $1${NC}"; }
-log_error() { echo -e "${RED}❌ $1${NC}"; }
+# Plain logging (no colors/emojis)
+log_info() { printf "%s\n" "$1"; }
+log_success() { printf "%s\n" "$1"; }
+log_warning() { printf "Warning: %s\n" "$1"; }
+log_error() { printf "Error: %s\n" "$1"; }
 
 # Default installation directory
 INSTALL_DIR="/usr/local/bin"

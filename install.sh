@@ -11,10 +11,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Verbosity (0 = quiet, 1 = verbose)
+VERBOSE=1
+
 # Logging functions
-log_info() { echo -e "${BLUE}$1${NC}"; }
-log_success() { echo -e "${GREEN}$1${NC}"; }
-log_warning() { echo -e "${YELLOW}$1${NC}"; }
+log_info() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}$1${NC}"; }
+log_success() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${GREEN}$1${NC}"; }
+log_warning() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${YELLOW}$1${NC}"; }
 log_error() { echo -e "${RED}$1${NC}"; }
 
 # Default installation directory
@@ -69,7 +72,8 @@ resolve_source_dir() {
     # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
     local tmp
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
+    # Expand tmp now so trap doesn't depend on local scope
+    trap "rm -rf '$tmp'" EXIT
 
     echo "Fetching Mole source..."
     if command -v curl >/dev/null 2>&1; then
@@ -112,6 +116,10 @@ parse_args() {
                 uninstall_mole
                 exit 0
                 ;;
+            --verbose|-v)
+                VERBOSE=1
+                shift 1
+                ;;
             --help|-h)
                 show_help
                 exit 0
@@ -127,8 +135,6 @@ parse_args() {
 
 # Check system requirements
 check_requirements() {
-    log_info "Checking system requirements..."
-
     # Check if running on macOS
     if [[ "$OSTYPE" != "darwin"* ]]; then
         log_error "This tool is designed for macOS only"
@@ -140,19 +146,10 @@ check_requirements() {
         log_error "Parent directory $(dirname "$INSTALL_DIR") does not exist"
         exit 1
     fi
-
-    # Check if we need sudo for installation
-    if [[ ! -w "$(dirname "$INSTALL_DIR")" ]] && [[ "$INSTALL_DIR" == "/usr/local/bin" ]]; then
-        log_warning "Installation to $INSTALL_DIR requires sudo privileges"
-    fi
-
-    log_success "System requirements check passed"
 }
 
 # Create installation directories
 create_directories() {
-    log_info "Creating directories..."
-
     # Create install directory if it doesn't exist
     if [[ ! -d "$INSTALL_DIR" ]]; then
         if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$(dirname "$INSTALL_DIR")" ]]; then
@@ -167,12 +164,10 @@ create_directories() {
     mkdir -p "$CONFIG_DIR/bin"
     mkdir -p "$CONFIG_DIR/lib"
 
-    log_success "Directories created"
 }
 
 # Install files
 install_files() {
-    log_info "Installing mole files..."
 
     resolve_source_dir
 
@@ -185,7 +180,6 @@ install_files() {
             cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
             chmod +x "$INSTALL_DIR/mole"
         fi
-        log_success "Main executable installed to $INSTALL_DIR/mole"
     else
         log_error "mole executable not found in ${SOURCE_DIR:-unknown}"
         exit 1
@@ -195,12 +189,10 @@ install_files() {
     if [[ -d "$SOURCE_DIR/bin" ]]; then
         cp -r "$SOURCE_DIR/bin"/* "$CONFIG_DIR/bin/"
         chmod +x "$CONFIG_DIR/bin"/*
-        log_success "Modules copied to $CONFIG_DIR/bin"
     fi
 
     if [[ -d "$SOURCE_DIR/lib" ]]; then
         cp -r "$SOURCE_DIR/lib"/* "$CONFIG_DIR/lib/"
-        log_success "Libraries copied to $CONFIG_DIR/lib"
     fi
 
     # Copy other files if they exist
@@ -220,14 +212,12 @@ install_files() {
 
 # Verify installation
 verify_installation() {
-    log_info "Verifying installation..."
 
     if [[ -x "$INSTALL_DIR/mole" ]] && [[ -f "$CONFIG_DIR/lib/common.sh" ]]; then
-        log_success "Installation verified"
 
         # Test if mole command works
         if "$INSTALL_DIR/mole" --help >/dev/null 2>&1; then
-            log_success "Mole command is working correctly"
+            log_success ""
         else
             log_warning "Mole command installed but may not be working properly"
         fi
@@ -241,7 +231,6 @@ verify_installation() {
 setup_path() {
     # Check if install directory is in PATH
     if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-        log_success "$INSTALL_DIR is already in PATH"
         return
     fi
 
@@ -288,9 +277,6 @@ uninstall_mole() {
 
 # Main installation function
 main() {
-    echo "🕳️  Mole Installation Script"
-    echo "============================"
-    echo ""
 
     check_requirements
     create_directories
@@ -298,21 +284,21 @@ main() {
     verify_installation
     setup_path
 
-    echo ""
-    echo "══════════════════════════════════════════════════════════════════════"
-    log_success "Mole installed successfully!"
-    echo ""
-    echo "Usage:"
-    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-        echo "  mole              # Interactive menu"
-        echo "  mole clean        # System cleanup"
-        echo "  mole uninstall    # Remove applications"
-    else
-        echo "  $INSTALL_DIR/mole              # Interactive menu"
-        echo "  $INSTALL_DIR/mole clean        # System cleanup"
-        echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
+    if [[ ${VERBOSE} -eq 1 ]]; then
+        log_success "Mole installed successfully!"
+        echo ""
+        echo "Usage:"
+        if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+            echo "  mole              # Interactive menu"
+            echo "  mole clean        # System cleanup"
+            echo "  mole uninstall    # Remove applications"
+        else
+            echo "  $INSTALL_DIR/mole              # Interactive menu"
+            echo "  $INSTALL_DIR/mole clean        # System cleanup"
+            echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
+        fi
+        echo ""
     fi
-    echo ""
 }
 
 # Run installation

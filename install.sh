@@ -1,173 +1,274 @@
 #!/bin/bash
+# Mole Installation Script
+# Install Mole system cleanup tool to your system
 
-# Clean Your Mac - Installation Script
-set -e
+set -euo pipefail
 
+# Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Logging functions
 log_info() { echo -e "${BLUE}$1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-echo -e "${BLUE}🧹 Installing Clean Mac...${NC}"
+# Default installation directory
+INSTALL_DIR="/usr/local/bin"
+CONFIG_DIR="$HOME/.config/clean"
 
-# Check system compatibility
-if [[ "$OSTYPE" != "darwin"* ]]; then
-    log_error "This tool only supports macOS"
-    exit 1
-fi
+show_help() {
+    cat << 'EOF'
+Mole Installation Script
+========================
 
-# Check for arguments
-FORCE_DIRECT=false
-UNINSTALL=false
+USAGE:
+    ./install.sh [OPTIONS]
 
-for arg in "$@"; do
-    case $arg in
-        --direct)
-            FORCE_DIRECT=true
-            ;;
-        --uninstall)
-            UNINSTALL=true
-            ;;
-        --help|-h)
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --direct     Force direct installation (skip Homebrew)"
-            echo "  --uninstall  Uninstall clean-mac"
-            echo "  --help       Show this help message"
-            exit 0
-            ;;
-    esac
-done
+OPTIONS:
+    --prefix PATH       Install to custom directory (default: /usr/local/bin)
+    --config PATH       Config directory (default: ~/.config/clean)
+    --uninstall         Uninstall mole
+    --help, -h          Show this help
 
-# Uninstall function
-uninstall_clean() {
-    log_info "Uninstalling Clean Mac..."
+EXAMPLES:
+    ./install.sh                    # Install to /usr/local/bin
+    ./install.sh --prefix ~/.local/bin  # Install to custom directory
+    ./install.sh --uninstall       # Uninstall mole
 
-    # Check if installed via Homebrew
-    if command -v brew >/dev/null 2>&1 && brew list clean-mac >/dev/null 2>&1; then
-        brew uninstall clean-mac
-        log_success "Uninstalled via Homebrew"
-    elif [[ -f "/usr/local/bin/clean" ]]; then
-        sudo rm -f "/usr/local/bin/clean"
-        log_success "Removed from /usr/local/bin"
-    else
-        log_warning "Clean Mac is not installed"
-    fi
-    exit 0
+The installer will:
+1. Copy mole binary and scripts to the install directory
+2. Set up config directory with all modules
+3. Make the mole command available system-wide
+EOF
 }
 
-if [[ "$UNINSTALL" == "true" ]]; then
-    uninstall_clean
-fi
-
-# Check if already installed
-if command -v clean >/dev/null 2>&1 && [[ "$FORCE_DIRECT" != "true" ]]; then
-    log_warning "Clean Mac is already installed"
-    echo "  Location: $(which clean)"
-    echo "  Version: $(clean --help | head -1 || echo 'Unknown')"
-    echo ""
-    echo "Run with --uninstall to remove, or --direct to reinstall"
-    exit 0
-fi
-
-# Installation methods
-install_via_homebrew() {
-    log_info "Installing via Homebrew..."
-
-    if ! command -v brew >/dev/null 2>&1; then
-        log_error "Homebrew is not installed"
-        echo "Install Homebrew first: https://brew.sh"
-        return 1
-    fi
-
-    # Install with automatic tap addition
-    brew install tw93/tap/clean-mac
-    return $?
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --prefix)
+                INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --config)
+                CONFIG_DIR="$2"
+                shift 2
+                ;;
+            --uninstall)
+                uninstall_mole
+                exit 0
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
 }
 
-install_direct() {
-    log_info "Installing directly to /usr/local/bin..."
+# Check system requirements
+check_requirements() {
+    log_info "Checking system requirements..."
 
-    # Create directory
-    INSTALL_DIR="/usr/local/bin"
+    # Check if running on macOS
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        log_error "This tool is designed for macOS only"
+        exit 1
+    fi
+
+    # Check if install directory exists and is writable
+    if [[ ! -d "$(dirname "$INSTALL_DIR")" ]]; then
+        log_error "Parent directory $(dirname "$INSTALL_DIR") does not exist"
+        exit 1
+    fi
+
+    # Check if we need sudo for installation
+    if [[ ! -w "$(dirname "$INSTALL_DIR")" ]] && [[ "$INSTALL_DIR" == "/usr/local/bin" ]]; then
+        log_warning "Installation to $INSTALL_DIR requires sudo privileges"
+    fi
+
+    log_success "System requirements check passed"
+}
+
+# Create installation directories
+create_directories() {
+    log_info "Creating directories..."
+
+    # Create install directory if it doesn't exist
     if [[ ! -d "$INSTALL_DIR" ]]; then
-        log_info "Creating install directory..."
-        sudo mkdir -p "$INSTALL_DIR"
+        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$(dirname "$INSTALL_DIR")" ]]; then
+            sudo mkdir -p "$INSTALL_DIR"
+        else
+            mkdir -p "$INSTALL_DIR"
+        fi
     fi
 
-    # Download script
-    log_info "Downloading latest version..."
-    TEMP_FILE=$(mktemp)
+    # Create config directory
+    mkdir -p "$CONFIG_DIR"
+    mkdir -p "$CONFIG_DIR/bin"
+    mkdir -p "$CONFIG_DIR/lib"
 
-    if ! curl -fsSL https://raw.githubusercontent.com/tw93/clean-mac/main/clean.sh -o "$TEMP_FILE"; then
-        log_error "Download failed"
-        rm -f "$TEMP_FILE"
-        return 1
-    fi
-
-    # Verify download
-    if [[ ! -s "$TEMP_FILE" ]]; then
-        log_error "Downloaded file is empty"
-        rm -f "$TEMP_FILE"
-        return 1
-    fi
-
-    # Install
-    log_info "Installing..."
-    sudo cp "$TEMP_FILE" "$INSTALL_DIR/clean"
-    sudo chmod +x "$INSTALL_DIR/clean"
-    rm "$TEMP_FILE"
-
-    return 0
+    log_success "Directories created"
 }
 
-# Choose installation method
-if [[ "$FORCE_DIRECT" == "true" ]]; then
-    install_direct
-    INSTALL_SUCCESS=$?
-else
-    # Try Homebrew first, fallback to direct
-    if command -v brew >/dev/null 2>&1; then
-        log_info "Trying Homebrew installation..."
-        install_via_homebrew
-        INSTALL_SUCCESS=$?
+# Install files
+install_files() {
+    log_info "Installing mole files..."
 
-        if [[ $INSTALL_SUCCESS -ne 0 ]]; then
-            log_warning "Homebrew installation failed, using direct installation..."
-            install_direct
-            INSTALL_SUCCESS=$?
+    # Get the directory where this script is located
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Copy main executable
+    if [[ -f "$SCRIPT_DIR/mole" ]]; then
+        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+            sudo cp "$SCRIPT_DIR/mole" "$INSTALL_DIR/mole"
+            sudo chmod +x "$INSTALL_DIR/mole"
+        else
+            cp "$SCRIPT_DIR/mole" "$INSTALL_DIR/mole"
+            chmod +x "$INSTALL_DIR/mole"
         fi
+        log_success "Main executable installed to $INSTALL_DIR/mole"
     else
-        log_info "Homebrew not found, using direct installation..."
-        install_direct
-        INSTALL_SUCCESS=$?
+        log_error "mole executable not found in $SCRIPT_DIR"
+        exit 1
     fi
-fi
+
+    # Copy configuration and modules
+    if [[ -d "$SCRIPT_DIR/bin" ]]; then
+        cp -r "$SCRIPT_DIR/bin"/* "$CONFIG_DIR/bin/"
+        chmod +x "$CONFIG_DIR/bin"/*
+        log_success "Modules copied to $CONFIG_DIR/bin"
+    fi
+
+    if [[ -d "$SCRIPT_DIR/lib" ]]; then
+        cp -r "$SCRIPT_DIR/lib"/* "$CONFIG_DIR/lib/"
+        log_success "Libraries copied to $CONFIG_DIR/lib"
+    fi
+
+    # Copy other files if they exist
+    for file in README.md LICENSE; do
+        if [[ -f "$SCRIPT_DIR/$file" ]]; then
+            cp "$SCRIPT_DIR/$file" "$CONFIG_DIR/"
+        fi
+    done
+
+    # Update the mole script to use the config directory
+    if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+        sudo sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
+    else
+        sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
+    fi
+}
 
 # Verify installation
-if [[ $INSTALL_SUCCESS -eq 0 ]] && command -v clean >/dev/null 2>&1; then
-    log_success "Installation completed successfully!"
+verify_installation() {
+    log_info "Verifying installation..."
+
+    if [[ -x "$INSTALL_DIR/mole" ]] && [[ -f "$CONFIG_DIR/lib/common.sh" ]]; then
+        log_success "Installation verified"
+
+        # Test if mole command works
+        if "$INSTALL_DIR/mole" --help >/dev/null 2>&1; then
+            log_success "Mole command is working correctly"
+        else
+            log_warning "Mole command installed but may not be working properly"
+        fi
+    else
+        log_error "Installation verification failed"
+        exit 1
+    fi
+}
+
+# Add to PATH if needed
+setup_path() {
+    # Check if install directory is in PATH
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        log_success "$INSTALL_DIR is already in PATH"
+        return
+    fi
+
+    # Only suggest PATH setup for custom directories
+    if [[ "$INSTALL_DIR" != "/usr/local/bin" ]]; then
+        log_warning "$INSTALL_DIR is not in your PATH"
+        echo ""
+        echo "To use mole from anywhere, add this line to your shell profile:"
+        echo "export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo ""
+        echo "For example, add it to ~/.zshrc or ~/.bash_profile"
+    fi
+}
+
+# Uninstall function
+uninstall_mole() {
+    log_info "Uninstalling mole..."
+
+    # Remove executable
+    if [[ -f "$INSTALL_DIR/mole" ]]; then
+        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+            sudo rm -f "$INSTALL_DIR/mole"
+        else
+            rm -f "$INSTALL_DIR/mole"
+        fi
+        log_success "Removed executable from $INSTALL_DIR"
+    fi
+
+    # Ask before removing config directory
+    if [[ -d "$CONFIG_DIR" ]]; then
+        echo ""
+        read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -rf "$CONFIG_DIR"
+            log_success "Removed configuration directory"
+        else
+            log_info "Configuration directory preserved"
+        fi
+    fi
+
+    log_success "Mole uninstalled successfully"
+}
+
+# Main installation function
+main() {
+    echo "🕳️  Mole Installation Script"
+    echo "============================"
     echo ""
-    echo -e "${GREEN}Usage:${NC}"
-    echo -e "  ${BLUE}clean${NC}          - User-level cleanup (no password required)"
-    echo -e "  ${BLUE}clean --system${NC} - Deep system cleanup (password required)"
-    echo -e "  ${BLUE}clean --help${NC}   - Show help message"
+
+    check_requirements
+    create_directories
+    install_files
+    verify_installation
+    setup_path
+
     echo ""
-    echo -e "${GREEN}Try it now:${NC} clean"
-else
-    log_error "Installation failed"
+    echo "══════════════════════════════════════════════════════════════════════"
+    log_success "Mole installed successfully!"
     echo ""
-    echo "You may need to:"
-    echo "1. Restart your terminal"
-    echo "2. Add /usr/local/bin to your PATH:"
-    echo "   export PATH=\"/usr/local/bin:\$PATH\""
-    echo "3. Run the installer with --direct flag"
-    exit 1
-fi
+    echo "Usage:"
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        echo "  mole              # Interactive menu"
+        echo "  mole clean        # System cleanup"
+        echo "  mole uninstall    # Remove applications"
+    else
+        echo "  $INSTALL_DIR/mole              # Interactive menu"
+        echo "  $INSTALL_DIR/mole clean        # System cleanup"
+        echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
+    fi
+    echo ""
+    echo "Configuration stored in: $CONFIG_DIR"
+    echo "══════════════════════════════════════════════════════════════════════"
+}
+
+# Run installation
+parse_args "$@"
+main

@@ -1,91 +1,88 @@
 <div align="center">
-<img src="https://gw.alipayobjects.com/zos/k/gj/clean.svg" alt="Clean Mac" width="120" height="120"/>
-
-# Clean Mac
-
-**🧹 Deep Clean Your Mac with One Click**
-
-[![GitHub release](https://img.shields.io/github/release/tw93/clean-mac.svg)](https://github.com/tw93/clean-mac/releases) [![Homebrew](https://img.shields.io/badge/Homebrew-available-green.svg)](https://formulae.brew.sh/formula/clean-mac) [![License](https://img.shields.io/github/license/tw93/clean-mac.svg)](https://github.com/tw93/clean-mac/blob/main/LICENSE) [![macOS](https://img.shields.io/badge/macOS-10.14+-blue.svg)](https://github.com/tw93/clean-mac)
+  <img src="https://cdn.tw93.fun/pic/cole.jpg" alt="Mole Logo" width="96" height="96" style="border-radius:50%" />
+  <h1 style="margin: 12px 0 6px;">Mole</h1>
+  <p><em>Like a mole, dig deep to clean your mac.</em></p>
 </div>
 
 ## Features
 
-- 🔥 **More Thorough** - Cleans significantly more cache than other tools
-- ⚡ **Dead Simple** - Just one command, no complex setup or GUI
-- 👀 **Transparent & Safe** - Open source code you can review and customize
-- 🛡️ **Zero Risk** - Only touches safe cache files, never important data
+- 🐦 Deep Clean: System/user caches, logs, temp and more
+- 🛡️ Safe by default: Skips critical system and input method settings
+- 👀 App Uninstall: Remove app bundle and related data comprehensively
+- 👻 Smooth TUI: Fast arrow-key menus with pagination for large lists
 
 ## Installation
-
-### Quick Install (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tw93/clean-mac/main/install.sh | bash
 ```
 
-### Homebrew
-
-```bash
-brew install tw93/tap/clean-mac
-```
-
-### Development
-
-```bash
-# Clone and run locally
-git clone https://github.com/tw93/clean-mac.git
-cd clean-mac && chmod +x clean.sh && ./clean.sh
-```
-
 ## Usage
 
 ```bash
-clean              # Daily cleanup (no password required)
-clean --system     # Deep system cleanup (password required)
-clean --help       # Show help information
+mole               # Interactive main menu
+mole clean         # Deep clean (smart sudo handling)
+mole uninstall     # Interactive app uninstaller
+mole --help        # Show help
 ```
 
 ### Example Output
 
 ```bash
-🧹 Clean Mac - Deep Clean Your Mac with One Click
-================================================
-🍎 Detected: Apple Silicon (M-series) | 💾 Free space: 45.2GB
+🕳️ Mole - System Cleanup
+========================
+🍎 Detected: Apple Silicon | 💾 Free space: 45.2GB
 🚀 Mode: User-level cleanup (no password required)
 
 ▶ System essentials
-  ✓ User app cache (1.2GB)
-  ✓ User app logs (256MB)
-  ✓ Trash (512MB)
+  ✓ User app cache
+  ✓ User app logs
+  ✓ Trash
 
 ▶ Browser cleanup
-  ✓ Safari cache (845MB)
-  ✓ Chrome cache (1.8GB)
+  ✓ Safari cache
+  ✓ Chrome cache
 
 ▶ Developer tools
-  ✓ npm cache cleaned
-  ✓ Docker resources cleaned
-  ✓ Homebrew cache (2.1GB)
+  ✓ npm cache
+  ✓ Docker resources
+  ✓ Homebrew cache
 
-🎉 User-level cleanup complete | 💾 Freed space: 8.45GB
+🎉 Cleanup complete | 💾 Freed space: 8.45GB
 📊 Items processed: 342 | 💾 Free space now: 53.7GB
 ```
 
 ## What Gets Cleaned
 
-| Category | Items Cleaned | Safety Level |
-|----------|---------------|--------------|
-| **🗂️ System** | App caches, logs, trash, crash reports, QuickLook thumbnails | ✅ Safe |
-| **🌐 Browsers** | Safari, Chrome, Edge, Arc, Brave, Firefox, Opera, Vivaldi | ✅ Safe |
-| **💻 Developer** | Node.js, Python, Go, Rust, Docker, Homebrew, Git, Cloud CLI | ✅ Safe |
-| **🛠️ IDEs** | Xcode, VS Code, JetBrains, Android Studio, Unity, Figma | ✅ Safe |
-| **📱 Apps** | Discord, Slack, Teams, Notion, 1Password, Steam, Epic Games | ✅ Safe |
-| **🍎 Apple Silicon** | Rosetta 2, M-series media cache, user activity cache | ✅ Safe |
-| **🔒 System Deep** | Font caches, iCloud sync, Adobe, VMs, system logs | 🌚 --system flag |
+| Category | Items Cleaned | Safety |
+|---|---|---|
+| 🗂️ System | App caches, logs, trash, crash reports, QuickLook thumbnails | Safe |
+| 🌐 Browsers | Safari, Chrome, Edge, Arc, Brave, Firefox, Opera, Vivaldi | Safe |
+| 💻 Developer | Node.js/npm, Python/pip, Go, Rust/cargo, Docker, Homebrew, Git | Safe |
+| 🛠️ IDEs | Xcode, VS Code, JetBrains, Android Studio, Unity, Figma | Safe |
+| 📱 Apps | Common app caches (e.g., Slack, Discord, Teams, Notion, 1Password) | Safe |
+| 🍎 Apple Silicon | Rosetta 2, media services, user activity caches | Safe |
+
+## Uninstaller
+
+- Fast scan of `/Applications` with system-app filtering (e.g., `com.apple.*`)
+- Ranks apps by last used time and shows size hints
+- Two modes: batch multi-select (checkbox) or quick single-select
+- Detects running apps and force‑quits them before removal
+- Single confirmation for the whole batch with estimated space to free
+- Cleans thoroughly and safely:
+  - App bundle (`.app`)
+  - `~/Library/Application Support/<App|BundleID>`
+  - `~/Library/Caches/<BundleID>`
+  - `~/Library/Preferences/<BundleID>.plist`
+  - `~/Library/Logs/<App|BundleID>`
+  - `~/Library/Saved Application State/<BundleID>.savedState`
+  - `~/Library/Containers/<BundleID>` and related Group Containers
+- Final summary: apps removed, files cleaned, total disk space reclaimed
 
 ## Support
 
-If Clean Mac has been helpful to you:
+If Mole has been helpful to you:
 
 - **Star this repository** and share with fellow Mac users
 - **Report issues** or suggest new cleanup targets

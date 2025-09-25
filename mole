@@ -1,0 +1,169 @@
+#!/bin/bash
+# Mac Tools - Main Entry Point
+# A comprehensive suite of macOS maintenance tools
+#
+# 🧹 Clean - Remove junk files and optimize system
+# 🗑️  Uninstall - Remove applications completely
+# 📦 Install - Install useful applications
+#
+# Usage:
+#   ./mac-tools                    # Interactive main menu
+#   ./mac-tools clean              # Direct clean mode
+#   ./mac-tools uninstall          # Direct uninstall mode
+#   ./mac-tools install            # Direct install mode
+#   ./mac-tools --help             # Show help
+
+set -euo pipefail
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source common functions
+source "$SCRIPT_DIR/lib/common.sh"
+
+# Version info
+VERSION="2.0.0"
+
+show_help() {
+    cat << EOF
+Mole v$VERSION - System Cleanup Tool
+=====================================
+
+USAGE:
+    mole [command]
+
+COMMANDS:
+    mole                         # Interactive main menu
+    mole clean                   # Clean system (will ask for password if needed)
+    mole uninstall               # Remove applications completely
+    mole --help                  # Show this help message
+
+For more information, visit: https://github.com/tw93/clean-mac
+EOF
+}
+
+show_main_menu() {
+    local selected="${1:-1}"
+    local redraw_full="${2:-true}"
+
+    if [[ "$redraw_full" == "true" ]]; then
+        show_header "🕳️ Mole v$VERSION" "System Cleanup Tool"
+        echo "🍎 Detected: $(detect_architecture) | 💾 Free space: $(get_free_space)"
+        echo ""
+        echo "What would you like to do?"
+        echo ""
+    fi
+
+    # Save cursor position before printing menu items
+    printf '\033[s'
+
+    show_menu_option 1 "Clean System - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
+    show_menu_option 2 "Uninstall Apps - Completely remove applications" "$([[ $selected -eq 2 ]] && echo true || echo false)"
+    show_menu_option 3 "Help & Information - Usage guide and tips" "$([[ $selected -eq 3 ]] && echo true || echo false)"
+    show_menu_option 4 "Exit - Close Clean" "$([[ $selected -eq 4 ]] && echo true || echo false)"
+
+    if [[ "$redraw_full" == "true" ]]; then
+        echo ""
+        echo -e "${BLUE}Use ↑/↓ arrows to navigate, ENTER to select, ESC/q to quit${NC}"
+    fi
+}
+
+interactive_main_menu() {
+    local current_option=1
+    local total_options=4
+    local first_draw=true
+
+    # Set up signal trapping to handle Ctrl+C gracefully
+    trap 'echo ""; echo "Thank you for using Mole!"; exit 0' INT
+
+    while true; do
+        if [[ "$first_draw" == "true" ]]; then
+            show_main_menu $current_option true
+            first_draw=false
+        else
+            # Restore cursor to saved position and only redraw menu items
+            printf '\033[u'
+            show_main_menu $current_option false
+        fi
+
+        # Use a more robust way to capture key input
+        local key
+        key=$(read_key)
+
+        # Check if read_key failed
+        if [[ $? -ne 0 ]]; then
+            continue
+        fi
+
+        case "$key" in
+            "UP")
+                ((current_option > 1)) && ((current_option--))
+                ;;
+            "DOWN")
+                ((current_option < total_options)) && ((current_option++))
+                ;;
+            "ENTER")
+                case $current_option in
+                    1)
+                        exec "$SCRIPT_DIR/bin/clean.sh"
+                        ;;
+                    2)
+                        exec "$SCRIPT_DIR/bin/uninstall.sh"
+                        ;;
+                    3)
+                        show_help
+                        echo ""
+                        read -p "Press any key to continue..." -n 1 -r
+                        echo  # Add newline after key press
+                        ;;
+                    4)
+                        echo ""
+                        echo "Thank you for using Mole!"
+                        exit 0
+                        ;;
+                esac
+                ;;
+            "QUIT"|"ESC")
+                echo ""
+                echo "Thank you for using Mole!"
+                exit 0
+                ;;
+            "1"|"2"|"3"|"4")
+                case $key in
+                    1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
+                    2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
+                    3) show_help; read -p "Press any key to continue..." -n 1 -r; echo ;;
+                    4) echo ""; echo "Thank you for using Mole!"; exit 0 ;;
+                esac
+                ;;
+            *)
+                # Ignore unrecognized keys
+                ;;
+        esac
+    done
+}
+
+main() {
+    case "${1:-""}" in
+        "clean")
+            exec "$SCRIPT_DIR/bin/clean.sh"
+            ;;
+        "uninstall")
+            exec "$SCRIPT_DIR/bin/uninstall.sh"
+            ;;
+        "help"|"--help"|"-h")
+            show_help
+            exit 0
+            ;;
+        "")
+            interactive_main_menu
+            ;;
+        *)
+            echo "Unknown command: $1"
+            echo "Use 'mac-tools --help' for usage information."
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

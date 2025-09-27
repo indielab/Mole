@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mac Tools - Uninstall Module
+# Mole - Uninstall Module
 # Interactive application uninstaller with keyboard navigation
 #
 # Usage:

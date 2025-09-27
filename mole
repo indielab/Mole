@@ -1,17 +1,15 @@
 #!/bin/bash
-# Mac Tools - Main Entry Point
-# A comprehensive suite of macOS maintenance tools
+# Mole - Main Entry Point
+# A comprehensive macOS maintenance tool
 #
 # 🧹 Clean - Remove junk files and optimize system
 # 🗑️  Uninstall - Remove applications completely
-# 📦 Install - Install useful applications
 #
 # Usage:
-#   ./mac-tools                    # Interactive main menu
-#   ./mac-tools clean              # Direct clean mode
-#   ./mac-tools uninstall          # Direct uninstall mode
-#   ./mac-tools install            # Direct install mode
-#   ./mac-tools --help             # Show help
+#   ./mole                         # Interactive main menu
+#   ./mole clean                   # Direct clean mode
+#   ./mole uninstall               # Direct uninstall mode
+#   ./mole --help                  # Show help
 
 set -euo pipefail
 
@@ -56,7 +54,7 @@ show_main_menu() {
     printf '\033[s'
 
     show_menu_option 1 "Clean System - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
-    show_menu_option 2 "Uninstall Apps - Completely remove applications" "$([[ $selected -eq 2 ]] && echo true || echo false)"
+    show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
     show_menu_option 3 "Help & Information - Usage guide and tips" "$([[ $selected -eq 3 ]] && echo true || echo false)"
     show_menu_option 4 "Exit - Close Mole" "$([[ $selected -eq 4 ]] && echo true || echo false)"
 
@@ -166,7 +164,7 @@ main() {
             ;;
         *)
             echo "Unknown command: $1"
-            echo "Use 'mac-tools --help' for usage information."
+            echo "Use 'mole --help' for usage information."
             exit 1
             ;;
     esac

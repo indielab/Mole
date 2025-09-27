@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mac Tools - Install Module
+# Mole - Install Module
 # Interactive application installer using Homebrew
 #
 # Usage:

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mac Tools - Common Functions Library
+# Mole - Common Functions Library
 # Shared utilities and functions for all modules
 
 # Color definitions

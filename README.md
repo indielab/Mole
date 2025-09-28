@@ -12,13 +12,17 @@
 - 📦 Smart uninstall removes apps together with every leftover directory
 - ⚡️ Fast arrow-key TUI with pagination for big app lists
 
-## Install & Update
+## Installation
 
 ```bash
+# Homebrew (recommended)
+brew install tw93/tap/mole
+
+# Manual install
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 
-## Daily Commands
+## Usage
 
 ```bash
 mole               # Interactive main menu

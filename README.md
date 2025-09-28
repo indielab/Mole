@@ -2,7 +2,6 @@
   <img src="https://cdn.tw93.fun/pic/cole.png" alt="Mole Logo" width="120" height="120" style="border-radius:50%" />
   <h1 style="margin: 12px 0 6px;">Mole</h1>
   <p><em>🦡 Dig deep like a mole to clean your Mac.</em></p>
-  <p style="max-width:480px;">A Bash toolkit that tunnels through caches, leftovers, and forgotten libraries so your macOS stays fast without risking the essentials.</p>
 </div>
 
 ## Highlights

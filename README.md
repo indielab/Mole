@@ -36,9 +36,9 @@ $ mole clean
 🍎 Detected: Apple Silicon M3 | 💾 Free space: 245GB
 
 ------------------------------ System essentials ------------------------------
-  ✓ User app cache (2.8GB)
+  ✓ User app cache (20.8GB)
   ✓ User app logs (190MB)
-  ✓ Trash (3.4GB)
+  ✓ Trash (5.4GB)
 
 ------------------------------ Browser cleanup --------------------------------
   ✓ Safari cache (320MB)
@@ -51,7 +51,7 @@ $ mole clean
   ✓ Homebrew cache (940MB)
 
 ------------------------------ Cleanup summary --------------------------------
-🎉 Cleanup complete | 💾 Freed space: 8.6GB
+🎉 Cleanup complete | 💾 Freed space: 38.6GB
 📊 Items processed: 356 | 💾 Free space now: 253GB
 ===================================================================
 ```

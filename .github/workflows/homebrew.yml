@@ -12,10 +12,10 @@ jobs:
         uses: dawidd6/action-homebrew-bump-formula@v3
         with:
           token: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
-          formula: clean-mac
+          formula: mole
           tap: tw93/homebrew-tap
           create_pullrequest: true
           commit_message: |
-            Update clean-mac to {{version}}
+            Update mole to {{version}}
 
             Created by action-homebrew-bump-formula

@@ -15,10 +15,6 @@
 ## Installation
 
 ```bash
-# Homebrew (recommended)
-brew install tw93/tap/mole
-
-# Manual install
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 

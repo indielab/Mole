@@ -298,12 +298,7 @@ start_cleanup() {
     echo "🕳️ Mole - Deeper system cleanup"
     echo "=================================================="
     echo ""
-    echo "This will clean:"
-    echo "  • App caches and logs"
-    echo "  • Browser data"
-    echo "  • Developer tool caches"
-    echo "  • Temporary files"
-    echo "  • And much more..."
+    echo "This will clean: App caches & logs, Browser data, Developer tools, Temporary files & more..."
     echo ""
 
     # Check if we're in an interactive terminal
@@ -697,7 +692,7 @@ perform_cleanup() {
     end_section
 
     # ===== 5. Orphaned leftovers =====
-    log_header "Checking for orphaned app files"
+    start_section "Orphaned app files"
 
     # Build a list of installed application bundle identifiers
     echo -e "  ${BLUE}🔍${NC} Building app list..."
@@ -801,6 +796,7 @@ perform_cleanup() {
     if [ "$found_orphaned" = false ]; then
         echo -e "  ${GREEN}✓${NC} No orphaned files found"
     fi
+    end_section
 
     # Common temp and test data
     safe_clean ~/Library/Application\ Support/TestApp* "Test app data"
@@ -823,12 +819,13 @@ perform_cleanup() {
     # System cleanup was moved to the beginning (right after password verification)
 
     # ===== 7. iOS device backups =====
-    log_header "Checking iOS device backups..."
+    start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then
         backup_kb=$(du -sk "$backup_dir" 2>/dev/null | awk '{print $1}')
         if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then # >100MB
             backup_human=$(du -shm "$backup_dir" 2>/dev/null | awk '{print $1"M"}')
+            note_activity
             echo -e "  👉 Found ${GREEN}${backup_human}${NC}, you can delete it manually"
             echo -e "  👉 ${backup_dir}"
         else
@@ -837,9 +834,11 @@ perform_cleanup() {
     else
         echo -e "  ${BLUE}✨${NC} Nothing to tidy"
     fi
+    end_section
 
     # ===== 8. Summary =====
-    log_header "Cleanup summary"
+    start_section "Cleanup summary"
+    note_activity
     space_after=$(df / | tail -1 | awk '{print $4}')
     current_space_after=$(get_free_space)
 
@@ -864,6 +863,7 @@ perform_cleanup() {
     fi
 
     echo "==================================================================="
+    end_section
 }
 
 main() {

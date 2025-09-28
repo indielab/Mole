@@ -1,23 +1,24 @@
 <div align="center">
-  <img src="https://cdn.tw93.fun/pic/cole.jpg" alt="Mole Logo" width="120" height="120" style="border-radius:50%" />
+  <img src="https://cdn.tw93.fun/pic/cole.png" alt="Mole Logo" width="120" height="120" style="border-radius:50%" />
   <h1 style="margin: 12px 0 6px;">Mole</h1>
-  <p><em>🧹 Like a mole, dig deep to clean your mac.</em></p>
+  <p><em>🦡 Dig deep like a mole to clean your Mac.</em></p>
+  <p style="max-width:480px;">A Bash toolkit that tunnels through caches, leftovers, and forgotten libraries so your macOS stays fast without risking the essentials.</p>
 </div>
 
-## Features
+## Highlights
 
-- 🐦 Deep Clean: System/user caches, logs, temp and more
-- 🛡️ Safe by default: Skips critical system and input method settings
-- 👀 App Uninstall: Remove app bundle and related data comprehensively
-- 👻 Smooth TUI: Fast arrow-key menus with pagination for large lists
+- 🦡 Deep-clean hidden caches, logs, and temp files in one sweep
+- 🛡 Guardrails built in: skip vital macOS and input method data
+- 📦 Smart uninstall removes apps together with every leftover directory
+- ⚡️ Fast arrow-key TUI with pagination for big app lists
 
-## Installation
+## Install & Update
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 
-## Usage
+## Daily Commands
 
 ```bash
 mole               # Interactive main menu
@@ -26,33 +27,23 @@ mole uninstall     # Interactive app uninstaller
 mole --help        # Show help
 ```
 
-### Example Output
+### Quick Peek
 
 ```bash
-🕳️ Mole - Deeper system cleanup
-========================
-🍎 Detected: Apple Silicon | 💾 Free space: 45.2GB
-🚀 Mode: User-level cleanup (no password required)
+$ mole clean
+🦡 MOLE — Dig deep like a mole to clean your Mac.
 
-▶ System essentials
-  ✓ User app cache
-  ✓ User app logs
-  ✓ Trash
+Collecting inventory ...
 
-▶ Browser cleanup
-  ✓ Safari cache
-  ✓ Chrome cache
+▶ System essentials     freed 3.1GB  (caches, logs, trash)
+▶ Browser cleanup        freed 820MB (Safari, Chrome, Arc)
+▶ Developer tools        freed 4.6GB (npm, Docker, Homebrew)
 
-▶ Developer tools
-  ✓ npm cache
-  ✓ Docker resources
-  ✓ Homebrew cache
-
-🎉 Cleanup complete | 💾 Freed space: 8.45GB
-📊 Items processed: 342 | 💾 Free space now: 53.7GB
+🎉 Done! 8.5GB reclaimed across 342 items.
+💡 Tip: run `mole --help` to discover more commands.
 ```
 
-## What Gets Cleaned
+## What Mole Cleans
 
 | Category | Items Cleaned | Safety |
 |---|---|---|
@@ -63,7 +54,7 @@ mole --help        # Show help
 | 📱 Apps | Common app caches (e.g., Slack, Discord, Teams, Notion, 1Password) | Safe |
 | 🍎 Apple Silicon | Rosetta 2, media services, user activity caches | Safe |
 
-## Uninstaller
+## Smart Uninstall
 
 - Fast scan of `/Applications` with system-app filtering (e.g., `com.apple.*`)
 - Ranks apps by last used time and shows size hints

@@ -21,23 +21,27 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
 VERSION="1.0.0"
+MOLE_TAGLINE="Dig deep like a mole to clean your Mac."
+
+show_brand_banner() {
+    printf '%b🦡 %bMOLE%b — %b%s%b\n' \
+        "$PURPLE" "$BLUE" "$NC" "$GREEN" "$MOLE_TAGLINE" "$NC"
+}
 
 show_help() {
-    cat <<'EOF'
-Mole can dig deep to clean your mac.
-=====================================
+    show_brand_banner
+    echo
+    printf "%s%s%s\n" "$BLUE" "USAGE" "$NC"
+    printf "  %s%s%s [command]\n\n" "$GREEN" "mole" "$NC"
 
-USAGE:
-    mole [command]
+    printf "%s%s%s\n" "$BLUE" "COMMANDS" "$NC"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole --help" "$NC" "Show this help message"
 
-COMMANDS:
-    mole                         # Interactive main menu
-    mole clean                   # Deeper system cleanup
-    mole uninstall               # Remove applications completely
-    mole --help                  # Show this help message
-
-For more information, visit: https://github.com/tw93/mole
-EOF
+    printf "\n%s%s%s\n" "$BLUE" "MORE" "$NC"
+    printf "  https://github.com/tw93/mole\n"
 }
 
 show_main_menu() {
@@ -46,7 +50,7 @@ show_main_menu() {
 
     if [[ "$redraw_full" == "true" ]]; then
         echo ""
-        echo "Mole can dig deep to clean your mac."
+        show_brand_banner
         echo ""
     fi
 

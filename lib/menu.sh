@@ -7,8 +7,10 @@ declare -a menu_options=()
 declare -i selected=0
 declare -i menu_size=0
 
-# ANSI escape sequences
-readonly ESC=$'\033'
+# ANSI escape sequences (allow reuse when sourced after lib/common.sh)
+if [[ -z "${ESC+x}" ]]; then
+    readonly ESC=$'\033'
+fi
 readonly UP="${ESC}[A"
 readonly DOWN="${ESC}[B"
 readonly ENTER=$'\n'

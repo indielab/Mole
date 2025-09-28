@@ -34,7 +34,6 @@ $ mole clean
 ==================================================
 
 🍎 Detected: Apple Silicon M3 | 💾 Free space: 245GB
-🚀 Mode: System-level cleanup (admin privileges)
 
 ------------------------------ System essentials ------------------------------
   ✓ User app cache (2.8GB)
@@ -45,7 +44,6 @@ $ mole clean
   ✓ Safari cache (320MB)
   ✓ Chrome cache (1.2GB)
   ✓ Arc cache (460MB)
-  ✓ Firefox profile cache (88MB)
 
 ------------------------------ Developer tools --------------------------------
   ✓ npm cache cleaned
@@ -55,9 +53,6 @@ $ mole clean
 ------------------------------ Cleanup summary --------------------------------
 🎉 Cleanup complete | 💾 Freed space: 8.6GB
 📊 Items processed: 356 | 💾 Free space now: 253GB
-✨ Apple Silicon optimizations finished
-💡 Want deeper cleanup next time?
-   Just enter your password when prompted for system-level cleaning
 ===================================================================
 ```
 

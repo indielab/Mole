@@ -30,16 +30,35 @@ mole --help        # Show help
 
 ```bash
 $ mole clean
-🦡 MOLE — Dig deep like a mole to clean your Mac.
+🕳️ Mole - Deeper system cleanup
+==================================================
 
-Collecting inventory ...
+🍎 Detected: Apple Silicon M3 | 💾 Free space: 245GB
+🚀 Mode: System-level cleanup (admin privileges)
 
-▶ System essentials     freed 3.1GB  (caches, logs, trash)
-▶ Browser cleanup        freed 820MB (Safari, Chrome, Arc)
-▶ Developer tools        freed 4.6GB (npm, Docker, Homebrew)
+------------------------------ System essentials ------------------------------
+  ✓ User app cache (2.8GB)
+  ✓ User app logs (190MB)
+  ✓ Trash (3.4GB)
 
-🎉 Done! 8.5GB reclaimed across 342 items.
-💡 Tip: run `mole --help` to discover more commands.
+------------------------------ Browser cleanup --------------------------------
+  ✓ Safari cache (320MB)
+  ✓ Chrome cache (1.2GB)
+  ✓ Arc cache (460MB)
+  ✓ Firefox profile cache (88MB)
+
+------------------------------ Developer tools --------------------------------
+  ✓ npm cache cleaned
+  ✓ Docker resources cleaned
+  ✓ Homebrew cache (940MB)
+
+------------------------------ Cleanup summary --------------------------------
+🎉 Cleanup complete | 💾 Freed space: 8.6GB
+📊 Items processed: 356 | 💾 Free space now: 253GB
+✨ Apple Silicon optimizations finished
+💡 Want deeper cleanup next time?
+   Just enter your password when prompted for system-level cleaning
+===================================================================
 ```
 
 ## What Mole Cleans

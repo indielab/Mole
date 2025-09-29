@@ -1,64 +1,29 @@
 #!/bin/bash
+# Paginated menu with arrow key navigation
 
-# Proper paginated menu with arrow key navigation
-# 10 items per page, up/down to navigate, space to select, left/right to change pages
+set -euo pipefail
 
 # Terminal control functions
-hide_cursor() { printf '\033[?25l' >&2; }
-show_cursor() { printf '\033[?25h' >&2; }
-clear_screen() { printf '\033[2J\033[H' >&2; }
-enter_alt_screen() { tput smcup >/dev/null 2>&1 || true; }
-leave_alt_screen() { tput rmcup >/dev/null 2>&1 || true; }
-disable_wrap() { printf '\033[?7l' >&2; }   # disable line wrap
-enable_wrap() { printf '\033[?7h' >&2; }
+enter_alt_screen() { tput smcup 2>/dev/null || true; }
+leave_alt_screen() { tput rmcup 2>/dev/null || true; }
 
-# Read single key with arrow key support (macOS bash 3.2 friendly)
-read_key() {
-    local key seq
-    IFS= read -rsn1 key || return 1
-
-    # Some terminals may yield empty on Enter with -n1
-    if [[ -z "$key" ]]; then
-        echo "ENTER"
-        return 0
-    fi
-
-    case "$key" in
-        $'\033')
-            # Read next two bytes within 1s: "[A", "[B", ...
-            if IFS= read -rsn2 -t 1 seq 2>/dev/null; then
-                case "$seq" in
-                    "[A") echo "UP" ;;
-                    "[B") echo "DOWN" ;;
-                    "[C") echo "RIGHT" ;;
-                    "[D") echo "LEFT" ;;
-                    *) echo "OTHER" ;;
-                esac
-            else
-                echo "OTHER"
-            fi
-            ;;
-        ' ') echo "SPACE" ;;
-        $'\n'|$'\r') echo "ENTER" ;;
-        'q'|'Q') echo "QUIT" ;;
-        'a'|'A') echo "ALL" ;;
-        'n'|'N') echo "NONE" ;;
-        '?') echo "HELP" ;;
-        *) echo "OTHER" ;;
-    esac
-}
-
-# Paginated multi-select menu
+# Main paginated multi-select menu function
 paginated_multi_select() {
     local title="$1"
     shift
     local -a items=("$@")
 
+    # Validation
+    if [[ ${#items[@]} -eq 0 ]]; then
+        echo "No items provided" >&2
+        return 1
+    fi
+
     local total_items=${#items[@]}
-    local items_per_page=10  # Reduced for better readability
+    local items_per_page=10
     local total_pages=$(( (total_items + items_per_page - 1) / items_per_page ))
     local current_page=0
-    local cursor_pos=0  # Position within current page (0-9)
+    local cursor_pos=0
     local -a selected=()
 
     # Initialize selection array
@@ -69,78 +34,60 @@ paginated_multi_select() {
     # Cleanup function
     cleanup() {
         show_cursor
-        stty echo 2>/dev/null || true
-        stty icanon 2>/dev/null || true
+        stty echo icanon 2>/dev/null || true
         leave_alt_screen
-        enable_wrap
     }
     trap cleanup EXIT INT TERM
 
-    # Setup terminal for optimal responsiveness
-    stty -echo -icanon min 1 time 0 2>/dev/null || true
+    # Setup terminal
+    stty -echo -icanon 2>/dev/null || true
     enter_alt_screen
-    disable_wrap
     hide_cursor
 
-    # Main display function
-    first_draw=1
-    # Helper: print one cleared line
-    print_line() {
-        printf "\r\033[2K%s\n" "$1" >&2
-    }
+    # Helper functions
+    print_line() { printf "\r\033[2K%s\n" "$1" >&2; }
 
-    # Helper: render one item line at given page position
-    render_item_line() {
-        local page_pos=$1
-        local start_idx=$((current_page * items_per_page))
-        local i=$((start_idx + page_pos))
+    render_item() {
+        local idx=$1 is_current=$2
         local checkbox="☐"
-        local cursor_marker="  "
-        [[ ${selected[i]} == true ]] && checkbox="☑"
-        if [[ $page_pos -eq $cursor_pos ]]; then
-            cursor_marker="▶ "
-            printf "\r\033[2K\033[7m%s%s %s\033[0m\n" "$cursor_marker" "$checkbox" "${items[i]}" >&2
+        [[ ${selected[idx]} == true ]] && checkbox="☑"
+
+        if [[ $is_current == true ]]; then
+            printf "\r\033[2K\033[7m▶ %s %s\033[0m\n" "$checkbox" "${items[idx]}" >&2
         else
-            printf "\r\033[2K%s%s %s\n" "$cursor_marker" "$checkbox" "${items[i]}" >&2
+            printf "\r\033[2K  %s %s\n" "$checkbox" "${items[idx]}" >&2
         fi
     }
 
-    # Helper: move cursor to top-left anchor saved by tput sc
-    to_anchor() { tput rc >/dev/null 2>&1 || true; }
-
-    # Full draw of entire screen - simplified for stability
+    # Draw the complete menu
     draw_menu() {
-        # Always do full screen redraw for reliability
-        clear_screen
+        printf "\033[H\033[J" >&2  # Clear screen and move to top
 
-        # Simple header
-        printf "%s\n" "$title" >&2
-        printf "%s\n" "$(printf '=%.0s' $(seq 1 ${#title}))" >&2
+        # Header
+        printf "%s\n%s\n" "$title" "$(printf '=%.0s' $(seq 1 ${#title}))" >&2
 
-        # Status bar
+        # Status
         local selected_count=0
         for ((i = 0; i < total_items; i++)); do
             [[ ${selected[i]} == true ]] && ((selected_count++))
         done
-
-        printf "Page %d/%d │ Total: %d │ Selected: %d\n" \
+        printf "Page %d/%d │ Total: %d │ Selected: %d\n\n" \
             $((current_page + 1)) $total_pages $total_items $selected_count >&2
-        print_line ""
 
-        # Calculate page boundaries
+        # Items for current page
         local start_idx=$((current_page * items_per_page))
         local end_idx=$((start_idx + items_per_page - 1))
         [[ $end_idx -ge $total_items ]] && end_idx=$((total_items - 1))
 
-        # Display items for current page
         for ((i = start_idx; i <= end_idx; i++)); do
-            local page_pos=$((i - start_idx))
-            render_item_line "$page_pos"
+            local is_current=false
+            [[ $((i - start_idx)) -eq $cursor_pos ]] && is_current=true
+            render_item $i $is_current
         done
 
-        # Fill empty slots to always print items_per_page lines
-        local items_on_page=$((end_idx - start_idx + 1))
-        for ((i = items_on_page; i < items_per_page; i++)); do
+        # Fill empty slots
+        local items_shown=$((end_idx - start_idx + 1))
+        for ((i = items_shown; i < items_per_page; i++)); do
             print_line ""
         done
 
@@ -148,45 +95,42 @@ paginated_multi_select() {
         print_line "↑↓: Navigate | Space: Select | Enter: Confirm | Q: Exit"
     }
 
-    # Help screen
+    # Show help screen
     show_help() {
-        clear_screen
-        echo "App Uninstaller - Help" >&2
-        echo "======================" >&2
-        echo >&2
-        echo "  ↑ / ↓       Navigate up/down" >&2
-        echo "  ← / →       Previous/next page" >&2
-        echo "  Space       Select/deselect app" >&2
-        echo "  Enter       Confirm selection" >&2
-        echo "  A           Select all" >&2
-        echo "  N           Deselect all" >&2
-        echo "  Q           Exit" >&2
-        echo >&2
-        read -p "Press any key to continue..." -n 1 >&2
+        printf "\033[H\033[J" >&2
+        cat >&2 << 'EOF'
+Help - Navigation Controls
+==========================
+
+  ↑ / ↓      Navigate up/down
+  Space      Select/deselect item
+  Enter      Confirm selection
+  A          Select all
+  N          Deselect all
+  Q          Exit
+
+Press any key to continue...
+EOF
+        read -n 1 -s >&2
     }
 
-    # Main loop - simplified to always do full redraws for stability
+    # Main interaction loop
     while true; do
-        draw_menu  # Always full redraw to avoid display issues
-
+        draw_menu
         local key=$(read_key)
 
-        # Immediate exit key
-        if [[ "$key" == "QUIT" ]]; then
-            cleanup
-            return 1
-        fi
-
         case "$key" in
+            "QUIT") cleanup; return 1 ;;
             "UP")
                 if [[ $cursor_pos -gt 0 ]]; then
                     ((cursor_pos--))
                 elif [[ $current_page -gt 0 ]]; then
                     ((current_page--))
-                    cursor_pos=$((items_per_page - 1))
+                    # Calculate cursor position for new page
                     local start_idx=$((current_page * items_per_page))
-                    local end_idx=$((start_idx + items_per_page - 1))
-                    [[ $end_idx -ge $total_items ]] && cursor_pos=$((total_items - start_idx - 1))
+                    local items_on_page=$((total_items - start_idx))
+                    [[ $items_on_page -gt $items_per_page ]] && items_on_page=$items_per_page
+                    cursor_pos=$((items_on_page - 1))
                 fi
                 ;;
             "DOWN")
@@ -201,33 +145,13 @@ paginated_multi_select() {
                     cursor_pos=0
                 fi
                 ;;
-            "LEFT")
-                if [[ $current_page -gt 0 ]]; then
-                    ((current_page--))
-                    cursor_pos=0
-                fi
-                ;;
-            "RIGHT")
-                if [[ $current_page -lt $((total_pages - 1)) ]]; then
-                    ((current_page++))
-                    cursor_pos=0
-                fi
-                ;;
-            "PGUP")
-                current_page=0
-                cursor_pos=0
-                ;;
-            "PGDOWN")
-                current_page=$((total_pages - 1))
-                cursor_pos=0
-                ;;
             "SPACE")
-                local actual_idx=$((current_page * items_per_page + cursor_pos))
-                if [[ $actual_idx -lt $total_items ]]; then
-                    if [[ ${selected[actual_idx]} == true ]]; then
-                        selected[actual_idx]=false
+                local idx=$((current_page * items_per_page + cursor_pos))
+                if [[ $idx -lt $total_items ]]; then
+                    if [[ ${selected[idx]} == true ]]; then
+                        selected[idx]=false
                     else
-                        selected[actual_idx]=true
+                        selected[idx]=true
                     fi
                 fi
                 ;;
@@ -241,11 +165,9 @@ paginated_multi_select() {
                     selected[i]=false
                 done
                 ;;
-            "HELP")
-                show_help
-                ;;
+            "HELP") show_help ;;
             "ENTER")
-                # If no items are selected, select the current item
+                # Auto-select current item if nothing selected
                 local has_selection=false
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then
@@ -255,58 +177,38 @@ paginated_multi_select() {
                 done
 
                 if [[ $has_selection == false ]]; then
-                    # Select current item under cursor
-                    local actual_idx=$((current_page * items_per_page + cursor_pos))
-                    if [[ $actual_idx -lt $total_items ]]; then
-                        selected[actual_idx]=true
-                    fi
+                    local idx=$((current_page * items_per_page + cursor_pos))
+                    [[ $idx -lt $total_items ]] && selected[idx]=true
                 fi
 
-                # Build result
+                # Store result in global variable instead of returning via stdout
                 local result=""
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then
                         result="$result $i"
                     fi
                 done
-                cleanup
-                echo "${result# }"
+                local final_result="${result# }"
+                
+                # Remove the trap to avoid cleanup on normal exit
+                trap - EXIT INT TERM
+                
+                # Store result in global variable
+                MOLE_SELECTION_RESULT="$final_result"
+                
+                # Manually cleanup terminal before returning
+                show_cursor
+                stty echo icanon 2>/dev/null || true
+                leave_alt_screen
+                
                 return 0
-                ;;
-            *)
-                # Ignore unrecognized keys - just continue the loop
                 ;;
         esac
     done
 }
 
-# Demo function
-demo_paginated() {
-    echo "=== Paginated Multi-select Demo ===" >&2
-
-    # Create test data
-    local test_items=()
-    for i in {1..35}; do
-        test_items+=("Application $i ($(( (RANDOM % 500) + 50 ))MB)")
-    done
-
-    local result
-    result=$(paginated_multi_select "Choose Applications to Uninstall" "${test_items[@]}")
-    local exit_code=$?
-
-    if [[ $exit_code -eq 0 ]]; then
-        if [[ -n "$result" ]]; then
-            echo "Selected indices: $result" >&2
-            echo "Count: $(echo $result | wc -w | tr -d ' ')" >&2
-        else
-            echo "No items selected" >&2
-        fi
-    else
-        echo "Selection cancelled" >&2
-    fi
-}
-
-# Run demo if script is executed directly
+# Export function for external use
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    demo_paginated
+    echo "This is a library file. Source it from other scripts." >&2
+    exit 1
 fi

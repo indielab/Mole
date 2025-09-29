@@ -1,39 +1,40 @@
 #!/bin/bash
+# App selection functionality
 
-# App selection functionality using the new menu system
-# This replaces the complex interactive_app_selection function
+set -euo pipefail
 
-# Interactive app selection using the menu.sh library
+# Format app info for display
+format_app_display() {
+    local display_name="$1" size="$2" last_used="$3"
+
+    # Truncate long names
+    local truncated_name="$display_name"
+    if [[ ${#display_name} -gt 24 ]]; then
+        truncated_name="${display_name:0:21}..."
+    fi
+
+    # Format size
+    local size_str="Unknown"
+    [[ "$size" != "0" && "$size" != "" && "$size" != "Unknown" ]] && size_str="$size"
+
+    printf "%-24s (%s) | %s" "$truncated_name" "$size_str" "$last_used"
+}
+
+# Global variable to store selection result (bash 3.2 compatible)
+MOLE_SELECTION_RESULT=""
+
+# Main app selection function
 select_apps_for_uninstall() {
     if [[ ${#apps_data[@]} -eq 0 ]]; then
         log_warning "No applications available for uninstallation"
         return 1
     fi
 
-    # Build menu options from apps_data
+    # Build menu options
     local -a menu_options=()
     for app_data in "${apps_data[@]}"; do
-        IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$app_data"
-
-        # The size is already formatted (e.g., "91M", "2.1G"), so use it directly
-        local size_str="Unknown"
-        if [[ "$size" != "0" && "$size" != "" && "$size" != "Unknown" ]]; then
-            size_str="$size"
-        fi
-
-        # Format display name with better width control
-        local display_name
-        local max_name_length=25
-        local truncated_name="$app_name"
-
-        # Truncate app name if too long
-        if [[ ${#app_name} -gt $max_name_length ]]; then
-            truncated_name="${app_name:0:$((max_name_length-3))}..."
-        fi
-
-        # Create aligned display format
-        display_name=$(printf "%-${max_name_length}s %8s | %s" "$truncated_name" "($size_str)" "$last_used")
-        menu_options+=("$display_name")
+        IFS='|' read -r epoch app_path display_name bundle_id size last_used <<< "$app_data"
+        menu_options+=("$(format_app_display "$display_name" "$size" "$last_used")")
     done
 
     echo ""
@@ -42,12 +43,9 @@ select_apps_for_uninstall() {
     echo "Found ${#apps_data[@]} apps. Select apps to remove:"
     echo ""
 
-    # Load paginated menu system (arrow key navigation)
-    source "$(dirname "${BASH_SOURCE[0]}")/paginated_menu.sh"
-
-    # Use paginated multi-select menu with arrow key navigation
-    local selected_indices
-    selected_indices=$(paginated_multi_select "Select Apps to Remove" "${menu_options[@]}")
+    # Use paginated menu - result will be stored in MOLE_SELECTION_RESULT
+    MOLE_SELECTION_RESULT=""
+    paginated_multi_select "Select Apps to Remove" "${menu_options[@]}"
     local exit_code=$?
 
     if [[ $exit_code -ne 0 ]]; then
@@ -55,103 +53,30 @@ select_apps_for_uninstall() {
         return 1
     fi
 
-    if [[ -z "$selected_indices" ]]; then
+    if [[ -z "$MOLE_SELECTION_RESULT" ]]; then
         echo "No apps selected"
         return 1
     fi
 
-    # Build selected_apps array from indices
+    # Build selected apps array (global variable in bin/uninstall.sh)
+    # Clear existing selections - compatible with bash 3.2
     selected_apps=()
-    for idx in $selected_indices; do
-        # Validate that idx is a number
-        if [[ "$idx" =~ ^[0-9]+$ ]]; then
+
+    # Parse indices and build selected apps array
+    # Convert space-separated string to array for better handling
+    read -a indices_array <<< "$MOLE_SELECTION_RESULT"
+
+    for idx in "${indices_array[@]}"; do
+        if [[ "$idx" =~ ^[0-9]+$ ]] && [[ $idx -ge 0 ]] && [[ $idx -lt ${#apps_data[@]} ]]; then
             selected_apps+=("${apps_data[idx]}")
         fi
     done
 
-    echo "Selected ${#selected_apps[@]} apps"
     return 0
 }
 
-# Alternative simplified single-select interface for quick selection
-quick_select_app() {
-    if [[ ${#apps_data[@]} -eq 0 ]]; then
-        log_warning "No applications available for uninstallation"
-        return 1
-    fi
-
-    # Build menu options from apps_data (same as above)
-    local -a menu_options=()
-    for app_data in "${apps_data[@]}"; do
-        IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$app_data"
-
-        # The size is already formatted (e.g., "91M", "2.1G"), so use it directly
-        local size_str="Unknown"
-        if [[ "$size" != "0" && "$size" != "" && "$size" != "Unknown" ]]; then
-            size_str="$size"
-        fi
-
-        # Format display name with better width control
-        local display_name
-        local max_name_length=25
-        local truncated_name="$app_name"
-
-        # Truncate app name if too long
-        if [[ ${#app_name} -gt $max_name_length ]]; then
-            truncated_name="${app_name:0:$((max_name_length-3))}..."
-        fi
-
-        # Create aligned display format
-        display_name=$(printf "%-${max_name_length}s %8s | %s" "$truncated_name" "($size_str)" "$last_used")
-        menu_options+=("$display_name")
-    done
-
-    echo ""
-    echo "🗑️ Quick Uninstall"
-    echo ""
-
-    # Use single-select menu
-    if show_menu "Quick Uninstall" "${menu_options[@]}"; then
-        local selected_idx=$?
-        selected_apps=("${apps_data[selected_idx]}")
-        echo "✅ Selected: ${menu_options[selected_idx]}"
-        return 0
-    else
-        echo "❌ Operation cancelled"
-        return 1
-    fi
-}
-
-# Show app selection mode menu
-show_app_selection_mode() {
-    echo ""
-    echo "🗑️ Application Uninstaller"
-    echo ""
-
-    local mode_options=(
-        "Batch Mode (select multiple apps with checkboxes)"
-        "Quick Mode (select one app at a time)"
-        "Exit Uninstaller"
-    )
-
-    if show_menu "Choose uninstall mode:" "${mode_options[@]}"; then
-        local mode=$?
-        case $mode in
-            0)
-                select_apps_for_uninstall
-                return $?
-                ;;
-            1)
-                quick_select_app
-                return $?
-                ;;
-            2)
-                echo "Goodbye!"
-                return 1
-                ;;
-        esac
-    else
-        echo "Operation cancelled"
-        return 1
-    fi
-}
+# Export function for external use
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "This is a library file. Source it from other scripts." >&2
+    exit 1
+fi

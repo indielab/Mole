@@ -6,10 +6,10 @@
 
 ## Highlights
 
-- 🦡 Deep-clean hidden caches, logs, and temp files in one sweep
-- 🛡 Guardrails built in: skip vital macOS and input method data
-- 📦 Smart uninstall removes apps together with every leftover directory
-- ⚡️ Fast arrow-key TUI with pagination for big app lists
+- 🦡 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
+- 📦 **Smart Uninstall** - Complete app removal with all related files and folders
+- ⚡️ **Fast Interactive UI** - Arrow-key navigation with pagination for large lists
+- 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
 ## Installation
 
@@ -21,77 +21,97 @@ curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 
 ```bash
 mole               # Interactive main menu
-mole clean         # Deeper system cleanup
+mole clean         # Deep system cleanup
 mole uninstall     # Interactive app uninstaller
 mole --help        # Show help
 ```
 
-### Quick Peek
+## Examples
+
+### Deep System Cleanup
 
 ```bash
 $ mole clean
-🕳️ Mole - Deeper system cleanup
-==================================================
 
-🍎 Detected: Apple Silicon M3 | 💾 Free space: 245GB
+Starting user-level cleanup...
 
------------------------------- System essentials ------------------------------
-  ✓ User app cache (20.8GB)
-  ✓ User app logs (190MB)
-  ✓ Trash (5.4GB)
+▶ System essentials
+  ✓ User app cache (28 items) (45.2GB)
+  ✓ User app logs (15 items) (2.1GB)
+  ✓ Trash (12.3GB)
 
------------------------------- Browser cleanup --------------------------------
-  ✓ Safari cache (320MB)
-  ✓ Chrome cache (1.2GB)
-  ✓ Arc cache (460MB)
+▶ Browser cleanup
+  ✓ Chrome cache (8 items) (8.4GB)
+  ✓ Safari cache (2.1GB)
+  ✓ Arc cache (3.2GB)
 
------------------------------- Developer tools --------------------------------
-  ✓ npm cache cleaned
-  ✓ Docker resources cleaned
-  ✓ Homebrew cache (940MB)
+▶ Extended developer caches
+  ✓ Xcode derived data (9.1GB)
+  ✓ Node.js cache (4 items) (14.2GB)
+  ✓ VS Code cache (1.4GB)
 
------------------------------- Cleanup summary --------------------------------
-🎉 Cleanup complete | 💾 Freed space: 38.6GB
-📊 Items processed: 356 | 💾 Free space now: 253GB
-===================================================================
+▶ Applications
+  ✓ JetBrains cache (3.8GB)
+  ✓ Slack cache (2.2GB)
+  ✓ Discord cache (1.8GB)
+
+====================================================================
+🎉 CLEANUP COMPLETE!
+💾 Space freed: 95.50GB | Free space now: 223.5GB
+📊 Files cleaned: 6420 | Categories processed: 6
+====================================================================
+```
+
+### Smart App Uninstaller
+
+```bash
+$ mole uninstall
+
+Select Apps to Remove
+
+▶ ☑ Adobe Creative Cloud      (12.4G) | Old
+  ☐ WeChat                    (2.1G) | Recent
+  ☐ Final Cut Pro             (3.8G) | Recent
+
+🗑️  Uninstalling: Adobe Creative Cloud
+  ✓ Removed application
+  ✓ Cleaned 45 related files
+
+====================================================================
+🎉 UNINSTALLATION COMPLETE!
+🗑️ Apps uninstalled: 1 | Space freed: 12.4GB
+====================================================================
 ```
 
 ## What Mole Cleans
 
-| Category | Items Cleaned | Safety |
-|---|---|---|
-| 🗂️ System | App caches, logs, trash, crash reports, QuickLook thumbnails | Safe |
-| 🌐 Browsers | Safari, Chrome, Edge, Arc, Brave, Firefox, Opera, Vivaldi | Safe |
-| 💻 Developer | Node.js/npm, Python/pip, Go, Rust/cargo, Docker, Homebrew, Git | Safe |
-| 🛠️ IDEs | Xcode, VS Code, JetBrains, Android Studio, Unity, Figma | Safe |
-| 📱 Apps | Common app caches (e.g., Slack, Discord, Teams, Notion, 1Password) | Safe |
-| 🍎 Apple Silicon | Rosetta 2, media services, user activity caches | Safe |
+| Category | Targets | Recovery |
+|----------|---------|----------|
+| 🗂️ **System** | App caches, logs, trash, crash reports | 20-50GB |
+| 🌐 **Browsers** | Safari, Chrome, Edge, Arc, Firefox cache | 5-15GB |
+| 💻 **Developer** | npm, pip, Docker, Homebrew, Xcode | 15-40GB |
+| 📱 **Apps** | Slack, Discord, Teams, Notion cache | 3-10GB |
 
-## Smart Uninstall
+## What Mole Uninstalls
 
-- Fast scan of `/Applications` with system-app filtering (e.g., `com.apple.*`)
-- Ranks apps by last used time and shows size hints
-- Two modes: batch multi-select (checkbox) or quick single-select
-- Detects running apps and force‑quits them before removal
-- Single confirmation for the whole batch with estimated space to free
-- Cleans thoroughly and safely:
-  - App bundle (`.app`)
-  - `~/Library/Application Support/<App|BundleID>`
-  - `~/Library/Caches/<BundleID>`
-  - `~/Library/Preferences/<BundleID>.plist`
-  - `~/Library/Logs/<App|BundleID>`
-  - `~/Library/Saved Application State/<BundleID>.savedState`
-  - `~/Library/Containers/<BundleID>` and related Group Containers
-- Final summary: apps removed, files cleaned, total disk space reclaimed
+| Component | Files Removed | Examples |
+|-----------|--------------|----------|
+| 🎯 **App Bundle** | Main .app executable | `/Applications/App.app` |
+| 📁 **Support Data** | App-specific user data | `~/Library/Application Support/AppName` |
+| 💾 **Cache Files** | Temporary & cache data | `~/Library/Caches/com.company.app` |
+| ⚙️ **Preferences** | Settings & config files | `~/Library/Preferences/com.app.plist` |
+| 📝 **Logs & Reports** | Crash reports & logs | `~/Library/Logs/AppName` |
+| 📦 **Containers** | Sandboxed app data | `~/Library/Containers/com.app.id` |
 
 ## Support
 
-If Mole has been helpful to you:
+If Mole helps you recover disk space:
 
-- **Star this repository** and share with fellow Mac users
-- **Report issues** or suggest new cleanup targets
-- I have two cats. If Mole helps you, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food 🥩🍤</a>
+- ⭐ **Star this repository** and share with fellow Mac users
+- 🐛 **Report issues** via GitHub Issues
+- 🎁 I have two cats. You can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food 🥩🍤</a>
 
 ## License
 
-MIT License © [tw93](https://github.com/tw93) - Feel free to enjoy and contribute to open source.
+- Follow the MIT License.
+- Please feel free to enjoy and participate in open source.

@@ -2,55 +2,7 @@
 
 # Batch uninstall functionality with minimal confirmations
 # Replaces the overly verbose individual confirmation approach
-
-# Find and list app-related files
-find_app_files() {
-    local bundle_id="$1"
-    local app_name="$2"
-    local -a files_to_clean=()
-
-    # Application Support
-    [[ -d ~/Library/Application\ Support/"$app_name" ]] && files_to_clean+=("$HOME/Library/Application Support/$app_name")
-    [[ -d ~/Library/Application\ Support/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Application Support/$bundle_id")
-
-    # Caches
-    [[ -d ~/Library/Caches/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Caches/$bundle_id")
-
-    # Preferences
-    [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
-
-    # Logs
-    [[ -d ~/Library/Logs/"$app_name" ]] && files_to_clean+=("$HOME/Library/Logs/$app_name")
-    [[ -d ~/Library/Logs/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Logs/$bundle_id")
-
-    # Saved Application State
-    [[ -d ~/Library/Saved\ Application\ State/"$bundle_id".savedState ]] && files_to_clean+=("$HOME/Library/Saved Application State/$bundle_id.savedState")
-
-    # Containers (sandboxed apps)
-    [[ -d ~/Library/Containers/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Containers/$bundle_id")
-
-    # Group Containers
-    while IFS= read -r -d '' container; do
-        files_to_clean+=("$container")
-    done < <(find ~/Library/Group\ Containers -name "*$bundle_id*" -type d -print0 2>/dev/null)
-
-    printf '%s\n' "${files_to_clean[@]}"
-}
-
-# Calculate total size of files
-calculate_total_size() {
-    local files="$1"
-    local total_kb=0
-
-    while IFS= read -r file; do
-        if [[ -n "$file" && -e "$file" ]]; then
-            local size_kb=$(du -sk "$file" 2>/dev/null | awk '{print $1}' || echo "0")
-            ((total_kb += size_kb))
-        fi
-    done <<< "$files"
-
-    echo "$total_kb"
-}
+# Note: find_app_files() and calculate_total_size() functions now in lib/common.sh
 
 # Batch uninstall with single confirmation
 batch_uninstall_applications() {
@@ -83,14 +35,12 @@ batch_uninstall_applications() {
         ((total_estimated_size += total_kb))
 
         # Store details for later use
-        app_details+=("$app_name|$app_path|$bundle_id|$total_kb|$related_files")
+        # Base64 encode related_files to handle multi-line data safely
+        local encoded_files=$(echo "$related_files" | base64)
+        app_details+=("$app_name|$app_path|$bundle_id|$total_kb|$encoded_files")
     done
 
-    # Show summary and get batch confirmation
-    echo ""
-    echo "📊 Uninstallation Summary:"
-    echo "  • Applications to remove: ${#selected_apps[@]}"
-
+    # Format size display
     if [[ $total_estimated_size -gt 1048576 ]]; then
         local size_display=$(echo "$total_estimated_size" | awk '{printf "%.2fGB", $1/1024/1024}')
     elif [[ $total_estimated_size -gt 1024 ]]; then
@@ -98,30 +48,25 @@ batch_uninstall_applications() {
     else
         local size_display="${total_estimated_size}KB"
     fi
-    echo "  • Estimated space to free: $size_display"
 
+    # Show summary and get batch confirmation
+    echo ""
+    echo "Will remove ${#selected_apps[@]} applications, free $size_display"
     if [[ ${#running_apps[@]} -gt 0 ]]; then
-        echo "  • ⚠️  Running apps that will be force-quit:"
-        for app in "${running_apps[@]}"; do
-            echo "    - $app"
-        done
+        echo "Running apps will be force-quit: ${running_apps[*]}"
     fi
-
     echo ""
-    echo "Selected applications:"
-    for selected_app in "${selected_apps[@]}"; do
-        IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
-        echo "  • $app_name ($size)"
-    done
+    read -p "Press ENTER to confirm, or any other key to cancel: " -r
 
-    echo ""
-    read -p "🗑️  Proceed with uninstalling ALL ${#selected_apps[@]} applications? This cannot be undone. (Y/n): " -n 1 -r
-    echo
-
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
+    if [[ -n "$REPLY" ]]; then
         log_info "Uninstallation cancelled by user"
         return 0
     fi
+
+    echo "⚡ Starting uninstallation in 3 seconds... (Press Ctrl+C to abort)"
+    sleep 1 && echo "⚡ 2..."
+    sleep 1 && echo "⚡ 1..."
+    sleep 1
 
     # Force quit running apps first (batch)
     if [[ ${#running_apps[@]} -gt 0 ]]; then
@@ -142,9 +87,11 @@ batch_uninstall_applications() {
     local failed_count=0
 
     for detail in "${app_details[@]}"; do
-        IFS='|' read -r app_name app_path bundle_id total_kb related_files <<< "$detail"
+        IFS='|' read -r app_name app_path bundle_id total_kb encoded_files <<< "$detail"
 
-        echo ""
+        # Decode the related files list
+        local related_files=$(echo "$encoded_files" | base64 -d)
+
         echo "🗑️  Uninstalling: $app_name"
 
         # Remove the application
@@ -178,20 +125,27 @@ batch_uninstall_applications() {
 
     # Show final summary
     echo ""
-    log_header "Uninstallation Complete"
-
+    echo "===================================================================="
+    echo "🎉 UNINSTALLATION COMPLETE!"
+    
     if [[ $success_count -gt 0 ]]; then
         if [[ $total_size_freed -gt 1048576 ]]; then
-            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.2fGB", $1/1024/1024}')
+            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fGB", $1/1024/1024}')
         elif [[ $total_size_freed -gt 1024 ]]; then
             local freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fMB", $1/1024}')
         else
             local freed_display="${total_size_freed}KB"
         fi
-        log_success "Successfully uninstalled $success_count applications"
-        log_success "Freed $freed_display of disk space"
+        echo "🗑️  Apps uninstalled: $success_count | Space freed: $freed_display"
+    else
+        echo "🗑️  No applications were uninstalled"
     fi
-
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "⚠️  Failed to uninstall: $failed_count"
+    fi
+    
+    echo "===================================================================="
     if [[ $failed_count -gt 0 ]]; then
         log_warning "$failed_count applications failed to uninstall"
     fi

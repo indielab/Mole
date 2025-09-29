@@ -24,8 +24,12 @@ VERSION="1.0.0"
 MOLE_TAGLINE="Dig deep like a mole to clean your Mac."
 
 show_brand_banner() {
-    printf '%b🦡 %bMOLE%b — %b%s%b\n' \
-        "$PURPLE" "$BLUE" "$NC" "$GREEN" "$MOLE_TAGLINE" "$NC"
+    printf '%b🦡 Mole — %s%b\n' \
+        "$GREEN" "$MOLE_TAGLINE" "$NC"
+}
+
+show_version() {
+    printf 'Mole version %s\n' "$VERSION"
 }
 
 show_help() {
@@ -38,114 +42,141 @@ show_help() {
     printf "  %s%-16s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
     printf "  %s%-16s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
     printf "  %s%-16s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole update" "$NC" "Update Mole to the latest version"
+    printf "  %s%-16s%s %s\n" "$GREEN" "mole --version" "$NC" "Show installed version"
     printf "  %s%-16s%s %s\n" "$GREEN" "mole --help" "$NC" "Show this help message"
 
     printf "\n%s%s%s\n" "$BLUE" "MORE" "$NC"
-    printf "  https://github.com/tw93/mole\n"
+    printf "  https://github.com/tw93/mole\n\n"
 }
 
+# Simple update function
+update_mole() {
+    log_info "Updating Mole..."
+
+    local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
+    local tmp_installer
+    tmp_installer="$(mktemp)" || { log_error "Failed to create temp file"; exit 1; }
+
+    # Download installer
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL "$installer_url" -o "$tmp_installer"; then
+            rm -f "$tmp_installer"
+            log_error "Failed to download installer"
+            exit 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -qO "$tmp_installer" "$installer_url"; then
+            rm -f "$tmp_installer"
+            log_error "Failed to download installer"
+            exit 1
+        fi
+    else
+        rm -f "$tmp_installer"
+        log_error "Please install curl or wget to update Mole"
+        exit 1
+    fi
+
+    chmod +x "$tmp_installer"
+
+    # Determine install directory
+    local mole_path
+    mole_path="$(command -v mole 2>/dev/null || echo "$0")"
+    local install_dir
+    install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
+
+    # Run installer
+    if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update 2>/dev/null; then
+        log_success "Mole updated successfully"
+    else
+        log_warning "Update failed, trying reinstall..."
+        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole"; then
+            log_success "Mole reinstalled successfully"
+        else
+            rm -f "$tmp_installer"
+            log_error "Update failed"
+            exit 1
+        fi
+    fi
+
+    rm -f "$tmp_installer"
+}
+
+# Display main menu options
 show_main_menu() {
     local selected="${1:-1}"
-    local redraw_full="${2:-true}"
+    local full_draw="${2:-true}"
 
-    if [[ "$redraw_full" == "true" ]]; then
+    if [[ "$full_draw" == "true" ]]; then
         echo ""
         show_brand_banner
         echo ""
     fi
 
-    # Save cursor position before printing menu items
-    printf '\033[s'
+    printf '\033[s'  # Save cursor position
 
     show_menu_option 1 "Clean System - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
     show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
     show_menu_option 3 "Help & Information - Usage guide and tips" "$([[ $selected -eq 3 ]] && echo true || echo false)"
     show_menu_option 4 "Exit - Close Mole" "$([[ $selected -eq 4 ]] && echo true || echo false)"
 
-    if [[ "$redraw_full" == "true" ]]; then
+    if [[ "$full_draw" == "true" ]]; then
         echo ""
-        echo -e "${BLUE}Use ↑/↓ arrows to navigate, ENTER to select, ESC/q to quit${NC}"
+        echo -e "${BLUE}↑/↓ to navigate, ENTER to select, Q to quit${NC}"
     fi
 }
 
+# Interactive main menu loop
 interactive_main_menu() {
     local current_option=1
-    local total_options=4
     local first_draw=true
 
-    # Set up signal trapping to handle Ctrl+C gracefully
-    trap 'echo ""; echo "Thank you for using Mole!"; exit 0' INT
-
-    cleanup_menu_display() {
-        printf '\033[u\033[J'
+    cleanup_and_exit() {
+        printf '\033[u\033[J'  # Restore cursor and clear
+        show_cursor
+        echo ""
+        echo "Thank you for using Mole!"
+        exit 0
     }
+
+    trap cleanup_and_exit INT
+    hide_cursor
 
     while true; do
         if [[ "$first_draw" == "true" ]]; then
             show_main_menu $current_option true
             first_draw=false
         else
-            # Restore cursor to saved position and only redraw menu items
-            printf '\033[u'
+            printf '\033[u'  # Restore cursor position
             show_main_menu $current_option false
         fi
 
-        # Use a more robust way to capture key input
-        local key
-        key=$(read_key)
-
-        # Check if read_key failed
-        if [[ $? -ne 0 ]]; then
-            continue
-        fi
+        local key=$(read_key)
+        [[ $? -ne 0 ]] && continue
 
         case "$key" in
-            "UP")
-                ((current_option > 1)) && ((current_option--))
-                ;;
-            "DOWN")
-                ((current_option < total_options)) && ((current_option++))
-                ;;
-            "ENTER")
-                cleanup_menu_display
+            "UP") ((current_option > 1)) && ((current_option--)) ;;
+            "DOWN") ((current_option < 4)) && ((current_option++)) ;;
+            "ENTER"|"$current_option")
+                printf '\033[u\033[J'  # Clear menu
+                show_cursor  
                 case $current_option in
-                    1)
-                        exec "$SCRIPT_DIR/bin/clean.sh"
-                        ;;
-                    2)
-                        exec "$SCRIPT_DIR/bin/uninstall.sh"
-                        ;;
-                    3)
-                        clear_screen
-                        show_help
-                        exit 0
-                        ;;
-                    4)
-                        clear_screen
-                        echo ""
-                        echo "Thank you for using Mole!"
-                        exit 0
-                        ;;
+                    1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
+                    2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
+                    3) clear; show_help; exit 0 ;;
+                    4) cleanup_and_exit ;;
                 esac
                 ;;
-            "QUIT"|"ESC")
-                cleanup_menu_display
-                clear_screen
-                echo ""
-                echo "Thank you for using Mole!"
-                exit 0
-                ;;
-            "1"|"2"|"3"|"4")
-                cleanup_menu_display
+            "QUIT") cleanup_and_exit ;;
+            [1-4])
+                printf '\033[u\033[J'
+                show_cursor
                 case $key in
                     1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
-                    3) clear_screen; show_help; exit 0 ;;
-                    4) clear_screen; echo ""; echo "Thank you for using Mole!"; exit 0 ;;
+                    3) clear; show_help; exit 0 ;;
+                    4) cleanup_and_exit ;;
                 esac
-                ;;
-            *)
-                # Ignore unrecognized keys
                 ;;
         esac
     done
@@ -159,8 +190,16 @@ main() {
         "uninstall")
             exec "$SCRIPT_DIR/bin/uninstall.sh"
             ;;
+        "update")
+            update_mole
+            exit 0
+            ;;
         "help"|"--help"|"-h")
             show_help
+            exit 0
+            ;;
+        "version"|"--version"|"-V")
+            show_version
             exit 0
             ;;
         "")

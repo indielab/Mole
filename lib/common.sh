@@ -78,10 +78,19 @@ clear_screen() {
     printf '\033[2J\033[H'
 }
 
+hide_cursor() {
+    printf '\033[?25l'
+}
+
+show_cursor() {
+    printf '\033[?25h'
+}
+
 # Keyboard input handling (simple and robust)
 read_key() {
     local key rest
-    IFS= read -rsn1 key || return 1
+    # Use macOS bash 3.2 compatible read syntax
+    IFS= read -r -s -n 1 key || return 1
 
     # Some terminals can yield empty on Enter with -n1; treat as ENTER
     if [[ -z "$key" ]]; then
@@ -91,23 +100,23 @@ read_key() {
 
     case "$key" in
         $'\n'|$'\r') echo "ENTER" ;;
-        ' ') echo " " ;;
+        ' ') echo "SPACE" ;;
         'q'|'Q') echo "QUIT" ;;
         'a'|'A') echo "ALL" ;;
         'n'|'N') echo "NONE" ;;
         '?') echo "HELP" ;;
         $'\x1b')
             # Read the next two bytes within 1s; works well on macOS bash 3.2
-            if IFS= read -rsn2 -t 1 rest 2>/dev/null; then
+            if IFS= read -r -s -n 2 -t 1 rest 2>/dev/null; then
                 case "$rest" in
                     "[A") echo "UP" ;;
                     "[B") echo "DOWN" ;;
                     "[C") echo "RIGHT" ;;
                     "[D") echo "LEFT" ;;
-                    *) echo "ESC" ;;
+                    *) echo "OTHER" ;;
                 esac
             else
-                echo "ESC"
+                echo "OTHER"
             fi
             ;;
         *) echo "OTHER" ;;
@@ -175,32 +184,6 @@ get_directory_size_bytes() {
     du -sk "$path" 2>/dev/null | cut -f1 | awk '{print $1 * 1024}' || echo "0"
 }
 
-# Safe file operation with backup
-safe_remove() {
-    local path="$1"
-    local backup_dir="${2:-/tmp/mole_backup_$(date +%s)}"
-    local backup_enabled="${MOLE_BACKUP_ENABLED:-true}"
-
-    if [[ ! -e "$path" ]]; then
-        return 0
-    fi
-
-    if [[ "$backup_enabled" == "true" ]]; then
-        # Create backup directory if it doesn't exist
-        mkdir -p "$backup_dir" 2>/dev/null || return 1
-
-        local basename_path
-        basename_path=$(basename "$path")
-
-        if ! cp -R "$path" "$backup_dir/$basename_path" 2>/dev/null; then
-            log_warning "Backup failed for $path, skipping removal"
-            return 1
-        fi
-        log_info "Backup created at $backup_dir/$basename_path"
-    fi
-
-    rm -rf "$path" 2>/dev/null || true
-}
 
 # Permission checks
 check_sudo() {
@@ -223,165 +206,179 @@ request_sudo() {
     fi
 }
 
-# Configuration management
-readonly CONFIG_FILE="${HOME}/.config/mole/config"
-
-# Load configuration with defaults
+# Load basic configuration
 load_config() {
-    # Default configuration
-    MOLE_LOG_LEVEL="${MOLE_LOG_LEVEL:-INFO}"
-    MOLE_AUTO_CONFIRM="${MOLE_AUTO_CONFIRM:-false}"
-    MOLE_BACKUP_ENABLED="${MOLE_BACKUP_ENABLED:-true}"
     MOLE_MAX_LOG_SIZE="${MOLE_MAX_LOG_SIZE:-1048576}"
-    MOLE_PARALLEL_JOBS="${MOLE_PARALLEL_JOBS:-}"  # Empty means auto-detect
-
-    # Load user configuration if exists
-    if [[ -f "$CONFIG_FILE" ]]; then
-        source "$CONFIG_FILE" 2>/dev/null || true
-    fi
 }
 
-# Save configuration
-save_config() {
-    mkdir -p "$(dirname "$CONFIG_FILE")" 2>/dev/null || return 1
-    cat > "$CONFIG_FILE" << EOF
-# Mole Configuration File
-# Generated on $(date)
 
-# Log level: DEBUG, INFO, WARNING, ERROR
-MOLE_LOG_LEVEL="$MOLE_LOG_LEVEL"
 
-# Auto confirm operations (true/false)
-MOLE_AUTO_CONFIRM="$MOLE_AUTO_CONFIRM"
 
-# Enable backup before deletion (true/false)
-MOLE_BACKUP_ENABLED="$MOLE_BACKUP_ENABLED"
-
-# Maximum log file size in bytes
-MOLE_MAX_LOG_SIZE="$MOLE_MAX_LOG_SIZE"
-
-# Number of parallel jobs for operations (empty = auto-detect)
-MOLE_PARALLEL_JOBS="$MOLE_PARALLEL_JOBS"
-EOF
-}
-
-# Progress tracking
-# Use parameter expansion for portable global initialization (macOS bash lacks declare -g).
-: "${PROGRESS_CURRENT:=0}"
-: "${PROGRESS_TOTAL:=0}"
-: "${PROGRESS_MESSAGE:=}"
-
-# Initialize progress tracking
-init_progress() {
-    PROGRESS_CURRENT=0
-    PROGRESS_TOTAL="$1"
-    PROGRESS_MESSAGE="${2:-Processing}"
-}
-
-# Update progress
-update_progress() {
-    PROGRESS_CURRENT="$1"
-    local message="${2:-$PROGRESS_MESSAGE}"
-    local percentage=$((PROGRESS_CURRENT * 100 / PROGRESS_TOTAL))
-
-    # Create progress bar
-    local bar_length=20
-    local filled_length=$((percentage * bar_length / 100))
-    local bar=""
-
-    for ((i=0; i<filled_length; i++)); do
-        bar="${bar}█"
-    done
-
-    for ((i=filled_length; i<bar_length; i++)); do
-        bar="${bar}░"
-    done
-
-    printf "\r${BLUE}[%s] %3d%% %s (%d/%d)${NC}" "$bar" "$percentage" "$message" "$PROGRESS_CURRENT" "$PROGRESS_TOTAL"
-
-    if [[ $PROGRESS_CURRENT -eq $PROGRESS_TOTAL ]]; then
-        echo
-    fi
-}
-
-# Spinner for indeterminate progress
-: "${SPINNER_PID:=}"
-
-start_spinner() {
-    local message="${1:-Working}"
-    stop_spinner  # Stop any existing spinner
-
-    (
-        local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-        local i=0
-        while true; do
-            printf "\r${BLUE}%s %s${NC}" "${spin:$i:1}" "$message"
-            ((i++))
-            if [[ $i -eq ${#spin} ]]; then
-                i=0
-            fi
-            sleep 0.1
-        done
-    ) &
-    SPINNER_PID=$!
-}
-
-stop_spinner() {
-    if [[ -n "$SPINNER_PID" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null || true
-        wait "$SPINNER_PID" 2>/dev/null || true
-        SPINNER_PID=""
-        printf "\r\033[K"  # Clear the line
-    fi
-}
-
-# Calculate optimal parallel jobs based on system resources
-get_optimal_parallel_jobs() {
-    local operation_type="${1:-default}"
-    local optimal_parallel=4
-
-    # Try to detect optimal parallel jobs based on CPU cores
-    if command -v nproc >/dev/null 2>&1; then
-        optimal_parallel=$(nproc)
-    elif command -v sysctl >/dev/null 2>&1; then
-        optimal_parallel=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
-    fi
-
-    # Apply operation-specific limits
-    case "$operation_type" in
-        "scan")
-            # For scanning: min 2, max 8
-            if [[ $optimal_parallel -lt 2 ]]; then
-                optimal_parallel=2
-            elif [[ $optimal_parallel -gt 8 ]]; then
-                optimal_parallel=8
-            fi
-            ;;
-        "clean")
-            # For file operations: min 2, max 6 (more conservative)
-            if [[ $optimal_parallel -lt 2 ]]; then
-                optimal_parallel=2
-            elif [[ $optimal_parallel -gt 6 ]]; then
-                optimal_parallel=6
-            fi
-            ;;
-        *)
-            # Default: min 2, max 4 (safest)
-            if [[ $optimal_parallel -lt 2 ]]; then
-                optimal_parallel=2
-            elif [[ $optimal_parallel -gt 4 ]]; then
-                optimal_parallel=4
-            fi
-            ;;
-    esac
-
-    # Use configured value if available, otherwise use calculated optimal
-    if [[ -n "${MOLE_PARALLEL_JOBS:-}" ]]; then
-        echo "$MOLE_PARALLEL_JOBS"
-    else
-        echo "$optimal_parallel"
-    fi
-}
 
 # Initialize configuration on sourcing
 load_config
+
+# ============================================================================
+# App Management Functions
+# ============================================================================
+
+# Essential system and critical app patterns that should never be removed
+readonly PRESERVED_BUNDLE_PATTERNS=(
+    # System essentials
+    "com.apple.*"
+    "loginwindow"
+    "dock"
+    "systempreferences"
+    "finder"
+    "safari"
+    "keychain*"
+    "security*"
+    "bluetooth*"
+    "wifi*"
+    "network*"
+    "tcc"
+    "notification*"
+    "accessibility*"
+    "universalaccess*"
+    "HIToolbox*"
+    "textinput*"
+    "TextInput*"
+    "keyboard*"
+    "Keyboard*"
+    "inputsource*"
+    "InputSource*"
+    "keylayout*"
+    "KeyLayout*"
+    "GlobalPreferences"
+    ".GlobalPreferences"
+
+    # Input methods (critical for international users)
+    "com.tencent.inputmethod.*"
+    "com.sogou.*"
+    "com.baidu.*"
+    "*.inputmethod.*"
+    "*input*"
+    "*inputmethod*"
+    "*InputMethod*"
+    "*ime*"
+    "*IME*"
+
+    # Cleanup and system tools (avoid infinite loops and preserve licenses)
+    "com.nektony.*"                    # App Cleaner & Uninstaller
+    "com.macpaw.*"                     # CleanMyMac, CleanMaster
+    "com.freemacsoft.AppCleaner"       # AppCleaner
+    "com.omnigroup.omnidisksweeper"    # OmniDiskSweeper
+    "com.daisydiskapp.*"               # DaisyDisk
+    "com.tunabellysoftware.*"          # Disk Utility apps
+    "com.grandperspectiv.*"            # GrandPerspective
+    "com.binaryfruit.*"                # FusionCast
+    "com.CharlesProxy.*"               # Charles Proxy (paid)
+    "com.proxyman.*"                   # Proxyman (paid)
+    "com.getpaw.*"                     # Paw (paid)
+
+    # Security and password managers (critical data)
+    "com.1password.*"                  # 1Password
+    "com.agilebits.*"                  # 1Password legacy
+    "com.lastpass.*"                   # LastPass
+    "com.dashlane.*"                   # Dashlane
+    "com.bitwarden.*"                  # Bitwarden
+    "com.keepassx.*"                   # KeePassXC
+
+    # Development tools (licenses and settings)
+    "com.jetbrains.*"                  # JetBrains IDEs (paid licenses)
+    "com.sublimetext.*"                # Sublime Text (paid)
+    "com.panic.transmit*"              # Transmit (paid)
+    "com.sequelpro.*"                  # Database tools
+    "com.sequel-ace.*"
+    "com.tinyapp.*"                    # TablePlus (paid)
+
+    # Design tools (expensive licenses)
+    "com.adobe.*"                      # Adobe Creative Suite
+    "com.bohemiancoding.*"             # Sketch
+    "com.figma.*"                      # Figma
+    "com.framerx.*"                    # Framer
+    "com.zeplin.*"                     # Zeplin
+    "com.invisionapp.*"                # InVision
+    "com.principle.*"                  # Principle
+
+    # Productivity (important data and licenses)
+    "com.omnigroup.*"                  # OmniFocus, OmniGraffle, etc.
+    "com.culturedcode.*"               # Things
+    "com.todoist.*"                    # Todoist
+    "com.bear-writer.*"                # Bear
+    "com.typora.*"                     # Typora
+    "com.ulyssesapp.*"                 # Ulysses
+    "com.literatureandlatte.*"         # Scrivener
+    "com.dayoneapp.*"                  # Day One
+
+    # Media and entertainment (licenses)
+    "com.spotify.client"               # Spotify (premium accounts)
+    "com.apple.FinalCutPro"           # Final Cut Pro
+    "com.apple.Motion"                # Motion
+    "com.apple.Compressor"            # Compressor
+    "com.blackmagic-design.*"         # DaVinci Resolve
+    "com.pixelmatorteam.*"            # Pixelmator
+)
+
+# Check if bundle should be preserved (system/critical apps)
+should_preserve_bundle() {
+    local bundle_id="$1"
+    for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
+        if [[ "$bundle_id" == $pattern ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Find and list app-related files (consolidated from duplicates)
+find_app_files() {
+    local bundle_id="$1"
+    local app_name="$2"
+    local -a files_to_clean=()
+
+    # Application Support
+    [[ -d ~/Library/Application\ Support/"$app_name" ]] && files_to_clean+=("$HOME/Library/Application Support/$app_name")
+    [[ -d ~/Library/Application\ Support/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Application Support/$bundle_id")
+
+    # Caches
+    [[ -d ~/Library/Caches/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Caches/$bundle_id")
+
+    # Preferences
+    [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
+
+    # Logs
+    [[ -d ~/Library/Logs/"$app_name" ]] && files_to_clean+=("$HOME/Library/Logs/$app_name")
+    [[ -d ~/Library/Logs/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Logs/$bundle_id")
+
+    # Saved Application State
+    [[ -d ~/Library/Saved\ Application\ State/"$bundle_id".savedState ]] && files_to_clean+=("$HOME/Library/Saved Application State/$bundle_id.savedState")
+
+    # Containers (sandboxed apps)
+    [[ -d ~/Library/Containers/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Containers/$bundle_id")
+
+    # Group Containers
+    while IFS= read -r -d '' container; do
+        files_to_clean+=("$container")
+    done < <(find ~/Library/Group\ Containers -name "*$bundle_id*" -type d -print0 2>/dev/null)
+
+    # Only print if array has elements to avoid unbound variable error
+    if [[ ${#files_to_clean[@]} -gt 0 ]]; then
+        printf '%s\n' "${files_to_clean[@]}"
+    fi
+}
+
+# Calculate total size of files (consolidated from duplicates)
+calculate_total_size() {
+    local files="$1"
+    local total_kb=0
+
+    while IFS= read -r file; do
+        if [[ -n "$file" && -e "$file" ]]; then
+            local size_kb=$(du -sk "$file" 2>/dev/null | awk '{print $1}' || echo "0")
+            ((total_kb += size_kb))
+        fi
+    done <<< "$files"
+
+    echo "$total_kb"
+}

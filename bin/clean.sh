@@ -13,135 +13,6 @@ SYSTEM_CLEAN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
 total_items=0
 
-# Critical system settings that should NEVER be deleted
-PRESERVED_BUNDLE_PATTERNS=(
-    "com.apple.*"              # All Apple system services and settings
-    "com.microsoft.*"          # Microsoft Office and system apps
-    "com.tencent.inputmethod.*" # Tencent input methods (WeType)
-    "com.sogou.*"              # Sogou input method
-    "com.baidu.*"              # Baidu input method
-    "*.inputmethod.*"          # Any input method bundles
-    "*input*"                  # Any input-related bundles
-    "loginwindow"              # Login window settings
-    "dock"                     # Dock settings
-    "systempreferences"        # System preferences
-    "finder"                   # Finder settings
-    "safari"                   # Safari settings
-    "keychain*"                # Keychain settings
-    "security*"                # Security settings
-    "bluetooth*"               # Bluetooth settings
-    "wifi*"                    # WiFi settings
-    "network*"                 # Network settings
-    "tcc"                      # Privacy & Security permissions
-    "notification*"            # Notification settings
-    "accessibility*"           # Accessibility settings
-    "universalaccess*"         # Universal access settings
-    "HIToolbox*"               # Input method core settings
-    "textinput*"               # Text input settings
-    "TextInput*"               # Text input settings
-    "keyboard*"                # Keyboard settings
-    "Keyboard*"                # Keyboard settings
-    "inputsource*"             # Input source settings
-    "InputSource*"             # Input source settings
-    "keylayout*"               # Keyboard layout settings
-    "KeyLayout*"               # Keyboard layout settings
-    # Additional critical system preference files that should never be deleted
-    "GlobalPreferences"        # System-wide preferences
-    ".GlobalPreferences"       # Hidden global preferences
-    "com.apple.systempreferences*" # System Preferences app settings
-    "com.apple.controlstrip*"     # Control Strip settings (TouchBar)
-    "com.apple.trackpad*"         # Trackpad settings
-    "com.apple.driver.AppleBluetoothMultitouch.trackpad*" # Trackpad driver settings
-    "com.apple.preference.*"      # System preference modules
-    "com.apple.LaunchServices*"   # Launch Services (file associations)
-    "com.apple.loginitems*"       # Login items
-    "com.apple.loginwindow*"      # Login window settings
-    "com.apple.screensaver*"      # Screen saver settings
-    "com.apple.desktopservices*"  # Desktop services
-    "com.apple.spaces*"           # Mission Control/Spaces settings
-    "com.apple.exposé*"           # Exposé settings
-    "com.apple.menuextra.*"       # Menu bar extras
-    "com.apple.systemuiserver*"   # System UI server
-    "com.apple.notificationcenterui*" # Notification Center settings
-    "com.apple.MultitouchSupport*"   # Multitouch/trackpad support
-    "com.apple.AppleMultitouchTrackpad*" # Trackpad configuration
-    "com.apple.universalaccess*"     # Accessibility settings
-    "com.apple.sound.*"              # Sound settings
-    "com.apple.AudioDevices*"        # Audio device settings
-    "com.apple.HIToolbox*"           # Human Interface Toolbox
-    "com.apple.LaunchServices*"      # Launch Services
-    "com.apple.loginwindow*"         # Login window
-    "com.apple.PowerChime*"          # Power sounds
-    "com.apple.WindowManager*"       # Window management
-)
-
-# Function to check if a bundle should be preserved (supports wildcards)
-should_preserve_bundle() {
-    local bundle_id="$1"
-
-    # First check against preserved patterns
-    for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
-        # Use bash's built-in pattern matching which supports * and ? wildcards
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
-    done
-
-    # Additional safety checks for critical system components
-    case "$bundle_id" in
-        # All Apple system services and apps
-        com.apple.*)
-            return 0
-            ;;
-        # Critical system preferences and settings
-        *dock*|*Dock*|*trackpad*|*Trackpad*|*mouse*|*Mouse*)
-            return 0
-            ;;
-        *keyboard*|*Keyboard*|*hotkey*|*HotKey*|*shortcut*|*Shortcut*)
-            return 0
-            ;;
-        *systempreferences*|*SystemPreferences*|*controlcenter*|*ControlCenter*)
-            return 0
-            ;;
-        *menubar*|*MenuBar*|*statusbar*|*StatusBar*)
-            return 0
-            ;;
-        *notification*|*Notification*|*alert*|*Alert*)
-            return 0
-            ;;
-        # Input methods and language settings
-        *inputmethod*|*InputMethod*|*ime*|*IME*)
-            return 0
-            ;;
-        # Network and connectivity settings
-        *wifi*|*WiFi*|*bluetooth*|*Bluetooth*|*network*|*Network*)
-            return 0
-            ;;
-        # Security and privacy settings
-        *security*|*Security*|*privacy*|*Privacy*|*keychain*|*Keychain*)
-            return 0
-            ;;
-        # Display and graphics settings
-        *display*|*Display*|*graphics*|*Graphics*|*screen*|*Screen*)
-            return 0
-            ;;
-        # Audio and sound settings
-        *audio*|*Audio*|*sound*|*Sound*|*volume*|*Volume*)
-            return 0
-            ;;
-        # System services and daemons
-        *daemon*|*Daemon*|*service*|*Service*|*agent*|*Agent*)
-            return 0
-            ;;
-        # Accessibility and universal access
-        *accessibility*|*Accessibility*|*universalaccess*|*UniversalAccess*)
-            return 0
-            ;;
-    esac
-
-    return 1
-}
-
 # Tracking variables
 TRACK_SECTION=0
 SECTION_ACTIVITY=0
@@ -228,7 +99,8 @@ stop_spinner() {
 start_section() {
     TRACK_SECTION=1
     SECTION_ACTIVITY=0
-    log_header "$1"
+    echo ""
+    echo -e "${PURPLE}▶ $1${NC}"
 }
 
 end_section() {
@@ -255,15 +127,15 @@ safe_clean() {
     fi
 
     local removed_any=0
+    local total_size_bytes=0
+    local total_count=0
 
     for path in "${targets[@]}"; do
         local size_bytes=0
-        local size_human="0B"
         local count=0
 
         if [[ -e "$path" ]]; then
             size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
-            size_human=$(du -sh "$path" 2>/dev/null | awk '{print $1}' || echo "0B")
             count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
 
             if [[ "$count" -eq 0 || "$size_bytes" -eq 0 ]]; then
@@ -271,47 +143,55 @@ safe_clean() {
             fi
 
             rm -rf "$path" 2>/dev/null || true
+            
+            ((total_size_bytes += size_bytes))
+            ((total_count += count))
+            removed_any=1
+        fi
+    done
+
+    # Only show output if something was actually cleaned
+    if [[ $removed_any -eq 1 ]]; then
+        local size_human
+        if [[ $total_size_bytes -gt 1048576 ]]; then  # > 1GB
+            size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fGB", $1/1024/1024}')
+        elif [[ $total_size_bytes -gt 1024 ]]; then  # > 1MB
+            size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fMB", $1/1024}')
         else
-            # For non-existent paths, show as cleaned with realistic placeholder values
-            size_human="4.0K"
+            size_human="${total_size_bytes}KB"
         fi
 
         local label="$description"
         if [[ ${#targets[@]} -gt 1 ]]; then
-            label+=" [$(basename "$path")]"
+            label+=" (${#targets[@]} items)"
         fi
 
         echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
-        ((files_cleaned+=count))
-        ((total_size_cleaned+=size_bytes))
+        ((files_cleaned+=total_count))
+        ((total_size_cleaned+=total_size_bytes))
         ((total_items++))
-        removed_any=1
         note_activity
-    done
+    fi
 
     LAST_CLEAN_RESULT=$removed_any
     return 0
 }
 
 start_cleanup() {
-    clear
-    echo "🕳️ Mole - Deeper system cleanup"
-    echo "=================================================="
-    echo ""
-    echo "This will clean: App caches & logs, Browser data, Developer tools, Temporary files & more..."
+    echo "Removing app caches, browser data, developer tools, and temporary files..."
     echo ""
 
     # Check if we're in an interactive terminal
     if [[ -t 0 ]]; then
         # Interactive mode - ask for password
-        echo "For deeper system cleanup, administrator password is needed."
-        echo -n "Enter password (or press Enter to skip): "
+        echo "Enter admin password for system-level cleanup (or press Enter to skip):"
+        echo -n "> "
         read -s password
         echo ""
     else
         # Non-interactive mode - skip password prompt
         password=""
-        echo "Running in non-interactive mode, skipping system-level cleanup."
+        log_info "Running in non-interactive mode, skipping system-level cleanup."
     fi
 
     if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
@@ -331,16 +211,7 @@ start_cleanup() {
 
 perform_cleanup() {
     echo ""
-    echo "🕳️ Mole - Deeper system cleanup"
-    echo "========================"
-    echo "🍎 Detected: $(detect_architecture) | 💾 Free space: $(get_free_space)"
-
-    if [[ "$SYSTEM_CLEAN" == "true" ]]; then
-        echo "🚀 Mode: System-level cleanup (admin privileges)"
-    else
-        echo "🚀 Mode: User-level cleanup (no password required)"
-    fi
-    echo ""
+    echo "🍎 $(detect_architecture) | 💾 Free space: $(get_free_space)"
 
     # Get initial space
     space_before=$(df / | tail -1 | awk '{print $4}')
@@ -364,6 +235,7 @@ perform_cleanup() {
 
         end_section
     fi
+
 
     # ===== 2. User essentials =====
     start_section "System essentials"
@@ -390,6 +262,7 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.apple.bird* "iCloud cache"
     end_section
 
+
     # ===== 2. Browsers =====
     start_section "Browser cleanup"
     # Safari
@@ -414,6 +287,7 @@ perform_cleanup() {
     # Browser support files
     safe_clean ~/Library/Application\ Support/Firefox/Profiles/*/cache2/* "Firefox profile cache"
     end_section
+
 
     # ===== 3. Developer tools =====
     start_section "Developer tools"
@@ -495,7 +369,6 @@ perform_cleanup() {
     safe_clean ~/.pnpm-store/* "pnpm store cache"
     safe_clean ~/.cache/typescript/* "TypeScript cache"
     safe_clean ~/.cache/electron/* "Electron cache"
-    safe_clean ~/.cache/yarn/* "Yarn cache"
     safe_clean ~/.turbo/* "Turbo cache"
     safe_clean ~/.next/* "Next.js cache"
     safe_clean ~/.vite/* "Vite cache"
@@ -542,13 +415,11 @@ perform_cleanup() {
     # Cloud and container tools
     safe_clean ~/.docker/buildx/cache/* "Docker BuildX cache"
     safe_clean ~/.cache/terraform/* "Terraform cache"
-    safe_clean ~/.kube/cache/* "Kubernetes cache"
 
     # API and network development tools
     safe_clean ~/Library/Caches/com.getpaw.Paw/* "Paw API cache"
     safe_clean ~/Library/Caches/com.charlesproxy.charles/* "Charles Proxy cache"
     safe_clean ~/Library/Caches/com.proxyman.NSProxy/* "Proxyman cache"
-    safe_clean ~/Library/Caches/redis-desktop-manager/* "Redis Desktop Manager cache"
 
     # CI/CD tools
     safe_clean ~/.grafana/cache/* "Grafana cache"
@@ -575,17 +446,17 @@ perform_cleanup() {
     safe_clean ~/.ivy2/cache/* "Ivy cache"
     safe_clean ~/.pub-cache/* "Dart Pub cache"
 
-    # Network tools cache (safe)
+    # Network tools cache
     safe_clean ~/.cache/curl/* "curl cache"
     safe_clean ~/.cache/wget/* "wget cache"
-    safe_clean ~/Library/Caches/curl/* "curl cache"
-    safe_clean ~/Library/Caches/wget/* "wget cache"
+    safe_clean ~/Library/Caches/curl/* "curl cache (macOS)"
+    safe_clean ~/Library/Caches/wget/* "wget cache (macOS)"
 
     # Git and version control
     safe_clean ~/.cache/pre-commit/* "pre-commit cache"
     safe_clean ~/.gitconfig.bak* "Git config backup"
 
-    # Mobile development
+    # Mobile development additional
     safe_clean ~/.cache/flutter/* "Flutter cache"
     safe_clean ~/.gradle/daemon/* "Gradle daemon logs"
     safe_clean ~/Library/Developer/Xcode/iOS\ DeviceSupport/*/Symbols/System/Library/Caches/* "iOS device cache"
@@ -602,25 +473,14 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.eggerapps.Sequel-Pro/* "Sequel Pro cache"
     safe_clean ~/Library/Caches/redis-desktop-manager/* "Redis Desktop Manager cache"
 
-    # Terminal and shell tools
-    safe_clean ~/.oh-my-zsh/cache/* "Oh My Zsh cache"
-    safe_clean ~/.config/fish/fish_history.bak* "Fish shell backup"
-    safe_clean ~/.bash_history.bak* "Bash history backup"
-    safe_clean ~/.zsh_history.bak* "Zsh history backup"
-
-    # Code quality and analysis
-    safe_clean ~/.sonar/* "SonarQube cache"
-    safe_clean ~/.cache/eslint/* "ESLint cache"
-    safe_clean ~/.cache/prettier/* "Prettier cache"
-
     # Crash reports and debugging
     safe_clean ~/Library/Caches/SentryCrash/* "Sentry crash reports"
     safe_clean ~/Library/Caches/KSCrash/* "KSCrash reports"
     safe_clean ~/Library/Caches/com.crashlytics.data/* "Crashlytics data"
-    # REMOVED: ~/Library/Saved\ Application\ State/* - This contains important app state including Dock settings
     safe_clean ~/Library/HTTPStorages/* "HTTP storage cache"
 
     end_section
+
 
     # ===== 4. Applications =====
     start_section "Applications"
@@ -678,24 +538,24 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.valvesoftware.steam/* "Steam cache"
     safe_clean ~/Library/Caches/com.epicgames.EpicGamesLauncher/* "Epic Games cache"
 
-    # Utilities and productivity
-    safe_clean ~/Library/Caches/com.nektony.App-Cleaner-SIIICn/* "App Cleaner cache"
+    # Utilities and productivity (only cache, avoid license/settings data)
     safe_clean ~/Library/Caches/com.runjuu.Input-Source-Pro/* "Input Source Pro cache"
     safe_clean ~/Library/Caches/macos-wakatime.WakaTime/* "WakaTime cache"
     safe_clean ~/Library/Caches/notion.id/* "Notion cache"
     safe_clean ~/Library/Caches/md.obsidian/* "Obsidian cache"
-    safe_clean ~/Library/Caches/com.1password.*/* "1Password cache"
     safe_clean ~/Library/Caches/com.runningwithcrayons.Alfred/* "Alfred cache"
     safe_clean ~/Library/Caches/cx.c3.theunarchiver/* "The Unarchiver cache"
-    safe_clean ~/Library/Caches/com.freemacsoft.AppCleaner/* "AppCleaner cache"
+
+    # Note: Skipping App Cleaner, 1Password and similar apps to preserve licenses
 
     end_section
 
-    # ===== 5. Orphaned leftovers =====
+
+    # ===== Orphaned leftovers =====
     start_section "Orphaned app files"
 
     # Build a list of installed application bundle identifiers
-    echo -e "  ${BLUE}🔍${NC} Building app list..."
+    echo -n "  ${BLUE}🔍${NC} Scanning installed applications..."
     local installed_bundles=$(mktemp)
     # More robust approach that won't hang
     for app in /Applications/*.app; do
@@ -705,13 +565,15 @@ perform_cleanup() {
         fi
     done
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
-    echo -e "  ${GREEN}✓${NC} Found $app_count apps"
+    echo " ${GREEN}✓${NC} Found $app_count apps"
 
     local found_orphaned=false
+    local cache_count=0
+    local data_count=0
+    local pref_count=0
 
     # Check for orphaned caches (with protection for critical system settings)
-    echo -e "  ${BLUE}🔍${NC} Checking caches..."
-    local cache_count=0
+    echo -n "  ${BLUE}🔍${NC} Scanning cache directories..."
     if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
         for cache_dir in ~/Library/Caches/com.*; do
             [[ -d "$cache_dir" ]] || continue
@@ -727,11 +589,10 @@ perform_cleanup() {
             fi
         done
     fi
-    echo -e "  ${GREEN}✓${NC} Checked caches ($cache_count removed)"
+    echo " ${GREEN}✓${NC} Complete ($cache_count removed)"
 
     # Check for orphaned application support data (with protection for critical system settings)
-    echo -e "  ${BLUE}🔍${NC} Checking app data..."
-    local data_count=0
+    echo -n "  ${BLUE}🔍${NC} Scanning application data..."
     if ls ~/Library/Application\ Support/com.* >/dev/null 2>&1; then
         for support_dir in ~/Library/Application\ Support/com.*; do
             [[ -d "$support_dir" ]] || continue
@@ -740,9 +601,18 @@ perform_cleanup() {
             if should_preserve_bundle "$bundle_id"; then
                 continue
             fi
-            # Extra safety for Application Support data
+            # Extra safety for Application Support data (preserve licenses and critical settings)
             case "$bundle_id" in
+                # System components
                 *dock*|*Dock*|*controlcenter*|*ControlCenter*|*systempreferences*|*SystemPreferences*)
+                    continue
+                    ;;
+                # Paid software and license-critical apps
+                *nektony*|*macpaw*|*jetbrains*|*sublimetext*|*adobe*|*1password*|*agilebits*|*omnigroup*|*culturedcode*)
+                    continue
+                    ;;
+                # Security and password managers
+                *lastpass*|*dashlane*|*bitwarden*|*keepass*)
                     continue
                     ;;
                 *trackpad*|*Trackpad*|*mouse*|*Mouse*|*keyboard*|*Keyboard*)
@@ -756,11 +626,10 @@ perform_cleanup() {
             fi
         done
     fi
-    echo -e "  ${GREEN}✓${NC} Checked app data ($data_count removed)"
+    echo " ${GREEN}✓${NC} Complete ($data_count removed)"
 
     # Check for orphaned preferences (with protection for critical system settings)
-    echo -e "  ${BLUE}🔍${NC} Checking preferences..."
-    local pref_count=0
+    echo -n "  ${BLUE}🔍${NC} Scanning preference files..."
     if ls ~/Library/Preferences/com.*.plist >/dev/null 2>&1; then
         for pref_file in ~/Library/Preferences/com.*.plist; do
             [[ -f "$pref_file" ]] || continue
@@ -769,8 +638,9 @@ perform_cleanup() {
             if should_preserve_bundle "$bundle_id"; then
                 continue
             fi
-            # Extra safety: Never delete preference files that might affect system behavior
+            # Extra safety: Never delete preference files that might affect system behavior or paid app licenses
             case "$bundle_id" in
+                # System components
                 *dock*|*Dock*|*trackpad*|*Trackpad*|*mouse*|*Mouse*|*keyboard*|*Keyboard*)
                     continue
                     ;;
@@ -778,6 +648,16 @@ perform_cleanup() {
                     continue
                     ;;
                 *menubar*|*MenuBar*|*hotkeys*|*HotKeys*|*shortcuts*|*Shortcuts*)
+                    continue
+                    ;;
+                # Licensed software and critical apps (preserve activation data)
+                *nektony*|*macpaw*|*jetbrains*|*sublimetext*|*adobe*|*1password*|*agilebits*)
+                    continue
+                    ;;
+                *omnigroup*|*culturedcode*|*lastpass*|*dashlane*|*bitwarden*|*keepass*)
+                    continue
+                    ;;
+                *bohemiancoding*|*figma*|*framer*|*panic*|*sequelpro*|*tinyapp*|*pixelmator*)
                     continue
                     ;;
             esac
@@ -788,17 +668,12 @@ perform_cleanup() {
             fi
         done
     fi
-    echo -e "  ${GREEN}✓${NC} Checked preferences ($pref_count removed)"
+    echo " ${GREEN}✓${NC} Complete ($pref_count removed)"
 
     # Clean up temp file
     rm -f "$installed_bundles"
 
-    if [ "$found_orphaned" = false ]; then
-        echo -e "  ${GREEN}✓${NC} No orphaned files found"
-    fi
-    end_section
-
-    # Common temp and test data
+    # Clean test data
     safe_clean ~/Library/Application\ Support/TestApp* "Test app data"
     safe_clean ~/Library/Application\ Support/MyApp/* "Test app data"
     safe_clean ~/Library/Application\ Support/GitHub*/* "GitHub test data"
@@ -806,9 +681,11 @@ perform_cleanup() {
     safe_clean ~/Library/Application\ Support/TestNoValue/* "Test data"
     safe_clean ~/Library/Application\ Support/Wk*/* "Test data"
 
-    # ===== 5. Apple Silicon optimizations =====
+    end_section
+
+    # ===== Apple Silicon optimizations =====
     if [[ "$IS_M_SERIES" == "true" ]]; then
-        start_section "Apple Silicon cache cleanup"
+        start_section "Apple Silicon optimizations"
         safe_clean /Library/Apple/usr/share/rosetta/rosetta_update_bundle "Rosetta 2 cache"
         safe_clean ~/Library/Caches/com.apple.rosetta.update "Rosetta 2 user cache"
         safe_clean ~/Library/Caches/com.apple.amp.mediasevicesd "Apple Silicon media service cache"
@@ -818,53 +695,75 @@ perform_cleanup() {
 
     # System cleanup was moved to the beginning (right after password verification)
 
-    # ===== 7. iOS device backups =====
+    # ===== iOS device backups =====
     start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then
         backup_kb=$(du -sk "$backup_dir" 2>/dev/null | awk '{print $1}')
         if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then # >100MB
-            backup_human=$(du -shm "$backup_dir" 2>/dev/null | awk '{print $1"M"}')
+            backup_human=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
             note_activity
-            echo -e "  👉 Found ${GREEN}${backup_human}${NC}, you can delete it manually"
-            echo -e "  👉 ${backup_dir}"
-        else
-            echo -e "  ${BLUE}✨${NC} Nothing to tidy"
+            echo -e "  ${BLUE}💾${NC} Found ${GREEN}${backup_human}${NC} iOS backups"
+            echo -e "  ${YELLOW}💡${NC} You can delete them manually: ${backup_dir}"
         fi
-    else
-        echo -e "  ${BLUE}✨${NC} Nothing to tidy"
     fi
     end_section
 
-    # ===== 8. Summary =====
-    start_section "Cleanup summary"
-    note_activity
+    # ===== Final summary =====
     space_after=$(df / | tail -1 | awk '{print $4}')
-    current_space_after=$(get_free_space)
-
-    echo "==================================================================="
     space_freed_kb=$((space_after - space_before))
-    if [[ $space_freed_kb -gt 0 ]]; then
-        freed_gb=$(echo "$space_freed_kb" | awk '{printf "%.2f", $1/1024/1024}')
-        echo -e "🎉 Cleanup complete | 💾 Freed space: ${GREEN}${freed_gb}GB${NC}"
-    else
-        echo "🎉 Cleanup complete"
-    fi
-    echo "📊 Items processed: $total_items | 💾 Free space now: $current_space_after"
 
-    if [[ "$IS_M_SERIES" == "true" ]]; then
-        echo "✨ Apple Silicon optimizations finished"
+    echo ""
+    echo "===================================================================="
+    echo "🎉 CLEANUP COMPLETE!"
+
+    if [[ $total_size_cleaned -gt 0 ]]; then
+        local freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
+        echo "💾 Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
+
+        # Add some context to make it more impressive
+        if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
+            local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
+            if [[ $movies -gt 0 ]]; then
+                echo "🎬 That's like ~$movies 4K movies worth of space!"
+            fi
+        fi
+    else
+        echo "💾 No significant space was freed (system was already clean) | Free space: $(get_free_space)"
+    fi
+    
+    if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
+        echo "📊 Files cleaned: $files_cleaned | Categories processed: $total_items"
+    elif [[ $files_cleaned -gt 0 ]]; then
+        echo "📊 Files cleaned: $files_cleaned"
+    elif [[ $total_items -gt 0 ]]; then
+        echo "🗂️ Categories processed: $total_items"
     fi
 
     if [[ "$SYSTEM_CLEAN" != "true" ]]; then
         echo ""
-        echo -e "${BLUE}💡 Want deeper cleanup next time?${NC}"
-        echo -e "   Just enter your password when prompted for system-level cleaning"
+        echo -e "${BLUE}💡 For deeper cleanup, run with admin password next time${NC}"
     fi
 
-    echo "==================================================================="
-    end_section
+    echo "===================================================================="
 }
+
+# Cleanup function - restore cursor on exit
+cleanup() {
+    # Restore cursor
+    show_cursor
+    # Kill any background processes
+    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]]; then
+        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    fi
+    if [[ -n "${SPINNER_PID:-}" ]]; then
+        kill "$SPINNER_PID" 2>/dev/null || true
+    fi
+    exit "${1:-0}"
+}
+
+# Set trap for cleanup on exit
+trap cleanup EXIT INT TERM
 
 main() {
     case "${1:-""}" in
@@ -876,11 +775,14 @@ main() {
             echo "  --help, -h    Show this help"
             echo ""
             echo "Interactive cleanup with smart password handling"
+            echo ""
             exit 0
             ;;
         *)
+            hide_cursor
             start_cleanup
             perform_cleanup
+            show_cursor
             ;;
     esac
 }

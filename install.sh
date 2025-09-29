@@ -25,6 +25,9 @@ INSTALL_DIR="/usr/local/bin"
 CONFIG_DIR="$HOME/.config/mole"
 SOURCE_DIR=""
 
+# Default action (install|update)
+ACTION="install"
+
 show_help() {
     cat << 'EOF'
 Mole Installation Script
@@ -36,12 +39,14 @@ USAGE:
 OPTIONS:
     --prefix PATH       Install to custom directory (default: /usr/local/bin)
     --config PATH       Config directory (default: ~/.config/mole)
+    --update            Update Mole to the latest version
     --uninstall         Uninstall mole
     --help, -h          Show this help
 
 EXAMPLES:
     ./install.sh                    # Install to /usr/local/bin
     ./install.sh --prefix ~/.local/bin  # Install to custom directory
+    ./install.sh --update           # Update Mole in place
     ./install.sh --uninstall       # Uninstall mole
 
 The installer will:
@@ -49,22 +54,27 @@ The installer will:
 2. Set up config directory with all modules
 3. Make the mole command available system-wide
 EOF
+    echo ""
 }
 
 # Resolve the directory containing source files (supports curl | bash)
 resolve_source_dir() {
-    # 1) If script is on disk, use its directory
+    if [[ -n "$SOURCE_DIR" && -d "$SOURCE_DIR" && -f "$SOURCE_DIR/mole" ]]; then
+        return 0
+    fi
+
+    # 1) If script is on disk, use its directory (only when mole executable present)
     if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [[ -f "$script_dir/mole" || -d "$script_dir/bin" || -d "$script_dir/lib" ]]; then
+        if [[ -f "$script_dir/mole" ]]; then
             SOURCE_DIR="$script_dir"
             return 0
         fi
     fi
 
     # 2) If CLEAN_SOURCE_DIR env is provided, honor it
-    if [[ -n "${CLEAN_SOURCE_DIR:-}" && -d "$CLEAN_SOURCE_DIR" ]]; then
+    if [[ -n "${CLEAN_SOURCE_DIR:-}" && -d "$CLEAN_SOURCE_DIR" && -f "$CLEAN_SOURCE_DIR/mole" ]]; then
         SOURCE_DIR="$CLEAN_SOURCE_DIR"
         return 0
     fi
@@ -100,6 +110,20 @@ resolve_source_dir() {
     exit 1
 }
 
+get_source_version() {
+    local source_mole="$SOURCE_DIR/mole"
+    if [[ -f "$source_mole" ]]; then
+        sed -n 's/^VERSION="\(.*\)"$/\1/p' "$source_mole" | head -n1
+    fi
+}
+
+get_installed_version() {
+    local binary="$INSTALL_DIR/mole"
+    if [[ -x "$binary" ]]; then
+        "$binary" --version 2>/dev/null | awk 'NF {print $NF; exit}'
+    fi
+}
+
 # Parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -111,6 +135,10 @@ parse_args() {
             --config)
                 CONFIG_DIR="$2"
                 shift 2
+                ;;
+            --update)
+                ACTION="update"
+                shift 1
                 ;;
             --uninstall)
                 uninstall_mole
@@ -171,14 +199,25 @@ install_files() {
 
     resolve_source_dir
 
-    # Copy main executable
+    local source_dir_abs
+    local install_dir_abs
+    local config_dir_abs
+    source_dir_abs="$(cd "$SOURCE_DIR" && pwd)"
+    install_dir_abs="$(cd "$INSTALL_DIR" && pwd)"
+    config_dir_abs="$(cd "$CONFIG_DIR" && pwd)"
+
+    # Copy main executable when destination differs
     if [[ -f "$SOURCE_DIR/mole" ]]; then
-        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
-            sudo cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
-            sudo chmod +x "$INSTALL_DIR/mole"
+        if [[ "$source_dir_abs" == "$install_dir_abs" ]]; then
+            log_info "Mole binary already present in $INSTALL_DIR"
         else
-            cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
-            chmod +x "$INSTALL_DIR/mole"
+            if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+                sudo cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
+                sudo chmod +x "$INSTALL_DIR/mole"
+            else
+                cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
+                chmod +x "$INSTALL_DIR/mole"
+            fi
         fi
     else
         log_error "mole executable not found in ${SOURCE_DIR:-unknown}"
@@ -187,26 +226,46 @@ install_files() {
 
     # Copy configuration and modules
     if [[ -d "$SOURCE_DIR/bin" ]]; then
-        cp -r "$SOURCE_DIR/bin"/* "$CONFIG_DIR/bin/"
-        chmod +x "$CONFIG_DIR/bin"/*
+        local source_bin_abs="$(cd "$SOURCE_DIR/bin" && pwd)"
+        local config_bin_abs="$(cd "$CONFIG_DIR/bin" && pwd)"
+        if [[ "$source_bin_abs" == "$config_bin_abs" ]]; then
+            log_info "Configuration bin directory already synced"
+        else
+            cp -r "$SOURCE_DIR/bin"/* "$CONFIG_DIR/bin/"
+            chmod +x "$CONFIG_DIR/bin"/*
+        fi
     fi
 
     if [[ -d "$SOURCE_DIR/lib" ]]; then
-        cp -r "$SOURCE_DIR/lib"/* "$CONFIG_DIR/lib/"
+        local source_lib_abs="$(cd "$SOURCE_DIR/lib" && pwd)"
+        local config_lib_abs="$(cd "$CONFIG_DIR/lib" && pwd)"
+        if [[ "$source_lib_abs" == "$config_lib_abs" ]]; then
+            log_info "Configuration lib directory already synced"
+        else
+            cp -r "$SOURCE_DIR/lib"/* "$CONFIG_DIR/lib/"
+        fi
     fi
 
-    # Copy other files if they exist
-    for file in README.md LICENSE; do
-        if [[ -f "$SOURCE_DIR/$file" ]]; then
-            cp "$SOURCE_DIR/$file" "$CONFIG_DIR/"
-        fi
-    done
+    # Copy other files if they exist and directories differ
+    if [[ "$config_dir_abs" != "$source_dir_abs" ]]; then
+        for file in README.md LICENSE install.sh; do
+            if [[ -f "$SOURCE_DIR/$file" ]]; then
+                cp -f "$SOURCE_DIR/$file" "$CONFIG_DIR/"
+            fi
+        done
+    fi
 
-    # Update the mole script to use the config directory
-    if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
-        sudo sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
-    else
-        sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
+    if [[ -f "$CONFIG_DIR/install.sh" ]]; then
+        chmod +x "$CONFIG_DIR/install.sh"
+    fi
+
+    # Update the mole script to use the config directory when installed elsewhere
+    if [[ "$source_dir_abs" != "$install_dir_abs" ]]; then
+        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+            sudo sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
+        else
+            sed -i '' "s|SCRIPT_DIR=.*|SCRIPT_DIR=\"$CONFIG_DIR\"|" "$INSTALL_DIR/mole"
+        fi
     fi
 }
 
@@ -217,7 +276,7 @@ verify_installation() {
 
         # Test if mole command works
         if "$INSTALL_DIR/mole" --help >/dev/null 2>&1; then
-            log_success ""
+            return 0
         else
             log_warning "Mole command installed but may not be working properly"
         fi
@@ -243,6 +302,43 @@ setup_path() {
         echo ""
         echo "For example, add it to ~/.zshrc or ~/.bash_profile"
     fi
+}
+
+print_usage_summary() {
+    local action="$1"
+    local new_version="$2"
+    local previous_version="${3:-}"
+
+    if [[ ${VERBOSE} -ne 1 ]]; then
+        return
+    fi
+
+    local message="Mole ${action} successfully"
+
+    if [[ "$action" == "updated" && -n "$previous_version" && -n "$new_version" && "$previous_version" != "$new_version" ]]; then
+        message+=" (${previous_version} -> ${new_version})"
+    elif [[ -n "$new_version" ]]; then
+        message+=" (version ${new_version})"
+    fi
+
+    log_success "$message!"
+
+    echo ""
+    echo "Usage:"
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        echo "  mole              # Interactive menu"
+        echo "  mole clean        # System cleanup"
+        echo "  mole uninstall    # Remove applications"
+        echo "  mole update       # Update Mole to the latest version"
+        echo "  mole --version    # Show installed version"
+    else
+        echo "  $INSTALL_DIR/mole              # Interactive menu"
+        echo "  $INSTALL_DIR/mole clean        # System cleanup"
+        echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
+        echo "  $INSTALL_DIR/mole update       # Update Mole to the latest version"
+        echo "  $INSTALL_DIR/mole --version    # Show installed version"
+    fi
+    echo ""
 }
 
 # Uninstall function
@@ -276,7 +372,10 @@ uninstall_mole() {
 }
 
 # Main installation function
-main() {
+perform_install() {
+    resolve_source_dir
+    local source_version
+    source_version="$(get_source_version || true)"
 
     check_requirements
     create_directories
@@ -284,23 +383,67 @@ main() {
     verify_installation
     setup_path
 
-    if [[ ${VERBOSE} -eq 1 ]]; then
-        log_success "Mole installed successfully!"
-        echo ""
-        echo "Usage:"
-        if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
-            echo "  mole              # Interactive menu"
-            echo "  mole clean        # System cleanup"
-            echo "  mole uninstall    # Remove applications"
-        else
-            echo "  $INSTALL_DIR/mole              # Interactive menu"
-            echo "  $INSTALL_DIR/mole clean        # System cleanup"
-            echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
-        fi
-        echo ""
+    local installed_version
+    installed_version="$(get_installed_version || true)"
+
+    if [[ -z "$installed_version" ]]; then
+        installed_version="$source_version"
     fi
+
+    print_usage_summary "installed" "$installed_version"
 }
 
-# Run installation
+perform_update() {
+    check_requirements
+
+    local installed_version
+    installed_version="$(get_installed_version || true)"
+
+    if [[ -z "$installed_version" ]]; then
+        log_warning "Mole is not currently installed in $INSTALL_DIR. Running fresh installation."
+        perform_install
+        return
+    fi
+
+    resolve_source_dir
+    local target_version
+    target_version="$(get_source_version || true)"
+
+    if [[ -z "$target_version" ]]; then
+        log_error "Unable to determine the latest Mole version."
+        exit 1
+    fi
+
+    if [[ "$installed_version" == "$target_version" ]]; then
+        log_success "Mole is already up to date (version $installed_version)!"
+        exit 0
+    fi
+
+    log_info "Updating Mole from $installed_version to $target_version..."
+
+    create_directories
+    install_files
+    verify_installation
+    setup_path
+
+    local updated_version
+    updated_version="$(get_installed_version || true)"
+
+    if [[ -z "$updated_version" ]]; then
+        updated_version="$target_version"
+    fi
+
+    print_usage_summary "updated" "$updated_version" "$installed_version"
+}
+
+# Run requested action
 parse_args "$@"
-main
+
+case "$ACTION" in
+    update)
+        perform_update
+        ;;
+    *)
+        perform_install
+        ;;
+esac

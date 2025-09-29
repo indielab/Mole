@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.0.0"
+VERSION="1.1.0"
 MOLE_TAGLINE="Dig deep like a mole to clean your Mac."
 
 show_brand_banner() {
@@ -159,7 +159,7 @@ interactive_main_menu() {
             "DOWN") ((current_option < 4)) && ((current_option++)) ;;
             "ENTER"|"$current_option")
                 printf '\033[u\033[J'  # Clear menu
-                show_cursor  
+                show_cursor
                 case $current_option in
                     1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;

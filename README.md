@@ -85,33 +85,30 @@ Select Apps to Remove
 
 ## What Mole Cleans
 
-| Category | Targets | Recovery |
-|----------|---------|----------|
-| 🗂️ **System** | App caches, logs, trash, crash reports | 20-50GB |
-| 🌐 **Browsers** | Safari, Chrome, Edge, Arc, Firefox cache | 5-15GB |
-| 💻 **Developer** | npm, pip, Docker, Homebrew, Xcode | 15-40GB |
-| 📱 **Apps** | Slack, Discord, Teams, Notion cache | 3-10GB |
+| Category | Targets | Typical Recovery |
+|----------|---------|------------------|
+| **System** | App caches, logs, trash, crash reports | 20-50GB |
+| **Browsers** | Safari, Chrome, Edge, Arc, Firefox cache | 5-15GB |
+| **Developer** | npm, pip, Docker, Homebrew, Xcode | 15-40GB |
+| **Apps** | Slack, Discord, Teams, Notion cache | 3-10GB |
 
 ## What Mole Uninstalls
 
 | Component | Files Removed | Examples |
 |-----------|--------------|----------|
-| 🎯 **App Bundle** | Main .app executable | `/Applications/App.app` |
-| 📁 **Support Data** | App-specific user data | `~/Library/Application Support/AppName` |
-| 💾 **Cache Files** | Temporary & cache data | `~/Library/Caches/com.company.app` |
-| ⚙️ **Preferences** | Settings & config files | `~/Library/Preferences/com.app.plist` |
-| 📝 **Logs & Reports** | Crash reports & logs | `~/Library/Logs/AppName` |
-| 📦 **Containers** | Sandboxed app data | `~/Library/Containers/com.app.id` |
+| **App Bundle** | Main .app executable | `/Applications/App.app` |
+| **Support Data** | App-specific user data | `~/Library/Application Support/AppName` |
+| **Cache Files** | Temporary & cache data | `~/Library/Caches/com.company.app` |
+| **Preferences** | Settings & config files | `~/Library/Preferences/com.app.plist` |
+| **Logs & Reports** | Crash reports & logs | `~/Library/Logs/AppName` |
+| **Containers** | Sandboxed app data | `~/Library/Containers/com.app.id` |
 
 ## Support
 
-If Mole helps you recover disk space:
+If Mole helps you recover disk space, star this repository and share with fellow Mac users. Report issues via [GitHub Issues](https://github.com/tw93/mole/issues).
 
-- ⭐ **Star this repository** and share with fellow Mac users
-- 🐛 **Report issues** via GitHub Issues
-- 🎁 I have two cats. You can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food 🥩🍤</a>
+I have two cats, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like.
 
 ## License
 
-- Follow the MIT License.
-- Please feel free to enjoy and participate in open source.
+MIT License - feel free to enjoy and participate in open source.

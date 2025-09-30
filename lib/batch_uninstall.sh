@@ -18,7 +18,8 @@ batch_uninstall_applications() {
     local total_estimated_size=0
     local -a app_details=()
 
-    echo "📋 Analyzing selected applications..."
+    echo ""
+    echo -e "${BLUE}📋 Analyzing selected applications...${NC}"
     for selected_app in "${selected_apps[@]}"; do
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
 
@@ -51,22 +52,24 @@ batch_uninstall_applications() {
 
     # Show summary and get batch confirmation
     echo ""
-    echo "Will remove ${#selected_apps[@]} applications, free $size_display"
+    echo -e "${YELLOW}📦 Will remove ${BLUE}${#selected_apps[@]}${YELLOW} applications, free ${GREEN}$size_display${NC}"
     if [[ ${#running_apps[@]} -gt 0 ]]; then
-        echo "Running apps will be force-quit: ${running_apps[*]}"
+        echo -e "${YELLOW}⚠️  Running apps will be force-quit: ${RED}${running_apps[*]}${NC}"
     fi
     echo ""
-    read -p "Press ENTER to confirm, or any other key to cancel: " -r
+    echo -e -n "${BLUE}Press ENTER to confirm, or any other key to cancel:${NC} "
+    read -r
 
     if [[ -n "$REPLY" ]]; then
         log_info "Uninstallation cancelled by user"
         return 0
     fi
 
-    echo "⚡ Starting uninstallation in 3 seconds... (Press Ctrl+C to abort)"
-    sleep 1 && echo "⚡ 2..."
-    sleep 1 && echo "⚡ 1..."
+    echo -e "${PURPLE}⚡ Starting uninstallation in 3 seconds...${NC} ${YELLOW}(Press Ctrl+C to abort)${NC}"
+    sleep 1 && echo -e "${PURPLE}⚡ ${BLUE}2${PURPLE}...${NC}"
+    sleep 1 && echo -e "${PURPLE}⚡ ${BLUE}1${PURPLE}...${NC}"
     sleep 1
+    echo -e "${GREEN}✨ Let's go!${NC}"
 
     # Force quit running apps first (batch)
     if [[ ${#running_apps[@]} -gt 0 ]]; then
@@ -92,7 +95,7 @@ batch_uninstall_applications() {
         # Decode the related files list
         local related_files=$(echo "$encoded_files" | base64 -d)
 
-        echo "🗑️  Uninstalling: $app_name"
+        echo -e "${YELLOW}🗑️  Uninstalling: ${BLUE}$app_name${NC}"
 
         # Remove the application
         if rm -rf "$app_path" 2>/dev/null; then
@@ -127,24 +130,24 @@ batch_uninstall_applications() {
     echo ""
     echo "===================================================================="
     echo "🎉 UNINSTALLATION COMPLETE!"
-    
+
     if [[ $success_count -gt 0 ]]; then
         if [[ $total_size_freed -gt 1048576 ]]; then
-            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fGB", $1/1024/1024}')
+            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.2fGB", $1/1024/1024}')
         elif [[ $total_size_freed -gt 1024 ]]; then
             local freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fMB", $1/1024}')
         else
             local freed_display="${total_size_freed}KB"
         fi
-        echo "🗑️  Apps uninstalled: $success_count | Space freed: $freed_display"
+        echo "🗑️  Apps uninstalled: $success_count | Space freed: ${GREEN}${freed_display}${NC}"
     else
         echo "🗑️  No applications were uninstalled"
     fi
-    
+
     if [[ $failed_count -gt 0 ]]; then
-        echo "⚠️  Failed to uninstall: $failed_count"
+        echo -e "${RED}⚠️  Failed to uninstall: $failed_count${NC}"
     fi
-    
+
     echo "===================================================================="
     if [[ $failed_count -gt 0 ]]; then
         log_warning "$failed_count applications failed to uninstall"

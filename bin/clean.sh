@@ -130,25 +130,73 @@ safe_clean() {
     local total_size_bytes=0
     local total_count=0
 
+    # Optimized: skip size calculation for empty checks, just try to delete
+    # Size calculation is the slowest part - do it in parallel
+    local -a existing_paths=()
     for path in "${targets[@]}"; do
-        local size_bytes=0
-        local count=0
-
-        if [[ -e "$path" ]]; then
-            size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
-            count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
-
-            if [[ "$count" -eq 0 || "$size_bytes" -eq 0 ]]; then
-                continue
-            fi
-
-            rm -rf "$path" 2>/dev/null || true
-            
-            ((total_size_bytes += size_bytes))
-            ((total_count += count))
-            removed_any=1
-        fi
+        [[ -e "$path" ]] && existing_paths+=("$path")
     done
+
+    if [[ ${#existing_paths[@]} -eq 0 ]]; then
+        LAST_CLEAN_RESULT=0
+        return 0
+    fi
+
+    # Fast parallel processing for multiple targets
+    if [[ ${#existing_paths[@]} -gt 3 ]]; then
+        local temp_dir=$(mktemp -d)
+
+        # Launch parallel du jobs (bash 3.2 compatible)
+        local -a pids=()
+        for path in "${existing_paths[@]}"; do
+            (
+                local size=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
+                local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
+                echo "$size $count" > "$temp_dir/$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)"
+            ) &
+            pids+=($!)
+
+            # Limit to 15 parallel jobs (bash 3.2 compatible)
+            if (( ${#pids[@]} >= 15 )); then
+                wait "${pids[0]}" 2>/dev/null || true
+                pids=("${pids[@]:1}")
+            fi
+        done
+
+        # Wait for remaining jobs
+        for pid in "${pids[@]}"; do
+            wait "$pid" 2>/dev/null || true
+        done
+
+        # Collect results and delete
+        for path in "${existing_paths[@]}"; do
+            local hash=$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)
+            if [[ -f "$temp_dir/$hash" ]]; then
+                read -r size count < "$temp_dir/$hash"
+                if [[ "$count" -gt 0 && "$size" -gt 0 ]]; then
+                    rm -rf "$path" 2>/dev/null || true
+                    ((total_size_bytes += size))
+                    ((total_count += count))
+                    removed_any=1
+                fi
+            fi
+        done
+
+        rm -rf "$temp_dir"
+    else
+        # Serial processing for few targets (faster than parallel overhead)
+        for path in "${existing_paths[@]}"; do
+            local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
+            local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+            if [[ "$count" -gt 0 && "$size_bytes" -gt 0 ]]; then
+                rm -rf "$path" 2>/dev/null || true
+                ((total_size_bytes += size_bytes))
+                ((total_count += count))
+                removed_any=1
+            fi
+        done
+    fi
 
     # Only show output if something was actually cleaned
     if [[ $removed_any -eq 1 ]]; then
@@ -178,7 +226,7 @@ safe_clean() {
 }
 
 start_cleanup() {
-    echo "Removing app caches, browser data, developer tools, and temporary files..."
+    echo "Mole will remove app caches, browser data, developer tools, and temporary files."
     echo ""
 
     # Check if we're in an interactive terminal
@@ -191,13 +239,33 @@ start_cleanup() {
     else
         # Non-interactive mode - skip password prompt
         password=""
-        log_info "Running in non-interactive mode, skipping system-level cleanup."
+        echo ""
+        echo -e "${BLUE}ℹ${NC}  Running in non-interactive mode"
+        echo "   • System-level cleanup will be skipped (requires password)"
+        echo "   • User-level cleanup will proceed automatically"
+        echo ""
     fi
 
     if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
         SYSTEM_CLEAN=true
-        # Start sudo keepalive with shorter intervals for reliability
-        while true; do sudo -n true; sleep 30; kill -0 "$$" 2>/dev/null || exit; done 2>/dev/null &
+        # Start sudo keepalive with error handling and shorter intervals
+        (
+            local retry_count=0
+            while true; do
+                if ! sudo -n true 2>/dev/null; then
+                    ((retry_count++))
+                    if [[ $retry_count -ge 3 ]]; then
+                        log_warning "Sudo keepalive failed, system-level cleanup may be interrupted" >&2
+                        exit 1
+                    fi
+                    sleep 5
+                    continue
+                fi
+                retry_count=0
+                sleep 30
+                kill -0 "$$" 2>/dev/null || exit
+            done
+        ) 2>/dev/null &
         SUDO_KEEPALIVE_PID=$!
         log_info "Starting comprehensive cleanup with admin privileges..."
     else

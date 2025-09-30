@@ -40,6 +40,8 @@ select_apps_for_uninstall() {
     echo ""
     echo "🗑️ App Uninstaller"
     echo ""
+    echo "Mole will uninstall selected apps and clean all their related files."
+    echo ""
     echo "Found ${#apps_data[@]} apps. Select apps to remove:"
     echo ""
 

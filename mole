@@ -21,11 +21,72 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
 VERSION="1.1.0"
-MOLE_TAGLINE="Dig deep like a mole to clean your Mac."
+MOLE_TAGLINE="can dig deep to clean your Mac."
+
+# Check for updates (non-blocking, cached)
+check_for_updates() {
+    local cache_dir="$HOME/.cache/mole"
+    local version_cache="$cache_dir/version_check"
+    local check_interval=86400  # Check once per day (24 hours)
+
+    mkdir -p "$cache_dir" 2>/dev/null
+
+    # Check if we should run version check (based on cache age)
+    if [[ -f "$version_cache" ]]; then
+        local cache_age=$(($(date +%s) - $(stat -f%m "$version_cache" 2>/dev/null || echo 0)))
+        if [[ $cache_age -lt $check_interval ]]; then
+            # Cache is still fresh, show cached message if exists
+            if [[ -s "$version_cache" ]]; then
+                cat "$version_cache"
+            fi
+            return 0
+        fi
+    fi
+
+    # Run version check in background (non-blocking)
+    (
+        local latest_version=""
+        local timeout=3  # 3 second timeout for version check
+
+        # Try to fetch latest version from GitHub with timeout
+        if command -v curl >/dev/null 2>&1; then
+            latest_version=$(curl -fsSL --connect-timeout 2 --max-time $timeout \
+                "https://api.github.com/repos/tw93/mole/releases/latest" 2>/dev/null | \
+                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^[Vv]//')
+        elif command -v wget >/dev/null 2>&1; then
+            latest_version=$(wget -qO- --timeout=$timeout --tries=1 \
+                "https://api.github.com/repos/tw93/mole/releases/latest" 2>/dev/null | \
+                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^[Vv]//')
+        fi
+
+        # Compare versions if fetch succeeded
+        if [[ -n "$latest_version" && "$latest_version" != "$VERSION" ]]; then
+            # Version mismatch - cache the update message
+            local msg="${YELLOW}📢 New version available: ${GREEN}${latest_version}${YELLOW} (current: ${VERSION})${NC}\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}"
+            echo -e "$msg" > "$version_cache"
+            echo -e "$msg"
+        else
+            # Up to date or check failed - clear cache
+            echo "" > "$version_cache"
+        fi
+
+        # Touch cache file to update timestamp
+        touch "$version_cache" 2>/dev/null
+    ) &
+
+    # Don't wait for background check
+    disown 2>/dev/null || true
+}
 
 show_brand_banner() {
-    printf '%b🦡 Mole — %s%b\n' \
-        "$GREEN" "$MOLE_TAGLINE" "$NC"
+    cat << EOF
+${GREEN} __  __       _      ${NC}
+${GREEN}|  \/  | ___ | | ___ ${NC}
+${GREEN}| |\/| |/ _ \| |/ _ \\${NC}
+${GREEN}| |  | | (_) | |  __/${NC}  ${BLUE}https://github.com/tw93/mole${NC}
+${GREEN}|_|  |_|\___/|_|\___|${NC}  ${GREEN}${MOLE_TAGLINE}${NC}
+
+EOF
 }
 
 show_version() {
@@ -58,17 +119,17 @@ update_mole() {
     local tmp_installer
     tmp_installer="$(mktemp)" || { log_error "Failed to create temp file"; exit 1; }
 
-    # Download installer
+    # Download installer with timeout
     if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL "$installer_url" -o "$tmp_installer"; then
+        if ! curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer"; then
             rm -f "$tmp_installer"
-            log_error "Failed to download installer"
+            log_error "Failed to download installer (network timeout or error)"
             exit 1
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if ! wget -qO "$tmp_installer" "$installer_url"; then
+        if ! wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url"; then
             rm -f "$tmp_installer"
-            log_error "Failed to download installer"
+            log_error "Failed to download installer (network timeout or error)"
             exit 1
         fi
     else
@@ -183,6 +244,9 @@ interactive_main_menu() {
 }
 
 main() {
+    # Check for updates (non-blocking, won't delay startup)
+    check_for_updates
+
     case "${1:-""}" in
         "clean")
             exec "$SCRIPT_DIR/bin/clean.sh"

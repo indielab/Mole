@@ -29,7 +29,7 @@ log_info() {
 
 log_success() {
     rotate_log
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "  ${GREEN}✓${NC} $1"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -116,7 +116,8 @@ read_key() {
                     *) echo "OTHER" ;;
                 esac
             else
-                echo "OTHER"
+                # ESC pressed alone - treat as quit
+                echo "QUIT"
             fi
             ;;
         *) echo "OTHER" ;;
@@ -253,15 +254,22 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     ".GlobalPreferences"
 
     # Input methods (critical for international users)
-    "com.tencent.inputmethod.*"
-    "com.sogou.*"
-    "com.baidu.*"
-    "*.inputmethod.*"
-    "*input*"
-    "*inputmethod*"
-    "*InputMethod*"
-    "*ime*"
-    "*IME*"
+    # Specific input method bundles
+    "com.tencent.inputmethod.QQInput"
+    "com.sogou.inputmethod.*"
+    "com.baidu.inputmethod.*"
+    "com.apple.inputmethod.*"
+    "com.googlecode.rimeime.*"
+    "im.rime.*"
+    "org.pqrs.Karabiner*"
+    # Generic patterns (more conservative)
+    "*.inputmethod"
+    "*.InputMethod"
+    "*IME"
+    # Keep system input services safe
+    "com.apple.inputsource*"
+    "com.apple.TextInputMenuAgent"
+    "com.apple.TextInputSwitcher"
 
     # Cleanup and system tools (avoid infinite loops and preserve licenses)
     "com.nektony.*"                    # App Cleaner & Uninstaller
@@ -381,4 +389,28 @@ calculate_total_size() {
     done <<< "$files"
 
     echo "$total_kb"
+}
+
+# Get normalized brand name (bash 3.2 compatible using case statement)
+get_brand_name() {
+    local name="$1"
+
+    # Brand name mapping for better user recognition
+    case "$name" in
+        "qiyimac"|"爱奇艺") echo "iQiyi" ;;
+        "wechat"|"微信") echo "WeChat" ;;
+        "QQ") echo "QQ" ;;
+        "VooV Meeting"|"腾讯会议") echo "VooV Meeting" ;;
+        "dingtalk"|"钉钉") echo "DingTalk" ;;
+        "NeteaseMusic"|"网易云音乐") echo "NetEase Music" ;;
+        "BaiduNetdisk"|"百度网盘") echo "Baidu NetDisk" ;;
+        "alipay"|"支付宝") echo "Alipay" ;;
+        "taobao"|"淘宝") echo "Taobao" ;;
+        "futunn"|"富途牛牛") echo "Futu NiuNiu" ;;
+        "tencent lemon"|"Tencent Lemon Cleaner") echo "Tencent Lemon" ;;
+        "keynote"|"Keynote") echo "Keynote" ;;
+        "pages"|"Pages") echo "Pages" ;;
+        "numbers"|"Numbers") echo "Numbers" ;;
+        *) echo "$name" ;;  # Return original if no mapping found
+    esac
 }

@@ -90,6 +90,30 @@ get_app_last_used() {
 
 # Scan applications and collect information
 scan_applications() {
+    # Cache configuration
+    local cache_dir="$HOME/.cache/mole"
+    local cache_file="$cache_dir/app_scan_cache"
+    local cache_meta="$cache_dir/app_scan_meta"
+    local cache_ttl=3600  # 1 hour cache validity
+
+    mkdir -p "$cache_dir" 2>/dev/null
+
+    # Quick count of current apps
+    local current_app_count=$(find /Applications -name "*.app" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
+
+    # Check if cache is valid
+    if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
+        local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
+        local cached_app_count=$(cat "$cache_meta" 2>/dev/null || echo "0")
+
+        # Cache is valid if: age < TTL AND app count matches
+        if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
+            echo "Using cached app list (${cache_age}s old, $current_app_count apps) ✓" >&2
+            echo "$cache_file"
+            return 0
+        fi
+    fi
+
     local temp_file=$(mktemp)
 
     echo -n "Scanning... " >&2
@@ -160,24 +184,9 @@ scan_applications() {
             
             # Select the first (best) candidate
             display_name="${candidates[0]:-$app_name}"
-            
-            # Brand name mapping for better user recognition (post-process)
-            case "$display_name" in
-                "qiyimac"|"爱奇艺") display_name="iQiyi" ;;
-                "wechat"|"微信") display_name="WeChat" ;;
-                "QQ"|"QQ") display_name="QQ" ;;
-                "VooV Meeting"|"腾讯会议") display_name="VooV Meeting" ;;
-                "dingtalk"|"钉钉") display_name="DingTalk" ;;
-                "NeteaseMusic"|"网易云音乐") display_name="NetEase Music" ;;
-                "BaiduNetdisk"|"百度网盘") display_name="Baidu NetDisk" ;;
-                "alipay"|"支付宝") display_name="Alipay" ;;
-                "taobao"|"淘宝") display_name="Taobao" ;;
-                "futunn"|"富途牛牛") display_name="Futu NiuNiu" ;;
-                "tencent lemon"|"Tencent Lemon Cleaner") display_name="Tencent Lemon" ;;
-                "keynote"|"Keynote") display_name="Keynote" ;;
-                "pages"|"Pages") display_name="Pages" ;;
-                "numbers"|"Numbers") display_name="Numbers" ;;
-            esac
+
+            # Apply brand name mapping from common.sh
+            display_name="$(get_brand_name "$display_name")"
         fi
 
         # Skip protected system apps early
@@ -189,20 +198,21 @@ scan_applications() {
         app_data_tuples+=("${app_path}|${app_name}|${bundle_id}|${display_name}")
     done < <(find /Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null)
 
-    # Second pass: process each app with accurate size calculation
+    # Second pass: process each app with parallel size calculation
     local app_count=0
     local total_apps=${#app_data_tuples[@]}
+    local max_parallel=10  # Process 10 apps in parallel
+    local pids=()
 
-    for app_data_tuple in "${app_data_tuples[@]}"; do
+    # Process app metadata extraction function
+    process_app_metadata() {
+        local app_data_tuple="$1"
+        local output_file="$2"
+        local current_epoch="$3"
+
         IFS='|' read -r app_path app_name bundle_id display_name <<< "$app_data_tuple"
 
-        # Show progress every few items
-        ((app_count++))
-        if (( app_count % 5 == 0 )) || [[ $app_count -eq $total_apps ]]; then
-            echo -ne "\rScanning... $app_count/$total_apps" >&2
-        fi
-
-        # Accurate size calculation - this is what takes time but user wants it
+        # Parallel size calculation
         local app_size="N/A"
         if [[ -d "$app_path" ]]; then
             app_size=$(du -sh "$app_path" 2>/dev/null | cut -f1 || echo "N/A")
@@ -216,7 +226,6 @@ scan_applications() {
             local metadata_date=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
 
             if [[ "$metadata_date" != "(null)" && -n "$metadata_date" ]]; then
-                # Convert macOS date format to epoch
                 last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$metadata_date" "+%s" 2>/dev/null || echo "0")
 
                 if [[ $last_used_epoch -gt 0 ]]; then
@@ -230,29 +239,17 @@ scan_applications() {
                         last_used="${days_ago} days ago"
                     elif [[ $days_ago -lt 30 ]]; then
                         local weeks_ago=$(( days_ago / 7 ))
-                        if [[ $weeks_ago -eq 1 ]]; then
-                            last_used="1 week ago"
-                        else
-                            last_used="${weeks_ago} weeks ago"
-                        fi
+                        [[ $weeks_ago -eq 1 ]] && last_used="1 week ago" || last_used="${weeks_ago} weeks ago"
                     elif [[ $days_ago -lt 365 ]]; then
                         local months_ago=$(( days_ago / 30 ))
-                        if [[ $months_ago -eq 1 ]]; then
-                            last_used="1 month ago"
-                        else
-                            last_used="${months_ago} months ago"
-                        fi
+                        [[ $months_ago -eq 1 ]] && last_used="1 month ago" || last_used="${months_ago} months ago"
                     else
                         local years_ago=$(( days_ago / 365 ))
-                        if [[ $years_ago -eq 1 ]]; then
-                            last_used="1 year ago"
-                        else
-                            last_used="${years_ago} years ago"
-                        fi
+                        [[ $years_ago -eq 1 ]] && last_used="1 year ago" || last_used="${years_ago} years ago"
                     fi
                 fi
             else
-                # Fallback to file modification time if no usage metadata
+                # Fallback to file modification time
                 last_used_epoch=$(stat -f%m "$app_path" 2>/dev/null || echo "0")
                 if [[ $last_used_epoch -gt 0 ]]; then
                     local days_ago=$(( (current_epoch - last_used_epoch) / 86400 ))
@@ -267,8 +264,33 @@ scan_applications() {
             fi
         fi
 
-        # Format: epoch|app_path|display_name|bundle_id|size|last_used_display
-        echo "${last_used_epoch}|${app_path}|${display_name}|${bundle_id}|${app_size}|${last_used}" >> "$temp_file"
+        # Write to output file atomically
+        echo "${last_used_epoch}|${app_path}|${display_name}|${bundle_id}|${app_size}|${last_used}" >> "$output_file"
+    }
+
+    export -f process_app_metadata
+
+    # Process apps in parallel batches
+    for app_data_tuple in "${app_data_tuples[@]}"; do
+        ((app_count++))
+
+        # Launch background process
+        process_app_metadata "$app_data_tuple" "$temp_file" "$current_epoch" &
+        pids+=($!)
+
+        # Update progress
+        echo -ne "\rScanning... $app_count/$total_apps" >&2
+
+        # Wait if we've hit max parallel limit
+        if (( ${#pids[@]} >= max_parallel )); then
+            wait "${pids[0]}" 2>/dev/null
+            pids=("${pids[@]:1}")  # Remove first pid
+        fi
+    done
+
+    # Wait for remaining background processes
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null
     done
 
     echo -e "\rFound $app_count applications ✓" >&2
@@ -279,9 +301,13 @@ scan_applications() {
         return 1
     fi
 
-    # Sort by last used (oldest first) and return the temp file path
+    # Sort by last used (oldest first) and cache the result
     sort -t'|' -k1,1n "$temp_file" > "${temp_file}.sorted"
     rm -f "$temp_file"
+
+    # Update cache with app count metadata
+    cp "${temp_file}.sorted" "$cache_file" 2>/dev/null || true
+    echo "$current_app_count" > "$cache_meta" 2>/dev/null || true
     echo "${temp_file}.sorted"
 }
 
@@ -479,7 +505,7 @@ main() {
     fi
 
     echo ""
-    # 直接执行批量卸载，确认已在批量卸载函数中处理
+    # Execute batch uninstallation, confirmation handled in batch_uninstall_applications
     batch_uninstall_applications
 
     # Cleanup

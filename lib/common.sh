@@ -134,6 +134,11 @@ read_key() {
         *) echo "OTHER" ;;
     esac
 }
+# Drain any pending input bytes (used to swallow rapid trackpad scroll sequences)
+drain_pending_input() {
+    while IFS= read -r -s -t 0 -n 1 _; do :; done
+}
+
 
 # Menu display helper
 show_menu_option() {

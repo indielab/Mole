@@ -1395,6 +1395,8 @@ show_volumes_overview() {
     local total_items=$(wc -l < "$temp_volumes" | tr -d ' ')
 
     while true; do
+        # Drain burst input (trackpad scroll -> many arrows)
+        type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         # Build output buffer to reduce flicker
         local output=""
         output+="\033[H\033[J"

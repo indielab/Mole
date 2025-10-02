@@ -89,50 +89,45 @@ show_cursor() {
 
 # Keyboard input handling (simple and robust)
 read_key() {
-    local key
-    IFS= read -r -s -n 1 key || return 1
+    # Robust parser that accumulates pending bytes to avoid leaking raw 'A'/'B'
+    local first rest
+    IFS= read -r -s -n 1 first || return 1
 
-    # Empty = ENTER (some terminals)
-    if [[ -z "$key" ]]; then
+    # Enter (some terminals send empty before newline in -n1 mode)
+    if [[ -z "$first" || "$first" == $'\n' || "$first" == $'\r' ]]; then
         echo "ENTER"; return 0
     fi
 
-    case "$key" in
-        $'\n'|$'\r') echo "ENTER" ;;
-        ' ') echo "SPACE" ;;
-        'q'|'Q') echo "QUIT" ;;
-        'a'|'A') echo "ALL" ;;
-        'n'|'N') echo "NONE" ;;
-        '?') echo "HELP" ;;
-        $'\x7f'|$'\b') echo "BACKSPACE" ;;  # Support Backspace
+    case "$first" in
+        ' ') echo "SPACE"; return 0 ;;
+        'q'|'Q') echo "QUIT"; return 0 ;;
+        'a'|'A') echo "ALL"; return 0 ;;
+        'n'|'N') echo "NONE"; return 0 ;;
+        '?') echo "HELP"; return 0 ;;
+        $'\x7f'|$'\b') echo "BACKSPACE"; return 0 ;;
         $'\x1b')
-            # ESC sequence handling. Allow slightly longer window so we don't misinterpret slow terminals.
-            local next third
-            if IFS= read -r -s -n 1 -t 0.15 next 2>/dev/null; then
-                if [[ "$next" == "[" ]]; then
-                    if IFS= read -r -s -n 1 -t 0.15 third 2>/dev/null; then
-                        case "$third" in
-                            'A') echo "UP" ;;
-                            'B') echo "DOWN" ;;
-                            'C') echo "RIGHT" ;;
-                            'D') echo "LEFT" ;;
-                            *) echo "OTHER" ;;
-                        esac
-                    else
-                        # ESC [ then timeout – treat as OTHER to ignore
-                        echo "OTHER"
-                    fi
-                else
-                    # ESC + something (Alt modified key) → ignore as OTHER
-                    echo "OTHER"
-                fi
-            else
-                # Bare ESC alone: instead of quitting directly, emit OTHER so user doesn't exit accidentally
-                echo "OTHER"
-            fi
+            # Collect rest of possible escape sequence quickly (non-blocking)
+            local buf=""
+            local count=0
+            while IFS= read -r -s -n 1 -t 0.005 rest 2>/dev/null; do
+                buf+="$rest"; ((count++))
+                # Stop if final byte of a simple CSI seq
+                [[ "$rest" =~ [A-Za-z~] ]] && break
+                [[ $count -ge 5 ]] && break
+            done
+            case "$buf" in
+                "[A") echo "UP" ;;
+                "[B") echo "DOWN" ;;
+                "[C") echo "RIGHT" ;;
+                "[D") echo "LEFT" ;;
+                "")   echo "OTHER" ;; # Bare ESC -> ignore
+                *)      echo "OTHER" ;;
+            esac
+            return 0
             ;;
-        *) echo "OTHER" ;;
     esac
+
+    echo "OTHER"
 }
 # Drain any pending input bytes (used to swallow rapid trackpad scroll sequences)
 drain_pending_input() {

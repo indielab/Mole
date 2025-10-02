@@ -116,6 +116,8 @@ EOF
 
     # Main interaction loop
     while true; do
+        # Drain any burst scroll input so only one navigation step occurs
+        type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         draw_menu
         local key=$(read_key)
 

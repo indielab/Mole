@@ -106,11 +106,11 @@ read_key() {
         '?') echo "HELP" ;;
         $'\x7f'|$'\b') echo "BACKSPACE" ;;  # Support Backspace
         $'\x1b')
-            # Non-blocking, byte-by-byte escape sequence parsing to avoid leaking 'A'/'B'
+            # ESC sequence handling. Allow slightly longer window so we don't misinterpret slow terminals.
             local next third
-            if IFS= read -r -s -n 1 -t 0.02 next 2>/dev/null; then
+            if IFS= read -r -s -n 1 -t 0.15 next 2>/dev/null; then
                 if [[ "$next" == "[" ]]; then
-                    if IFS= read -r -s -n 1 -t 0.02 third 2>/dev/null; then
+                    if IFS= read -r -s -n 1 -t 0.15 third 2>/dev/null; then
                         case "$third" in
                             'A') echo "UP" ;;
                             'B') echo "DOWN" ;;
@@ -119,15 +119,16 @@ read_key() {
                             *) echo "OTHER" ;;
                         esac
                     else
+                        # ESC [ then timeout – treat as OTHER to ignore
                         echo "OTHER"
                     fi
                 else
-                    # ESC followed by something else (e.g. ALT key combos)
+                    # ESC + something (Alt modified key) → ignore as OTHER
                     echo "OTHER"
                 fi
             else
-                # Bare ESC = quit
-                echo "QUIT"
+                # Bare ESC alone: instead of quitting directly, emit OTHER so user doesn't exit accidentally
+                echo "OTHER"
             fi
             ;;
         *) echo "OTHER" ;;

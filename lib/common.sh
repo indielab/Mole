@@ -11,6 +11,7 @@ readonly BLUE="${ESC}[0;34m"
 readonly YELLOW="${ESC}[1;33m"
 readonly PURPLE="${ESC}[0;35m"
 readonly RED="${ESC}[0;31m"
+readonly GRAY="${ESC}[0;90m"
 readonly NC="${ESC}[0m"
 
 # Logging configuration
@@ -88,14 +89,12 @@ show_cursor() {
 
 # Keyboard input handling (simple and robust)
 read_key() {
-    local key rest
-    # Use macOS bash 3.2 compatible read syntax
+    local key
     IFS= read -r -s -n 1 key || return 1
 
-    # Some terminals can yield empty on Enter with -n1; treat as ENTER
+    # Empty = ENTER (some terminals)
     if [[ -z "$key" ]]; then
-        echo "ENTER"
-        return 0
+        echo "ENTER"; return 0
     fi
 
     case "$key" in
@@ -105,18 +104,29 @@ read_key() {
         'a'|'A') echo "ALL" ;;
         'n'|'N') echo "NONE" ;;
         '?') echo "HELP" ;;
+        $'\x7f'|$'\b') echo "BACKSPACE" ;;  # Support Backspace
         $'\x1b')
-            # Read the next two bytes within 1s; works well on macOS bash 3.2
-            if IFS= read -r -s -n 2 -t 1 rest 2>/dev/null; then
-                case "$rest" in
-                    "[A") echo "UP" ;;
-                    "[B") echo "DOWN" ;;
-                    "[C") echo "RIGHT" ;;
-                    "[D") echo "LEFT" ;;
-                    *) echo "OTHER" ;;
-                esac
+            # Non-blocking, byte-by-byte escape sequence parsing to avoid leaking 'A'/'B'
+            local next third
+            if IFS= read -r -s -n 1 -t 0.02 next 2>/dev/null; then
+                if [[ "$next" == "[" ]]; then
+                    if IFS= read -r -s -n 1 -t 0.02 third 2>/dev/null; then
+                        case "$third" in
+                            'A') echo "UP" ;;
+                            'B') echo "DOWN" ;;
+                            'C') echo "RIGHT" ;;
+                            'D') echo "LEFT" ;;
+                            *) echo "OTHER" ;;
+                        esac
+                    else
+                        echo "OTHER"
+                    fi
+                else
+                    # ESC followed by something else (e.g. ALT key combos)
+                    echo "OTHER"
+                fi
             else
-                # ESC pressed alone - treat as quit
+                # Bare ESC = quit
                 echo "QUIT"
             fi
             ;;

@@ -1457,7 +1457,7 @@ show_volumes_overview() {
             "DOWN")
                 ((cursor < total_items - 1)) && ((cursor++))
                 ;;
-            "ENTER")
+            "ENTER"|"RIGHT")
                 # Get selected path
                 local selected_path=""
                 idx=0
@@ -1644,7 +1644,7 @@ interactive_drill_down() {
                 local max_cursor=$(( total_items < max_show ? total_items - 1 : max_show - 1 ))
                 ((cursor < max_cursor)) && ((cursor++))
                 ;;
-            "ENTER")
+            "ENTER"|"RIGHT")
                 # Enter selected item (only if it's a directory)
                 if [[ $cursor -lt ${#items[@]} ]]; then
                     local selected="${items[$cursor]}"

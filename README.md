@@ -6,7 +6,7 @@
 
 ## Highlights
 
-- 🦡 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
+- 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
 - 📦 **Smart Uninstall** - Complete app removal with all related files and folders
 - ⚡️ **Fast Interactive UI** - Arrow-key navigation with pagination for large lists
 - 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
@@ -16,6 +16,8 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
+
+> 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的图文教程
 
 ## Usage
 
@@ -99,6 +101,9 @@ Select Apps to Remove
 **Protect Important Files:** Create `~/.config/mole/whitelist` to preserve critical caches:
 
 ```bash
+# View current whitelist
+mole clean --whitelist
+
 # Example: Protect Playwright browsers and build tools
 echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 ```

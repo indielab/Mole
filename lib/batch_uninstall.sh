@@ -68,9 +68,18 @@ batch_uninstall_applications() {
         # Keep sudo alive during the process
         (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
         local sudo_keepalive_pid=$!
-        
-        # Set up cleanup trap for sudo keepalive
-        trap "kill $sudo_keepalive_pid 2>/dev/null || true; wait $sudo_keepalive_pid 2>/dev/null || true" EXIT INT TERM
+
+        # Append keepalive cleanup to existing traps without overriding them
+        local _trap_cleanup_cmd="kill $sudo_keepalive_pid 2>/dev/null || true; wait $sudo_keepalive_pid 2>/dev/null || true"
+        for signal in EXIT INT TERM; do
+            local existing_trap
+            existing_trap=$(trap -p "$signal" | awk -F"'" '{print $2}')
+            if [[ -n "$existing_trap" ]]; then
+                trap "$existing_trap; $_trap_cleanup_cmd" "$signal"
+            else
+                trap "$_trap_cleanup_cmd" "$signal"
+            fi
+        done
     fi
 
     # Show summary and get batch confirmation
@@ -80,10 +89,24 @@ batch_uninstall_applications() {
         echo -e "${YELLOW}⚠️  Running apps will be force-quit: ${RED}${running_apps[*]}${NC}"
     fi
     echo ""
-    echo -e -n "${BLUE}Press ENTER to confirm, or any other key to cancel:${NC} "
-    read -r
+    printf "%b" "${BLUE}Press ENTER to confirm, or ESC/q to cancel:${NC} "
+    local confirm_key=""
+    IFS= read -r -s -n1 confirm_key || confirm_key=""
+    if [[ "$confirm_key" == $'\e' ]]; then
+        while IFS= read -r -s -n1 -t 0 rest; do
+            [[ -z "$rest" || "$rest" == $'\n' ]] && break
+        done
+    fi
+    echo ""
 
-    if [[ -n "$REPLY" ]]; then
+    local cancel=false
+    case "$confirm_key" in
+        ""|$'\n'|$'\r') ;;
+        $'\e'|"q"|"Q") cancel=true ;;
+        *) cancel=true ;;
+    esac
+
+    if [[ "$cancel" == true ]]; then
         log_info "Uninstallation cancelled by user"
         # Clean up sudo keepalive if it was started
         if [[ -n "${sudo_keepalive_pid:-}" ]]; then

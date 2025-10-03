@@ -4,11 +4,17 @@
   <p><em>🦡 Dig deep like a mole to clean your Mac.</em></p>
 </div>
 
+<p align="center">
+  <a href="https://github.com/tw93/mole/stargazers"><img src="https://img.shields.io/github/stars/tw93/mole?style=flat-square" alt="Stars"></a>
+  <a href="https://github.com/tw93/mole/releases"><img src="https://img.shields.io/github/v/tag/tw93/mole?label=version&style=flat-square" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
+</p>
+
 ## Highlights
 
 - 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
-- 📦 **Smart Uninstall** - Complete app removal with all related files and folders
-- ⚡️ **Fast Interactive UI** - Arrow-key navigation with pagination for large lists
+- 📦 **Thorough Uninstall** - Removes more app leftovers than CleanMyMac/Lemon, completely free
+- ⚡️ **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
 - 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
 ## Installation
@@ -23,9 +29,7 @@ Or via Homebrew:
 brew install tw93/tap/mole
 ```
 
-> ⚠️ **Note:** Choose one installation method. Don't mix both to avoid conflicts.
-
-> 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的教程
+> Pick one method to avoid conflicts, new users check [小白使用指南](./GUIDE.md)
 
 ## Usage
 
@@ -34,16 +38,11 @@ mole                      # Interactive main menu
 mole clean                # Deep system cleanup
 mole clean --dry-run      # Preview cleanup (no deletions)
 mole uninstall            # Interactive app uninstaller
+mole update               # Update to latest version
 mole --help               # Show help
 ```
 
-**Update:**
-```bash
-brew upgrade mole         # If installed via Homebrew
-mole update               # If installed manually
-```
-
-**Navigation:** Use arrow keys (↑/↓), Space to select, Enter to confirm, Q to quit or Ctrl+C to force exit.
+> Installed via Homebrew? Use `brew upgrade mole` to update
 
 ## Examples
 
@@ -132,11 +131,26 @@ echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 | **Logs & Reports** | Crash reports & logs | `~/Library/Logs/AppName` |
 | **Containers** | Sandboxed app data | `~/Library/Containers/com.app.id` |
 
+## FAQ
+
+**Q: Will Mole delete important files?**
+A: No. Mole has built-in protection and skips system-critical files.
+
+**Q: Can I undo cleanup operations?**
+A: Cache files regenerate automatically. For uninstalled apps, use Time Machine backup beforehand.
+
+**Q: How often should I run cleanup?**
+A: Once a month is sufficient. Run when disk space is low.
+
+**Q: Is it safe to use?**
+A: Yes. The tool previews what will be deleted before any action (`--dry-run`).
+
 ## Support
 
-- If Mole helps you recover disk space, star this repository and share with fellow Mac users.
-- Report issues via [GitHub Issues](https://github.com/tw93/mole/issues).
-- I have two cats, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like.
+- ⭐️ **Star this repo** if Mole helped you recover disk space
+- 🐛 **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
+- 💬 **Share with friends** who need to clean their Macs
+- 🐱 I have two cats, <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like
 
 ## License
 

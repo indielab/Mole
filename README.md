@@ -116,9 +116,9 @@ echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 
 ## Support
 
-If Mole helps you recover disk space, star this repository and share with fellow Mac users. Report issues via [GitHub Issues](https://github.com/tw93/mole/issues).
-
-I have two cats, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like.
+- If Mole helps you recover disk space, star this repository and share with fellow Mac users.
+- Report issues via [GitHub Issues](https://github.com/tw93/mole/issues).
+- I have two cats, you can <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like.
 
 ## License
 

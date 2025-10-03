@@ -17,7 +17,7 @@
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 
-> 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的图文教程
+> 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的教程
 
 ## Usage
 

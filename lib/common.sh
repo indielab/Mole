@@ -11,7 +11,6 @@ readonly BLUE="${ESC}[0;34m"
 readonly YELLOW="${ESC}[1;33m"
 readonly PURPLE="${ESC}[0;35m"
 readonly RED="${ESC}[0;31m"
-readonly GRAY="${ESC}[0;90m"
 readonly NC="${ESC}[0m"
 
 # Logging configuration
@@ -89,51 +88,41 @@ show_cursor() {
 
 # Keyboard input handling (simple and robust)
 read_key() {
-    # Robust parser that accumulates pending bytes to avoid leaking raw 'A'/'B'
-    local first rest
-    IFS= read -r -s -n 1 first || return 1
+    local key rest
+    # Use macOS bash 3.2 compatible read syntax
+    IFS= read -r -s -n 1 key || return 1
 
-    # Enter (some terminals send empty before newline in -n1 mode)
-    if [[ -z "$first" || "$first" == $'\n' || "$first" == $'\r' ]]; then
-        echo "ENTER"; return 0
+    # Some terminals can yield empty on Enter with -n1; treat as ENTER
+    if [[ -z "$key" ]]; then
+        echo "ENTER"
+        return 0
     fi
 
-    case "$first" in
-        ' ') echo "SPACE"; return 0 ;;
-        'q'|'Q') echo "QUIT"; return 0 ;;
-        'a'|'A') echo "ALL"; return 0 ;;
-        'n'|'N') echo "NONE"; return 0 ;;
-        '?') echo "HELP"; return 0 ;;
-        $'\x7f'|$'\b') echo "BACKSPACE"; return 0 ;;
+    case "$key" in
+        $'\n'|$'\r') echo "ENTER" ;;
+        ' ') echo "SPACE" ;;
+        'q'|'Q') echo "QUIT" ;;
+        'a'|'A') echo "ALL" ;;
+        'n'|'N') echo "NONE" ;;
+        '?') echo "HELP" ;;
         $'\x1b')
-            # Collect rest of possible escape sequence quickly (non-blocking)
-            local buf=""
-            local count=0
-            while IFS= read -r -s -n 1 -t 0.005 rest 2>/dev/null; do
-                buf+="$rest"; ((count++))
-                # Stop if final byte of a simple CSI seq
-                [[ "$rest" =~ [A-Za-z~] ]] && break
-                [[ $count -ge 5 ]] && break
-            done
-            case "$buf" in
-                "[A") echo "UP" ;;
-                "[B") echo "DOWN" ;;
-                "[C") echo "RIGHT" ;;
-                "[D") echo "LEFT" ;;
-                "")   echo "OTHER" ;; # Bare ESC -> ignore
-                *)      echo "OTHER" ;;
-            esac
-            return 0
+            # Read the next two bytes within 1s; works well on macOS bash 3.2
+            if IFS= read -r -s -n 2 -t 1 rest 2>/dev/null; then
+                case "$rest" in
+                    "[A") echo "UP" ;;
+                    "[B") echo "DOWN" ;;
+                    "[C") echo "RIGHT" ;;
+                    "[D") echo "LEFT" ;;
+                    *) echo "OTHER" ;;
+                esac
+            else
+                # ESC pressed alone - treat as quit
+                echo "QUIT"
+            fi
             ;;
+        *) echo "OTHER" ;;
     esac
-
-    echo "OTHER"
 }
-# Drain any pending input bytes (used to swallow rapid trackpad scroll sequences)
-drain_pending_input() {
-    while IFS= read -r -s -t 0 -n 1 _; do :; done
-}
-
 
 # Menu display helper
 show_menu_option() {

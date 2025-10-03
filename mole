@@ -261,7 +261,9 @@ interactive_main_menu() {
         fi
     }
 
-    maybe_show_intro
+    if [[ -t 1 ]]; then
+        animate_mole_intro
+    fi
     local current_option=1
     local first_draw=true
     cleanup_and_exit() {

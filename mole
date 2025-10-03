@@ -144,12 +144,13 @@ show_help() {
     printf "  %s%s%s [command]\n\n" "$GREEN" "mole" "$NC"
 
     printf "%s%s%s\n" "$BLUE" "COMMANDS" "$NC"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole update" "$NC" "Update Mole to the latest version"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole --version" "$NC" "Show installed version"
-    printf "  %s%-16s%s %s\n" "$GREEN" "mole --help" "$NC" "Show this help message"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole clean --dry-run" "$NC" "Preview cleanup (no deletions)"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole update" "$NC" "Update Mole to the latest version"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole --version" "$NC" "Show installed version"
+    printf "  %s%-20s%s %s\n" "$GREEN" "mole --help" "$NC" "Show this help message"
 
     printf "\n%s%s%s\n" "$BLUE" "MORE" "$NC"
     printf "  https://github.com/tw93/mole\n\n"
@@ -216,9 +217,12 @@ show_main_menu() {
         echo ""
         show_brand_banner
         echo ""
+        # Save cursor position right before menu items
+        printf '\033[s'
+    else
+        # Restore to saved position and clear everything from there
+        printf '\033[u\033[0J'
     fi
-
-    printf '\033[s'  # Save cursor position
 
     show_menu_option 1 "Clean System - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
     show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
@@ -238,7 +242,6 @@ interactive_main_menu() {
     local first_draw=true
 
     cleanup_and_exit() {
-        printf '\033[u\033[J'  # Restore cursor and clear
         show_cursor
         echo ""
         echo "Thank you for using Mole!"
@@ -249,12 +252,9 @@ interactive_main_menu() {
     hide_cursor
 
     while true; do
+        show_main_menu $current_option "$first_draw"
         if [[ "$first_draw" == "true" ]]; then
-            show_main_menu $current_option true
             first_draw=false
-        else
-            printf '\033[u'  # Restore cursor position
-            show_main_menu $current_option false
         fi
 
         local key=$(read_key)
@@ -264,7 +264,6 @@ interactive_main_menu() {
             "UP") ((current_option > 1)) && ((current_option--)) ;;
             "DOWN") ((current_option < 4)) && ((current_option++)) ;;
             "ENTER"|"$current_option")
-                printf '\033[u\033[J'  # Clear menu
                 show_cursor
                 case $current_option in
                     1)
@@ -302,7 +301,6 @@ interactive_main_menu() {
                 ;;
             "QUIT") cleanup_and_exit ;;
             [1-4])
-                printf '\033[u\033[J'
                 show_cursor
                 case $key in
                     1)

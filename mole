@@ -268,7 +268,22 @@ interactive_main_menu() {
                 show_cursor
                 case $current_option in
                     1)
-                        echo -e "${BLUE}Press 'd' for Dry Run preview, Enter to start cleaning (q to cancel)${NC}"
+                        echo -e "${BLUE}Press SPACE for Dry Run preview, Enter to start cleaning (Esc/q to cancel)${NC}"
+                        # SPACE => dry run; Enter => normal; Esc/q => cancel
+                        IFS= read -r -s -n1 key2 || true
+                        if [[ "$key2" == $'\e' ]]; then
+                            # ESC pressed -> cancel
+                            :
+                        elif [[ "$key2" == ' ' ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh" --dry-run
+                        elif [[ "$key2" == $'\n' || -z "$key2" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        elif [[ "$key2" == 'q' || "$key2" == 'Q' ]]; then
+                            :
+                        else
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        fi
+                        continue
                         IFS= read -r -s -n1 key2 || true
                         if [[ "$key2" == $'\n' || -z "$key2" ]]; then
                             exec "$SCRIPT_DIR/bin/clean.sh"
@@ -291,13 +306,16 @@ interactive_main_menu() {
                 show_cursor
                 case $key in
                     1)
-                        echo -e "${BLUE}Press 'd' for Dry Run preview, Enter to start cleaning (q to cancel)${NC}"
+                        echo -e "${BLUE}Press SPACE for Dry Run preview, Enter to start cleaning (Esc/q to cancel)${NC}"
+                        # SPACE => dry run; Enter => normal; Esc/q => cancel
                         IFS= read -r -s -n1 key2 || true
-                        if [[ "$key2" == $'\n' || -z "$key2" ]]; then
-                            exec "$SCRIPT_DIR/bin/clean.sh"
-                        elif [[ "$key2" == "d" || "$key2" == "D" ]]; then
+                        if [[ "$key2" == $'\e' ]]; then
+                            :
+                        elif [[ "$key2" == ' ' ]]; then
                             exec "$SCRIPT_DIR/bin/clean.sh" --dry-run
-                        elif [[ "$key2" == "q" || "$key2" == "Q" ]]; then
+                        elif [[ "$key2" == $'\n' || -z "$key2" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        elif [[ "$key2" == 'q' || "$key2" == 'Q' ]]; then
                             :
                         else
                             exec "$SCRIPT_DIR/bin/clean.sh"

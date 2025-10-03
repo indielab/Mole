@@ -118,36 +118,7 @@ $ mole analyze ~/Downloads
 
   Items (sorted by size):
 
-### Dry Run Preview
 
-Before actually deleting, you can preview what would be removed:
-
-```bash
-mole clean --dry-run
-```
-
-In interactive menu: select Clean System and press `d` instead of Enter.
-
-Sample output:
-```bash
-$ mole clean --dry-run
-
-🧪 Dry Run mode: showing what would be removed (no deletions).
-
-▶ System essentials
-  → User app cache (45.2GB, dry)
-  → User app logs (2.1GB, dry)
-  → Trash (12.3GB, dry)
-
-▶ Browser cleanup
-  → Chrome cache (8.4GB, dry)
-  → Safari cache (2.1GB, dry)
-
-====================================================================
-🧪 DRY RUN COMPLETE!
-💾 Potential reclaimable space: 72.00GB (no changes made) | Free space now: 223.5GB
-====================================================================
-```
 
   TYPE  SIZE        NAME
   ────────────────────────────────────────────────────────────────────────────────

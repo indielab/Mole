@@ -15,6 +15,7 @@ batch_uninstall_applications() {
 
     # Pre-process: Check for running apps and calculate total impact
     local -a running_apps=()
+    local -a sudo_apps=()
     local total_estimated_size=0
     local -a app_details=()
 
@@ -26,6 +27,11 @@ batch_uninstall_applications() {
         # Check if app is running
         if pgrep -f "$app_name" >/dev/null 2>&1; then
             running_apps+=("$app_name")
+        fi
+
+        # Check if app requires sudo to delete
+        if [[ ! -w "$(dirname "$app_path")" ]] || [[ "$(stat -f%Su "$app_path" 2>/dev/null)" == "root" ]]; then
+            sudo_apps+=("$app_name")
         fi
 
         # Calculate size for summary
@@ -50,6 +56,23 @@ batch_uninstall_applications() {
         local size_display="${total_estimated_size}KB"
     fi
 
+    # Request sudo access if needed (do this before confirmation)
+    if [[ ${#sudo_apps[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}🔐 Admin privileges required for: ${BLUE}${sudo_apps[*]}${NC}"
+        echo -e "${BLUE}You will be prompted for your password before proceeding...${NC}"
+        if ! sudo -v; then
+            log_error "Administrator privileges required but not granted"
+            return 1
+        fi
+        # Keep sudo alive during the process
+        (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
+        local sudo_keepalive_pid=$!
+        
+        # Set up cleanup trap for sudo keepalive
+        trap "kill $sudo_keepalive_pid 2>/dev/null || true; wait $sudo_keepalive_pid 2>/dev/null || true" EXIT INT TERM
+    fi
+
     # Show summary and get batch confirmation
     echo ""
     echo -e "${YELLOW}📦 Will remove ${BLUE}${#selected_apps[@]}${YELLOW} applications, free ${GREEN}$size_display${NC}"
@@ -62,6 +85,10 @@ batch_uninstall_applications() {
 
     if [[ -n "$REPLY" ]]; then
         log_info "Uninstallation cancelled by user"
+        # Clean up sudo keepalive if it was started
+        if [[ -n "${sudo_keepalive_pid:-}" ]]; then
+            kill "$sudo_keepalive_pid" 2>/dev/null || true
+        fi
         return 0
     fi
 
@@ -97,9 +124,45 @@ batch_uninstall_applications() {
 
         echo -e "${YELLOW}🗑️  Uninstalling: ${BLUE}$app_name${NC}"
 
-        # Remove the application
-        if rm -rf "$app_path" 2>/dev/null; then
-            echo -e "  ${GREEN}✓${NC} Removed application"
+        # Check if app is still running (even after force quit)
+        if pgrep -f "$app_name" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}⚠️${NC} App is still running, attempting force kill..."
+            pkill -9 -f "$app_name" 2>/dev/null || true
+            sleep 2
+            if pgrep -f "$app_name" >/dev/null 2>&1; then
+                echo -e "  ${RED}✗${NC} Failed to remove $app_name"
+                echo -e "     ${YELLOW}Reason: Application is still running and cannot be terminated${NC}"
+                ((failed_count++))
+                continue
+            fi
+        fi
+
+        # Check if app requires admin privileges to delete
+        local needs_sudo=false
+        if [[ ! -w "$(dirname "$app_path")" ]] || [[ "$(stat -f%Su "$app_path" 2>/dev/null)" == "root" ]]; then
+            needs_sudo=true
+        fi
+
+        # Remove the application with appropriate permissions
+        local removal_success=false
+        local error_msg=""
+        if [[ "$needs_sudo" == "true" ]]; then
+            if sudo rm -rf "$app_path" 2>/dev/null; then
+                removal_success=true
+                echo -e "  ${GREEN}✓${NC} Removed application"
+            else
+                error_msg="Failed to remove with sudo (check permissions or SIP protection)"
+            fi
+        else
+            if rm -rf "$app_path" 2>/dev/null; then
+                removal_success=true
+                echo -e "  ${GREEN}✓${NC} Removed application"
+            else
+                error_msg="Failed to remove (check if app is running or protected)"
+            fi
+        fi
+
+        if [[ "$removal_success" == "true" ]]; then
 
             # Remove related files
             local files_removed=0
@@ -122,6 +185,9 @@ batch_uninstall_applications() {
 
         else
             echo -e "  ${RED}✗${NC} Failed to remove $app_name"
+            if [[ -n "$error_msg" ]]; then
+                echo -e "     ${YELLOW}Reason: $error_msg${NC}"
+            fi
             ((failed_count++))
         fi
     done
@@ -151,6 +217,12 @@ batch_uninstall_applications() {
     echo "===================================================================="
     if [[ $failed_count -gt 0 ]]; then
         log_warning "$failed_count applications failed to uninstall"
+    fi
+
+    # Clean up sudo keepalive if it was started
+    if [[ -n "${sudo_keepalive_pid:-}" ]]; then
+        kill "$sudo_keepalive_pid" 2>/dev/null || true
+        wait "$sudo_keepalive_pid" 2>/dev/null || true
     fi
 
     ((total_size_cleaned += total_size_freed))

@@ -139,6 +139,16 @@ show_help() {
 
 # Simple update function
 update_mole() {
+    # Check if installed via Homebrew
+    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+        echo -e "${YELLOW}Mole is installed via Homebrew${NC}"
+        echo ""
+        echo "Please use Homebrew to update:"
+        echo -e "  ${GREEN}brew upgrade mole${NC}"
+        echo ""
+        exit 0
+    fi
+
     log_info "Updating Mole..."
 
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"

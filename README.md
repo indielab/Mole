@@ -23,6 +23,8 @@ Or via Homebrew:
 brew install tw93/tap/mole
 ```
 
+> ⚠️ **Note:** Choose one installation method. Don't mix both to avoid conflicts.
+
 > 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的教程
 
 ## Usage

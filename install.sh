@@ -169,6 +169,17 @@ check_requirements() {
         exit 1
     fi
 
+    # Check if already installed via Homebrew
+    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+        log_warning "Mole is already installed via Homebrew"
+        echo ""
+        echo "Please choose one installation method:"
+        echo "  1. Keep Homebrew version (recommended): brew upgrade mole"
+        echo "  2. Switch to manual install: brew uninstall mole && then re-run this script"
+        echo ""
+        exit 1
+    fi
+
     # Check if install directory exists and is writable
     if [[ ! -d "$(dirname "$INSTALL_DIR")" ]]; then
         log_error "Parent directory $(dirname "$INSTALL_DIR") does not exist"

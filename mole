@@ -59,14 +59,12 @@ check_for_updates() {
                 grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^[Vv]//')
         fi
 
-        # Compare versions if fetch succeeded
-        if [[ -n "$latest_version" && "$latest_version" != "$VERSION" ]]; then
-            # Version mismatch - cache the update message
+        # Compare versions if fetch succeeded - only notify if latest is newer
+        if [[ -n "$latest_version" ]] && [[ "$(printf '%s\n' "$VERSION" "$latest_version" | sort -V | head -n1)" == "$VERSION" ]] && [[ "$VERSION" != "$latest_version" ]]; then
             local msg="${YELLOW}📢 New version available: ${GREEN}${latest_version}${YELLOW} (current: ${VERSION})${NC}\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}"
             echo -e "$msg" > "$version_cache"
             echo -e "$msg"
         else
-            # Up to date or check failed - clear cache
             echo "" > "$version_cache"
         fi
 

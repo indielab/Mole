@@ -25,54 +25,29 @@ MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Check for updates (non-blocking, cached)
 check_for_updates() {
-    local cache_dir="$HOME/.cache/mole"
-    local version_cache="$cache_dir/version_check"
-    local check_interval=86400  # Check once per day (24 hours)
+    local cache="$HOME/.cache/mole/version_check"
 
-    mkdir -p "$cache_dir" 2>/dev/null
+    mkdir -p "$(dirname "$cache")" 2>/dev/null
 
-    # Check if we should run version check (based on cache age)
-    if [[ -f "$version_cache" ]]; then
-        local cache_age=$(($(date +%s) - $(stat -f%m "$version_cache" 2>/dev/null || echo 0)))
-        if [[ $cache_age -lt $check_interval ]]; then
-            # Cache is still fresh, show cached message if exists
-            if [[ -s "$version_cache" ]]; then
-                cat "$version_cache"
-            fi
-            return 0
-        fi
+    # Show cached message if less than 24 hours old
+    if [[ -f "$cache" ]]; then
+        local age=$(($(date +%s) - $(stat -f%m "$cache" 2>/dev/null || echo 0)))
+        [[ $age -lt 86400 ]] && [[ -s "$cache" ]] && cat "$cache" && return
     fi
 
-    # Run version check in background (non-blocking)
+    # Background version check
     (
-        local latest_version=""
-        local timeout=3  # 3 second timeout for version check
+        local latest=$(curl -fsSL --connect-timeout 2 --max-time 3 \
+            "https://raw.githubusercontent.com/tw93/mole/main/mole" 2>/dev/null | \
+            grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/')
 
-        # Try to fetch latest version from GitHub with timeout
-        if command -v curl >/dev/null 2>&1; then
-            latest_version=$(curl -fsSL --connect-timeout 2 --max-time $timeout \
-                "https://api.github.com/repos/tw93/mole/releases/latest" 2>/dev/null | \
-                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^[Vv]//')
-        elif command -v wget >/dev/null 2>&1; then
-            latest_version=$(wget -qO- --timeout=$timeout --tries=1 \
-                "https://api.github.com/repos/tw93/mole/releases/latest" 2>/dev/null | \
-                grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^[Vv]//')
-        fi
-
-        # Compare versions if fetch succeeded - only notify if latest is newer
-        if [[ -n "$latest_version" ]] && [[ "$(printf '%s\n' "$VERSION" "$latest_version" | sort -V | head -n1)" == "$VERSION" ]] && [[ "$VERSION" != "$latest_version" ]]; then
-            local msg="${YELLOW}📢 New version available: ${GREEN}${latest_version}${YELLOW} (current: ${VERSION})${NC}\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}"
-            echo -e "$msg" > "$version_cache"
-            echo -e "$msg"
+        if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
+            echo -e "${YELLOW}📢 New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" | tee "$cache"
         else
-            echo "" > "$version_cache"
+            echo -n > "$cache"
         fi
-
-        # Touch cache file to update timestamp
-        touch "$version_cache" 2>/dev/null
+        touch "$cache" 2>/dev/null
     ) &
-
-    # Don't wait for background check
     disown 2>/dev/null || true
 }
 
@@ -124,7 +99,6 @@ EOF
     done
 
     printf '\n'
-    printf "%s\n" "${BLUE}Ready to dig deep...${NC}"
     sleep 0.5
 
     printf '\033[2J\033[H'
@@ -237,33 +211,16 @@ show_main_menu() {
 
 # Interactive main menu loop
 interactive_main_menu() {
-    maybe_show_intro() {
-        if [[ ! -t 1 ]]; then
-            return
-        fi
-
-        local tty_name
-        tty_name=$(tty 2>/dev/null || echo "")
-
-        if [[ -n "$tty_name" ]]; then
-            local sanitized
-            sanitized=$(echo "$tty_name" | tr -c '[:alnum:]_' '_')
-            local flag_file="/tmp/mole_intro_${sanitized}"
-            if [[ -f "$flag_file" ]]; then
-                return
-            fi
-            animate_mole_intro
-            touch "$flag_file" 2>/dev/null || true
-        else
-            if [[ -z "${MOLE_INTRO_SHOWN:-}" ]]; then
-                animate_mole_intro
-                export MOLE_INTRO_SHOWN=1
-            fi
-        fi
-    }
-
+    # Show intro animation only once per terminal tab
     if [[ -t 1 ]]; then
-        animate_mole_intro
+        local tty_name=$(tty 2>/dev/null || echo "")
+        if [[ -n "$tty_name" ]]; then
+            local flag_file="/tmp/mole_intro_$(echo "$tty_name" | tr -c '[:alnum:]_' '_')"
+            if [[ ! -f "$flag_file" ]]; then
+                animate_mole_intro
+                touch "$flag_file" 2>/dev/null || true
+            fi
+        fi
     fi
     local current_option=1
     local first_draw=true

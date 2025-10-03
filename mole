@@ -89,6 +89,50 @@ ${GREEN}|_|  |_|\___/|_|\___|${NC}  ${GREEN}${MOLE_TAGLINE}${NC}
 EOF
 }
 
+animate_mole_intro() {
+    # Skip animation if stdout isn't a TTY (non-interactive)
+    if [[ ! -t 1 ]]; then
+        return
+    fi
+
+    clear_screen
+    printf '\n'
+    hide_cursor
+
+    local -a mole_lines=()
+    while IFS= read -r line; do
+        mole_lines+=("$line")
+    done <<'EOF'
+        /\_/\
+   ____/ o o \
+ /~____  =o= /
+(______)__m_m)
+        /   \
+     __/ /\ \__
+    /__/  \__\_
+EOF
+
+    local idx
+    local body_cutoff=4
+    local body_color="${PURPLE}"
+    local ground_color="${GREEN}"
+    for idx in "${!mole_lines[@]}"; do
+        if (( idx < body_cutoff )); then
+            printf "%s\n" "${body_color}${mole_lines[$idx]}${NC}"
+        else
+            printf "%s\n" "${ground_color}${mole_lines[$idx]}${NC}"
+        fi
+        sleep 0.16
+    done
+
+    printf '\n'
+    printf "%s\n" "${BLUE}Ready to dig deep...${NC}"
+    sleep 0.5
+
+    printf '\033[2J\033[H'
+    show_cursor
+}
+
 show_version() {
     printf 'Mole version %s\n' "$VERSION"
 }
@@ -189,6 +233,7 @@ show_main_menu() {
 
 # Interactive main menu loop
 interactive_main_menu() {
+    animate_mole_intro
     local current_option=1
     local first_draw=true
 

@@ -12,6 +12,15 @@ source "$SCRIPT_DIR/../lib/common.sh"
 SYSTEM_CLEAN=false
 DRY_RUN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
+# Default whitelist patterns to avoid removing critical caches (can be extended by user)
+WHITELIST_PATTERNS=("$HOME/Library/Caches/ms-playwright*")
+# Load user-defined whitelist file if present (~/.config/mole/whitelist)
+if [[ -f "$HOME/.config/mole/whitelist" ]]; then
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^# ]] && continue
+        WHITELIST_PATTERNS+=("$line")
+    done < "$HOME/.config/mole/whitelist"
+fi
 total_items=0
 
 # Tracking variables
@@ -135,6 +144,14 @@ safe_clean() {
     # Size calculation is the slowest part - do it in parallel
     local -a existing_paths=()
     for path in "${targets[@]}"; do
+        # Skip if path matches whitelist
+        local skip=false
+        for w in "${WHITELIST_PATTERNS[@]}"; do
+            if [[ "$path" == $w ]]; then
+                skip=true; break
+            fi
+        done
+        [[ "$skip" == "true" ]] && continue
         [[ -e "$path" ]] && existing_paths+=("$path")
     done
 
@@ -871,6 +888,9 @@ main() {
             "--dry-run"|"-n")
                 DRY_RUN=true
                 ;;
+            "--whitelist")
+                echo "Active whitelist patterns:"; for w in "${WHITELIST_PATTERNS[@]}"; do echo "  $w"; done; exit 0
+                ;;
             "--help"|"-h")
                 echo "Mole - Deeper system cleanup"
                 echo "Usage: clean.sh [options]"
@@ -878,6 +898,7 @@ main() {
                 echo "Options:"
                 echo "  --help, -h        Show this help"
                 echo "  --dry-run, -n     Preview what would be cleaned without deleting"
+            echo "  --whitelist       Show active whitelist patterns"
                 echo ""
                 echo "Interactive cleanup with smart password handling"
                 echo ""

@@ -122,7 +122,7 @@ EOF
         else
             printf "%s\n" "${ground_color}${mole_lines[$idx]}${NC}"
         fi
-        sleep 0.16
+        sleep 0.1
     done
 
     printf '\n'

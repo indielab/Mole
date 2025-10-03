@@ -8,7 +8,6 @@
 
 - 🦡 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
 - 📦 **Smart Uninstall** - Complete app removal with all related files and folders
-- 📊 **Disk Space Analyzer** - Visualize disk usage with lightning-fast mdfind + du hybrid scanning
 - ⚡️ **Fast Interactive UI** - Arrow-key navigation with pagination for large lists
 - 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
@@ -21,12 +20,11 @@ curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ## Usage
 
 ```bash
-mole               # Interactive main menu
-mole clean         # Deep system cleanup
+mole                 # Interactive main menu
+mole clean           # Deep system cleanup  
 mole clean --dry-run # Preview cleanup (no deletions)
-mole uninstall     # Interactive app uninstaller
-mole analyze [path]# Analyze disk space (default: home directory)
-mole --help        # Show help
+mole uninstall       # Interactive app uninstaller
+mole --help          # Show help
 ```
 
 ## Examples
@@ -86,86 +84,6 @@ Select Apps to Remove
 ====================================================================
 ```
 
-### Disk Space Analyzer
-
-```bash
-# Quick start - explore your home directory
-$ mole analyze
-
-# View all disk volumes and major locations
-$ mole analyze --all
-
-💾 Disk Volumes & Locations
-
-  TYPE  SIZE        LOCATION
-  ────────────────────────────────────────────────────────────────────────────────
-▶ 💿  245.3GB     Macintosh HD (Root)
-  🏠  89.2GB      ~
-  📚  45.1GB      ~/Library
-  📁  33.7GB      ~/Downloads
-  📁  18.4GB      ~/Documents
-  🔌  128.0GB     External Drive
-
-# Explore specific directory with progress bar
-$ mole analyze ~/Downloads
-
-  📊 [████████████] 100% (25/25)  ← Real-time scanning progress
-
-📊 Disk Space Explorer
-
-  Current: ~/Downloads
-  ↑/↓: Navigate | → / Enter: Open folder | ← / Backspace: Back | q: Quit
-
-  Items (sorted by size):
-
-
-
-  TYPE  SIZE        NAME
-  ────────────────────────────────────────────────────────────────────────────────
-  ▶ 📁   33.72GB      materials       ← Use arrow keys to select
-    📁   5.67GB       learning
-    📁   4.50GB       projects
-    🎬   1.68GB       recording.mov   ← Files can't be opened
-    🎬   1.58GB       presentation.mov
-    📦   1.20GB       OldInstaller.dmg
-    📁   2.22GB       shared
-    📁   1.78GB       recent
-    ... and 12 more items
-
-# Press Enter on "materials" folder to drill down:
-
-📊 Disk Space Explorer
-
-  Current: ~/Downloads/materials
-  ↑/↓: Navigate | → / Enter: Open folder | ← / Backspace: Back | q: Quit
-
-  Items (sorted by size):
-
-  ▶ 📁   15.2GB       videos          ← Keep drilling down
-    📁   10.1GB       documents
-    📁   6.8GB        images
-    🎬   2.5GB        demo.mov
-```
-
-**Interactive Navigation:**
-
-- **Instant startup** - no waiting for initial scan
-- **Real-time progress** - visual progress bar when scanning (10+ directories)
-- **All volumes view** - `--all` flag shows all disks and major locations
-- **Files and folders mixed together**, sorted by size (largest first)
-- Shows **top 16 items** per directory (largest items only)
-- Use **↑/↓** arrow keys to navigate (green arrow ▶ shows selection)
-- Press **Enter** on a 📁 folder to drill down into it
-- Press **Backspace** or **←** to go back to parent directory
-- Press **q** to quit at any time
-- **Color coding**: Red folders >10GB, Yellow >1GB, Blue <1GB
-- Files (📦🎬📄🖼️📊) are shown but can't be opened (only folders)
-
-**Performance:**
-- **Fast scanning** - real-time progress bar for large directories (10+ folders)
-- **Smart caching** - sizes are calculated once and cached during navigation
-- **Top 16 only** - shows largest items first, keeps interface clean and fast
-
 ## What Mole Cleans
 
 | Category | Targets | Typical Recovery |
@@ -174,6 +92,13 @@ $ mole analyze ~/Downloads
 | **Browsers** | Safari, Chrome, Edge, Arc, Firefox cache | 5-15GB |
 | **Developer** | npm, pip, Docker, Homebrew, Xcode | 15-40GB |
 | **Apps** | Slack, Discord, Teams, Notion cache | 3-10GB |
+
+**Protect Important Files:** Create `~/.config/mole/whitelist` to preserve critical caches:
+
+```bash
+# Example: Protect Playwright browsers and build tools
+echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
+```
 
 ## What Mole Uninstalls
 

@@ -204,6 +204,9 @@ update_mole() {
     fi
 
     rm -f "$tmp_installer"
+
+    # Clear version check cache after successful update
+    rm -f "$HOME/.cache/mole/version_check"
 }
 
 # Display main menu options

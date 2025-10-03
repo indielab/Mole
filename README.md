@@ -133,17 +133,10 @@ echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 
 ## FAQ
 
-**Q: Will Mole delete important files?**
-A: No. Mole has built-in protection and skips system-critical files.
-
-**Q: Can I undo cleanup operations?**
-A: Cache files regenerate automatically. For uninstalled apps, use Time Machine backup beforehand.
-
-**Q: How often should I run cleanup?**
-A: Once a month is sufficient. Run when disk space is low.
-
-**Q: Is it safe to use?**
-A: Yes. The tool previews what will be deleted before any action (`--dry-run`).
+1. **Will Mole delete important files?** - No. Mole has built-in protection and skips system-critical files.
+2. **Can I undo cleanup operations?** - Cache files regenerate automatically. For uninstalled apps, use Time Machine backup beforehand.
+3. **How often should I run cleanup?** - Once a month is sufficient. Run when disk space is low.
+4. **Is it safe to use?** - Yes. The tool previews what will be deleted before any action (`--dry-run`).
 
 ## Support
 

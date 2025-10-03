@@ -17,6 +17,12 @@
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 ```
 
+Or via Homebrew:
+
+```bash
+brew install tw93/tap/mole
+```
+
 > 📖 **不会用终端？** 查看 [小白使用指南](./GUIDE.md) 了解详细的教程
 
 ## Usage
@@ -26,8 +32,13 @@ mole                      # Interactive main menu
 mole clean                # Deep system cleanup
 mole clean --dry-run      # Preview cleanup (no deletions)
 mole uninstall            # Interactive app uninstaller
-mole update               # Update Mole to the latest version
 mole --help               # Show help
+```
+
+**Update:**
+```bash
+brew upgrade mole         # If installed via Homebrew
+mole update               # If installed manually
 ```
 
 **Navigation:** Use arrow keys (↑/↓), Space to select, Enter to confirm, Q to quit or Ctrl+C to force exit.

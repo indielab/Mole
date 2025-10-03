@@ -37,7 +37,7 @@ check_for_updates() {
 
     # Background version check (save to file, don't output)
     (
-        local latest=$(curl -fsSL --connect-timeout 2 --max-time 3 \
+        local latest=$(curl -fsSL --connect-timeout 2 --max-time 3 -H "Cache-Control: no-cache" \
             "https://raw.githubusercontent.com/tw93/mole/main/mole" 2>/dev/null | \
             grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/')
 

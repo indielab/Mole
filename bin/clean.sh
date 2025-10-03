@@ -17,7 +17,12 @@ WHITELIST_PATTERNS=("$HOME/Library/Caches/ms-playwright*")
 # Load user-defined whitelist file if present (~/.config/mole/whitelist)
 if [[ -f "$HOME/.config/mole/whitelist" ]]; then
     while IFS= read -r line; do
+        # Trim leading/trailing whitespace without relying on external tools
+        line="${line#${line%%[![:space:]]*}}"
+        line="${line%${line##*[![:space:]]}}"
         [[ -z "$line" || "$line" =~ ^# ]] && continue
+        # Expand leading ~ for user convenience
+        [[ "$line" == ~* ]] && line="${line/#~/$HOME}"
         WHITELIST_PATTERNS+=("$line")
     done < "$HOME/.config/mole/whitelist"
 fi
@@ -252,26 +257,29 @@ safe_clean() {
 }
 
 start_cleanup() {
+    echo ""
     echo "Mole will remove app caches, browser data, developer tools, and temporary files."
     echo ""
+
+    if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
+        echo -e "${BLUE}Tip:${NC} Want a preview first? Run 'mole clean --dry-run'."
+        echo ""
+    fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}🧪 Dry Run mode:${NC} showing what would be removed (no deletions)."
         echo ""
-        password=""
         SYSTEM_CLEAN=false
         return
     fi
 
-    # Check if we're in an interactive terminal
+    local password=""
     if [[ -t 0 ]]; then
-        # Interactive mode - ask for password
         echo "Enter admin password for system-level cleanup (or press Enter to skip):"
         echo -n "> "
         read -s password
         echo ""
     else
-        # Non-interactive mode - skip password prompt
         password=""
         echo ""
         echo -e "${BLUE}ℹ${NC}  Running in non-interactive mode"
@@ -898,7 +906,7 @@ main() {
                 echo "Options:"
                 echo "  --help, -h        Show this help"
                 echo "  --dry-run, -n     Preview what would be cleaned without deleting"
-            echo "  --whitelist       Show active whitelist patterns"
+                echo "  --whitelist       Show active whitelist patterns"
                 echo ""
                 echo "Interactive cleanup with smart password handling"
                 echo ""

@@ -10,6 +10,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 # Configuration
 SYSTEM_CLEAN=false
+DRY_RUN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
 total_items=0
 
@@ -174,7 +175,9 @@ safe_clean() {
             if [[ -f "$temp_dir/$hash" ]]; then
                 read -r size count < "$temp_dir/$hash"
                 if [[ "$count" -gt 0 && "$size" -gt 0 ]]; then
-                    rm -rf "$path" 2>/dev/null || true
+                    if [[ "$DRY_RUN" != "true" ]]; then
+                        rm -rf "$path" 2>/dev/null || true
+                    fi
                     ((total_size_bytes += size))
                     ((total_count += count))
                     removed_any=1
@@ -190,7 +193,9 @@ safe_clean() {
             local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
 
             if [[ "$count" -gt 0 && "$size_bytes" -gt 0 ]]; then
-                rm -rf "$path" 2>/dev/null || true
+                if [[ "$DRY_RUN" != "true" ]]; then
+                    rm -rf "$path" 2>/dev/null || true
+                fi
                 ((total_size_bytes += size_bytes))
                 ((total_count += count))
                 removed_any=1
@@ -214,7 +219,11 @@ safe_clean() {
             label+=" (${#targets[@]} items)"
         fi
 
-        echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo -e "  ${YELLOW}→${NC} $label ${YELLOW}($size_human, dry)${NC}"
+        else
+            echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
+        fi
         ((files_cleaned+=total_count))
         ((total_size_cleaned+=total_size_bytes))
         ((total_items++))
@@ -228,6 +237,14 @@ safe_clean() {
 start_cleanup() {
     echo "Mole will remove app caches, browser data, developer tools, and temporary files."
     echo ""
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}🧪 Dry Run mode:${NC} showing what would be removed (no deletions)."
+        echo ""
+        password=""
+        SYSTEM_CLEAN=false
+        return
+    fi
 
     # Check if we're in an interactive terminal
     if [[ -t 0 ]]; then
@@ -783,21 +800,35 @@ perform_cleanup() {
 
     echo ""
     echo "===================================================================="
-    echo "🎉 CLEANUP COMPLETE!"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "🧪 DRY RUN COMPLETE!"
+    else
+        echo "🎉 CLEANUP COMPLETE!"
+    fi
 
     if [[ $total_size_cleaned -gt 0 ]]; then
         local freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
-        echo "💾 Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "💾 Potential reclaimable space: ${GREEN}${freed_gb}GB${NC} (no changes made) | Free space now: $(get_free_space)"
+        else
+            echo "💾 Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
+        fi
 
-        # Add some context to make it more impressive
-        if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
-            local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
-            if [[ $movies -gt 0 ]]; then
-                echo "🎬 That's like ~$movies 4K movies worth of space!"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            # Add some context when actually freed
+            if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
+                local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
+                if [[ $movies -gt 0 ]]; then
+                    echo "🎬 That's like ~$movies 4K movies worth of space!"
+                fi
             fi
         fi
     else
-        echo "💾 No significant space was freed (system was already clean) | Free space: $(get_free_space)"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "💾 No significant reclaimable space detected (already clean) | Free space: $(get_free_space)"
+        else
+            echo "💾 No significant space was freed (system was already clean) | Free space: $(get_free_space)"
+        fi
     fi
     
     if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
@@ -834,25 +865,31 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 main() {
-    case "${1:-""}" in
-        "--help"|"-h")
-            echo "Mole - Deeper system cleanup"
-            echo "Usage: clean.sh [options]"
-            echo ""
-            echo "Options:"
-            echo "  --help, -h    Show this help"
-            echo ""
-            echo "Interactive cleanup with smart password handling"
-            echo ""
-            exit 0
-            ;;
-        *)
-            hide_cursor
-            start_cleanup
-            perform_cleanup
-            show_cursor
-            ;;
-    esac
+    # Parse args (only dry-run and help for minimal impact)
+    for arg in "$@"; do
+        case "$arg" in
+            "--dry-run"|"-n")
+                DRY_RUN=true
+                ;;
+            "--help"|"-h")
+                echo "Mole - Deeper system cleanup"
+                echo "Usage: clean.sh [options]"
+                echo ""
+                echo "Options:"
+                echo "  --help, -h        Show this help"
+                echo "  --dry-run, -n     Preview what would be cleaned without deleting"
+                echo ""
+                echo "Interactive cleanup with smart password handling"
+                echo ""
+                exit 0
+                ;;
+        esac
+    done
+
+    hide_cursor
+    start_cleanup
+    perform_cleanup
+    show_cursor
 }
 
 main "$@"

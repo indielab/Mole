@@ -267,7 +267,19 @@ interactive_main_menu() {
                 printf '\033[u\033[J'  # Clear menu
                 show_cursor
                 case $current_option in
-                    1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
+                    1)
+                        echo -e "${BLUE}Press 'd' for Dry Run preview, Enter to start cleaning (q to cancel)${NC}"
+                        IFS= read -r -s -n1 key2 || true
+                        if [[ "$key2" == $'\n' || -z "$key2" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        elif [[ "$key2" == "d" || "$key2" == "D" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh" --dry-run
+                        elif [[ "$key2" == "q" || "$key2" == "Q" ]]; then
+                            :
+                        else
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        fi
+                        ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
                     3) clear; show_help; exit 0 ;;
                     4) cleanup_and_exit ;;
@@ -278,7 +290,19 @@ interactive_main_menu() {
                 printf '\033[u\033[J'
                 show_cursor
                 case $key in
-                    1) exec "$SCRIPT_DIR/bin/clean.sh" ;;
+                    1)
+                        echo -e "${BLUE}Press 'd' for Dry Run preview, Enter to start cleaning (q to cancel)${NC}"
+                        IFS= read -r -s -n1 key2 || true
+                        if [[ "$key2" == $'\n' || -z "$key2" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        elif [[ "$key2" == "d" || "$key2" == "D" ]]; then
+                            exec "$SCRIPT_DIR/bin/clean.sh" --dry-run
+                        elif [[ "$key2" == "q" || "$key2" == "Q" ]]; then
+                            :
+                        else
+                            exec "$SCRIPT_DIR/bin/clean.sh"
+                        fi
+                        ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
                     3) clear; show_help; exit 0 ;;
                     4) cleanup_and_exit ;;

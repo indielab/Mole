@@ -52,6 +52,7 @@ mole --help               # Show help
 ```
 
 > 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update
+>
 > 💡 **Tip:** Run `mole clean --dry-run` to preview, or `mole clean --whitelist` to protect important caches before cleanup
 
 ## Features
@@ -146,11 +147,9 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Is Mole safe?** - Yes. Mole only deletes caches and logs (regenerable data). Never deletes app settings, user documents, or system files. Run `mole clean --dry-run` to preview before cleanup.
-
-2. **How often should I clean?** - Once a month, or when disk space is low.
-
-3. **Can I protect specific caches?** - Yes. Use `mole clean --whitelist` to select which caches to keep (Playwright browsers, HuggingFace models are protected by default).
+1. **Is Mole safe?** – Mole focuses on cleaning caches and logs, without touching app settings, user documents, or system files. You can run `mole clean --dry-run` to preview what will be removed before actually cleaning.  
+2. **How often should I clean?** – About once a month, or whenever you notice disk space running low.  
+3. **Can I protect specific caches?** – Yes. Run `mole clean --whitelist` to interactively choose which caches to keep. Some common ones like Playwright browsers and HuggingFace models are already protected by default.  
 
 ## Support
 

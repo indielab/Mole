@@ -315,7 +315,10 @@ readonly SYSTEM_CRITICAL_BUNDLES=(
 
 # Apps with important data/licenses - protect during cleanup but allow uninstall
 readonly DATA_PROTECTED_BUNDLES=(
-    "com.nektony.*"                    # App Cleaner & Uninstaller (cleanup tools)
+    # ============================================================================
+    # System Utilities & Cleanup Tools
+    # ============================================================================
+    "com.nektony.*"                    # App Cleaner & Uninstaller
     "com.macpaw.*"                     # CleanMyMac, CleanMaster
     "com.freemacsoft.AppCleaner"       # AppCleaner
     "com.omnigroup.omnidisksweeper"    # OmniDiskSweeper
@@ -323,59 +326,277 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.tunabellysoftware.*"          # Disk Utility apps
     "com.grandperspectiv.*"            # GrandPerspective
     "com.binaryfruit.*"                # FusionCast
-    "com.CharlesProxy.*"               # Charles Proxy (paid)
-    "com.proxyman.*"                   # Proxyman (paid)
-    "com.getpaw.*"                     # Paw (paid)
-    "com.1password.*"                  # 1Password (security apps)
+    
+    # ============================================================================
+    # Password Managers & Security
+    # ============================================================================
+    "com.1password.*"                  # 1Password
     "com.agilebits.*"                  # 1Password legacy
     "com.lastpass.*"                   # LastPass
     "com.dashlane.*"                   # Dashlane
     "com.bitwarden.*"                  # Bitwarden
     "com.keepassx.*"                   # KeePassXC
-    "com.jetbrains.*"                  # JetBrains IDEs (dev tools with user data)
+    "org.keepassx.*"                   # KeePassX
+    "com.authy.*"                      # Authy
+    "com.yubico.*"                     # YubiKey Manager
+    
+    # ============================================================================
+    # Development Tools - IDEs & Editors
+    # ============================================================================
+    "com.jetbrains.*"                  # JetBrains IDEs (IntelliJ, DataGrip, etc.)
     "JetBrains*"                       # JetBrains Application Support folders
-    "com.sublimetext.*"                # Sublime Text (paid)
-    "com.panic.transmit*"              # Transmit (paid)
-    "com.sequelpro.*"                  # Database tools
-    "com.sequel-ace.*"
-    "com.tinyapp.*"                    # TablePlus (paid)
-    "com.dbeaver.*"                    # DBeaver (database tool)
-    "com.navicat.*"                    # Navicat (database tool)
+    "com.microsoft.VSCode"             # Visual Studio Code
+    "com.visualstudio.code.*"          # VS Code variants
+    "com.sublimetext.*"                # Sublime Text
+    "com.sublimehq.*"                  # Sublime Merge
+    "com.microsoft.VSCodeInsiders"     # VS Code Insiders
+    "com.apple.dt.Xcode"               # Xcode (keep settings)
+    "com.coteditor.CotEditor"          # CotEditor
+    "com.macromates.TextMate"          # TextMate
+    "com.panic.Nova"                   # Nova
+    "abnerworks.Typora"                # Typora (Markdown editor)
+    "com.uranusjr.macdown"             # MacDown
+    
+    # ============================================================================
+    # Development Tools - Database Clients
+    # ============================================================================
+    "com.sequelpro.*"                  # Sequel Pro
+    "com.sequel-ace.*"                 # Sequel Ace
+    "com.tinyapp.*"                    # TablePlus
+    "com.dbeaver.*"                    # DBeaver
+    "com.navicat.*"                    # Navicat
     "com.mongodb.compass"              # MongoDB Compass
-    "com.bjango.istatmenus*"           # iStat Menus (system monitor, paid)
+    "com.redis.RedisInsight"           # Redis Insight
+    "com.pgadmin.pgadmin4"             # pgAdmin
+    "com.eggerapps.Sequel-Pro"         # Sequel Pro legacy
+    "com.valentina-db.Valentina-Studio" # Valentina Studio
+    "com.dbvis.DbVisualizer"           # DbVisualizer
+    
+    # ============================================================================
+    # Development Tools - API & Network
+    # ============================================================================
+    "com.postmanlabs.mac"              # Postman
+    "com.konghq.insomnia"              # Insomnia
+    "com.CharlesProxy.*"               # Charles Proxy
+    "com.proxyman.*"                   # Proxyman
+    "com.getpaw.*"                     # Paw
+    "com.luckymarmot.Paw"              # Paw legacy
+    "com.charlesproxy.charles"         # Charles
+    "com.telerik.Fiddler"              # Fiddler
+    "com.usebruno.app"                 # Bruno (API client)
+    
+    # ============================================================================
+    # Development Tools - Git & Version Control
+    # ============================================================================
+    "com.github.GitHubDesktop"         # GitHub Desktop
+    "com.sublimemerge"                 # Sublime Merge
+    "com.torusknot.SourceTreeNotMAS"   # SourceTree
+    "com.git-tower.Tower*"             # Tower
+    "com.gitfox.GitFox"                # GitFox
+    "com.github.Gitify"                # Gitify
+    "com.fork.Fork"                    # Fork
+    "com.axosoft.gitkraken"            # GitKraken
+    
+    # ============================================================================
+    # Development Tools - Terminal & Shell
+    # ============================================================================
+    "com.googlecode.iterm2"            # iTerm2
+    "net.kovidgoyal.kitty"             # Kitty
+    "io.alacritty"                     # Alacritty
+    "com.github.wez.wezterm"           # WezTerm
+    "com.hyper.Hyper"                  # Hyper
+    "com.mizage.divvy"                 # Divvy
+    "com.fig.Fig"                      # Fig (terminal assistant)
+    "dev.warp.Warp-Stable"             # Warp
+    "com.termius-dmg"                  # Termius (SSH client)
+    
+    # ============================================================================
+    # Development Tools - Docker & Virtualization
+    # ============================================================================
+    "com.docker.docker"                # Docker Desktop
+    "com.getutm.UTM"                   # UTM
+    "com.vmware.fusion"                # VMware Fusion
+    "com.parallels.desktop.*"          # Parallels Desktop
+    "org.virtualbox.app.VirtualBox"    # VirtualBox
+    "com.vagrant.*"                    # Vagrant
+    "com.orbstack.OrbStack"            # OrbStack
+    
+    # ============================================================================
+    # System Monitoring & Performance
+    # ============================================================================
+    "com.bjango.istatmenus*"           # iStat Menus
+    "eu.exelban.Stats"                 # Stats
     "com.monitorcontrol.*"             # MonitorControl
-    "com.macitbetter.*"                # BetterTouchTool, BetterSnapTool (paid)
+    "com.bresink.system-toolkit.*"     # TinkerTool System
+    "com.mediaatelier.MenuMeters"      # MenuMeters
+    "com.activity-indicator.app"       # Activity Indicator
+    "net.cindori.sensei"               # Sensei
+    
+    # ============================================================================
+    # Window Management & Productivity
+    # ============================================================================
+    "com.macitbetter.*"                # BetterTouchTool, BetterSnapTool
     "com.hegenberg.*"                  # BetterTouchTool legacy
-    "com.manytricks.*"                 # Moom, Witch, Name Mangler (paid)
+    "com.manytricks.*"                 # Moom, Witch, Name Mangler, Resolutionator
     "com.divisiblebyzero.*"            # Spectacle
     "com.koingdev.*"                   # Koingg apps
     "com.if.Amphetamine"               # Amphetamine
     "com.lwouis.alt-tab-macos"         # AltTab
-    "net.matthewpalmer.Vanilla"        # Vanilla (menubar management)
+    "net.matthewpalmer.Vanilla"        # Vanilla
     "com.lightheadsw.Caffeine"         # Caffeine
-    "com.contextual.Contexts"          # Contexts (window manager, paid)
-    "com.adobe.*"                      # Adobe Creative Suite (design tools)
+    "com.contextual.Contexts"          # Contexts
+    "com.amethyst.Amethyst"            # Amethyst
+    "com.knollsoft.Rectangle"          # Rectangle
+    "com.knollsoft.Hookshot"           # Hookshot
+    "com.surteesstudios.Bartender"     # Bartender
+    "com.gaosun.eul"                   # eul (system monitor)
+    "com.pointum.hazeover"             # HazeOver
+    
+    # ============================================================================
+    # Launcher & Automation
+    # ============================================================================
+    "com.runningwithcrayons.Alfred"    # Alfred
+    "com.raycast.macos"                # Raycast
+    "com.blacktree.Quicksilver"        # Quicksilver
+    "com.stairways.keyboardmaestro.*"  # Keyboard Maestro
+    "com.manytricks.Butler"            # Butler
+    "com.happenapps.Quitter"           # Quitter
+    "com.pilotmoon.scroll-reverser"    # Scroll Reverser
+    "org.pqrs.Karabiner-Elements"      # Karabiner-Elements
+    "com.apple.Automator"              # Automator (system, but keep user workflows)
+    
+    # ============================================================================
+    # Note-Taking & Documentation
+    # ============================================================================
+    "com.bear-writer.*"                # Bear
+    "com.typora.*"                     # Typora
+    "com.ulyssesapp.*"                 # Ulysses
+    "com.literatureandlatte.*"         # Scrivener
+    "com.dayoneapp.*"                  # Day One
+    "notion.id"                        # Notion
+    "md.obsidian"                      # Obsidian
+    "com.logseq.logseq"                # Logseq
+    "com.evernote.Evernote"            # Evernote
+    "com.onenote.mac"                  # OneNote
+    "com.omnigroup.OmniOutliner*"      # OmniOutliner
+    "net.shinyfrog.bear"               # Bear legacy
+    "com.goodnotes.GoodNotes"          # GoodNotes
+    "com.marginnote.MarginNote*"       # MarginNote
+    "com.roamresearch.*"               # Roam Research
+    "com.reflect.ReflectApp"           # Reflect
+    "com.inkdrop.*"                    # Inkdrop
+    
+    # ============================================================================
+    # Design & Creative Tools
+    # ============================================================================
+    "com.adobe.*"                      # Adobe Creative Suite
     "com.bohemiancoding.*"             # Sketch
     "com.figma.*"                      # Figma
     "com.framerx.*"                    # Framer
     "com.zeplin.*"                     # Zeplin
     "com.invisionapp.*"                # InVision
     "com.principle.*"                  # Principle
-    "com.omnigroup.*"                  # OmniFocus, OmniGraffle (productivity)
+    "com.pixelmatorteam.*"             # Pixelmator
+    "com.affinitydesigner.*"           # Affinity Designer
+    "com.affinityphoto.*"              # Affinity Photo
+    "com.affinitypublisher.*"          # Affinity Publisher
+    "com.linearity.curve"              # Linearity Curve
+    "com.canva.CanvaDesktop"           # Canva
+    "com.maxon.cinema4d"               # Cinema 4D
+    "com.autodesk.*"                   # Autodesk products
+    "com.sketchup.*"                   # SketchUp
+    
+    # ============================================================================
+    # Communication & Collaboration
+    # ============================================================================
+    "com.tencent.xinWeChat"            # WeChat (Chinese users)
+    "com.tencent.qq"                   # QQ
+    "com.alibaba.DingTalkMac"          # DingTalk
+    "us.zoom.xos"                      # Zoom
+    "com.microsoft.teams*"             # Microsoft Teams
+    "com.slack.Slack"                  # Slack
+    "com.hnc.Discord"                  # Discord
+    "org.telegram.desktop"             # Telegram
+    "ru.keepcoder.Telegram"            # Telegram legacy
+    "net.whatsapp.WhatsApp"            # WhatsApp
+    "com.skype.skype"                  # Skype
+    "com.cisco.webexmeetings"          # Webex
+    "com.ringcentral.RingCentral"      # RingCentral
+    "com.readdle.smartemail-Mac"       # Spark Email
+    "com.airmail.*"                    # Airmail
+    "com.postbox-inc.postbox"          # Postbox
+    "com.tinyspeck.slackmacgap"        # Slack legacy
+    
+    # ============================================================================
+    # Task Management & Productivity
+    # ============================================================================
+    "com.omnigroup.OmniFocus*"         # OmniFocus
     "com.culturedcode.*"               # Things
     "com.todoist.*"                    # Todoist
-    "com.bear-writer.*"                # Bear
-    "com.typora.*"                     # Typora
-    "com.ulyssesapp.*"                 # Ulysses
-    "com.literatureandlatte.*"         # Scrivener
-    "com.dayoneapp.*"                  # Day One
-    "com.spotify.client"               # Spotify (media apps)
-    "com.apple.FinalCutPro"           # Final Cut Pro
-    "com.apple.Motion"                # Motion
-    "com.apple.Compressor"            # Compressor
-    "com.blackmagic-design.*"         # DaVinci Resolve
-    "com.pixelmatorteam.*"            # Pixelmator
+    "com.any.do.*"                     # Any.do
+    "com.ticktick.*"                   # TickTick
+    "com.microsoft.to-do"              # Microsoft To Do
+    "com.trello.trello"                # Trello
+    "com.asana.nativeapp"              # Asana
+    "com.clickup.*"                    # ClickUp
+    "com.monday.desktop"               # Monday.com
+    "com.airtable.airtable"            # Airtable
+    "com.notion.id"                    # Notion (also note-taking)
+    "com.linear.linear"                # Linear
+    
+    # ============================================================================
+    # File Transfer & Sync
+    # ============================================================================
+    "com.panic.transmit*"              # Transmit (FTP/SFTP)
+    "com.binarynights.ForkLift*"       # ForkLift
+    "com.noodlesoft.Hazel"             # Hazel
+    "com.cyberduck.Cyberduck"          # Cyberduck
+    "io.filezilla.FileZilla"           # FileZilla
+    "com.apple.Xcode.CloudDocuments"   # Xcode Cloud Documents
+    "com.synology.*"                   # Synology apps
+    
+    # ============================================================================
+    # Screenshot & Recording
+    # ============================================================================
+    "com.cleanshot.*"                  # CleanShot X
+    "com.xnipapp.xnip"                 # Xnip
+    "com.reincubate.camo"              # Camo
+    "com.tunabellysoftware.ScreenFloat" # ScreenFloat
+    "net.telestream.screenflow*"       # ScreenFlow
+    "com.techsmith.snagit*"            # Snagit
+    "com.techsmith.camtasia*"          # Camtasia
+    "com.obsidianapp.screenrecorder"   # Screen Recorder
+    "com.kap.Kap"                      # Kap
+    "com.getkap.*"                     # Kap legacy
+    "com.linebreak.CloudApp"           # CloudApp
+    "com.droplr.droplr-mac"            # Droplr
+    
+    # ============================================================================
+    # Media & Entertainment
+    # ============================================================================
+    "com.spotify.client"               # Spotify
+    "com.apple.Music"                  # Apple Music
+    "com.apple.podcasts"               # Apple Podcasts
+    "com.apple.FinalCutPro"            # Final Cut Pro
+    "com.apple.Motion"                 # Motion
+    "com.apple.Compressor"             # Compressor
+    "com.blackmagic-design.*"          # DaVinci Resolve
+    "com.colliderli.iina"              # IINA
+    "org.videolan.vlc"                 # VLC
+    "io.mpv"                           # MPV
+    "com.noodlesoft.Hazel"             # Hazel (automation)
+    "tv.plex.player.desktop"           # Plex
+    "com.netease.163music"             # NetEase Music
+    
+    # ============================================================================
+    # License Management & App Stores
+    # ============================================================================
+    "com.paddle.Paddle*"               # Paddle (license management)
+    "com.setapp.DesktopClient"         # Setapp
+    "com.devmate.*"                    # DevMate (license framework)
+    "org.sparkle-project.Sparkle"      # Sparkle (update framework)
 )
+
 
 # Legacy function - preserved for backward compatibility
 # Use should_protect_from_uninstall() or should_protect_data() instead

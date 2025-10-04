@@ -342,6 +342,18 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.dbeaver.*"                    # DBeaver (database tool)
     "com.navicat.*"                    # Navicat (database tool)
     "com.mongodb.compass"              # MongoDB Compass
+    "com.bjango.istatmenus*"           # iStat Menus (system monitor, paid)
+    "com.monitorcontrol.*"             # MonitorControl
+    "com.macitbetter.*"                # BetterTouchTool, BetterSnapTool (paid)
+    "com.hegenberg.*"                  # BetterTouchTool legacy
+    "com.manytricks.*"                 # Moom, Witch, Name Mangler (paid)
+    "com.divisiblebyzero.*"            # Spectacle
+    "com.koingdev.*"                   # Koingg apps
+    "com.if.Amphetamine"               # Amphetamine
+    "com.lwouis.alt-tab-macos"         # AltTab
+    "net.matthewpalmer.Vanilla"        # Vanilla (menubar management)
+    "com.lightheadsw.Caffeine"         # Caffeine
+    "com.contextual.Contexts"          # Contexts (window manager, paid)
     "com.adobe.*"                      # Adobe Creative Suite (design tools)
     "com.bohemiancoding.*"             # Sketch
     "com.figma.*"                      # Figma

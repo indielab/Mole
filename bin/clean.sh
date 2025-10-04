@@ -819,6 +819,29 @@ perform_cleanup() {
             fi
         done
     fi
+    # Also check for non-com.* folders that may contain user data
+    for support_dir in ~/Library/Application\ Support/*; do
+        [[ -d "$support_dir" ]] || continue
+        local dir_name=$(basename "$support_dir")
+        # Skip if it starts with com. (already processed) or is in dot directories
+        [[ "$dir_name" == com.* || "$dir_name" == .* ]] && continue
+        # CRITICAL: Protect important data folders (JetBrains, database tools, etc.)
+        if should_protect_data "$dir_name"; then
+            continue
+        fi
+        # Only clean if significant size and looks like app data, but be conservative
+        # Skip common system/user folders
+        case "$dir_name" in
+            "CrashReporter"|"AddressBook"|"CallHistoryDB"|"CallHistoryTransactions"|\
+            "CloudDocs"|"icdd"|"IdentityServices"|"Mail"|"CallServices"|\
+            "com.apple."*|"Adobe"|"Google"|"Mozilla"|"Netscape"|"Yahoo"|\
+            "AddressBook"|"iCloud"|"iLifeMediaBrowser"|"MobileSync"|\
+            "CallHistory"|"FaceTime"|"Twitter")
+                # System or commonly used folders, skip
+                continue
+                ;;
+        esac
+    done
     echo " ${GREEN}✓${NC} Complete ($data_count removed)"
 
     # Check for orphaned preferences (with protection for critical system settings)

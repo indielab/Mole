@@ -332,12 +332,16 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.dashlane.*"                   # Dashlane
     "com.bitwarden.*"                  # Bitwarden
     "com.keepassx.*"                   # KeePassXC
-    "com.jetbrains.*"                  # JetBrains IDEs (dev tools)
+    "com.jetbrains.*"                  # JetBrains IDEs (dev tools with user data)
+    "JetBrains*"                       # JetBrains Application Support folders
     "com.sublimetext.*"                # Sublime Text (paid)
     "com.panic.transmit*"              # Transmit (paid)
     "com.sequelpro.*"                  # Database tools
     "com.sequel-ace.*"
     "com.tinyapp.*"                    # TablePlus (paid)
+    "com.dbeaver.*"                    # DBeaver (database tool)
+    "com.navicat.*"                    # Navicat (database tool)
+    "com.mongodb.compass"              # MongoDB Compass
     "com.adobe.*"                      # Adobe Creative Suite (design tools)
     "com.bohemiancoding.*"             # Sketch
     "com.figma.*"                      # Figma

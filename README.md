@@ -50,7 +50,8 @@ mole update               # Update Mole
 mole --help               # Show help
 ```
 
-> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update
+> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update  
+> ⚠️ **Recommended:** Always run `mole clean --dry-run` first to preview changes before cleanup
 
 ## Features
 
@@ -60,19 +61,19 @@ mole --help               # Show help
 $ mole clean
 
 ▶ System essentials
-  ✓ User app cache (45.2GB)        # Caches, logs, trash (20-50GB)
+  ✓ User app cache (45.2GB)        # Caches, logs, trash 20-50GB typical
   ✓ User app logs (2.1GB)
   ✓ Trash (12.3GB)
 
-▶ Browser cleanup                   # Chrome, Safari, Arc (5-15GB)
+▶ Browser cleanup                   # Chrome, Safari, Arc 5-15GB typical
   ✓ Chrome cache (8.4GB)
   ✓ Safari cache (2.1GB)
 
-▶ Developer tools                   # npm, Docker, Xcode (15-40GB)
+▶ Developer tools                   # npm, Docker, Xcode 15-40GB typical
   ✓ Xcode derived data (9.1GB)
   ✓ Node.js cache (14.2GB)
 
-▶ Others                            # Cloud, Office, Media (10-40GB)
+▶ Others                            # Cloud, Office, Media 10-40GB typical
   ✓ Dropbox cache (5.2GB)
   ✓ Spotify cache (3.1GB)
 
@@ -105,12 +106,12 @@ $ mole uninstall
 
 🗑️  Uninstalling: Adobe Creative Cloud
   ✓ Removed application              # /Applications/
-  ✓ Cleaned 52 related files         # ~/Library/ (12 locations)
+  ✓ Cleaned 52 related files         # ~/Library/ across 12 locations
     - Support files & caches         # Application Support, Caches
     - Preferences & logs             # Preferences, Logs
     - WebKit storage & cookies       # WebKit, HTTPStorages
     - Extensions & plugins           # Internet Plug-Ins, Services
-    - System files (sudo)            # /Library/, Launch daemons
+    - System files with sudo         # /Library/, Launch daemons
 
 ====================================================================
 🎉 UNINSTALLATION COMPLETE!
@@ -145,10 +146,14 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Will Mole delete important files?** - No. Mole has built-in protection and skips system-critical files.
-2. **Can I undo cleanup operations?** - Cache files are safe to delete and will regenerate automatically.
+1. **Will Mole delete important files?** - No. Mole has built-in protection for:
+   - System-critical files like Input Methods, Dock, and System Preferences
+   - User data from IDEs like JetBrains DataGrip and VS Code, plus database tools
+   - License data from paid apps like 1Password and Adobe products
+   - App settings are only removed when you explicitly uninstall the app
+2. **Can I undo cleanup operations?** - Cache files are safe to delete and will regenerate automatically. For important data protection, use the whitelist feature via `mole clean --whitelist`.
 3. **How often should I run cleanup?** - Once a month is sufficient. Run when disk space is low.
-4. **Is it safe to use?** - Yes. The tool previews what will be deleted before any action (`--dry-run`).
+4. **Is it safe to use?** - Yes. **Always run `mole clean --dry-run` first** to preview what will be deleted before any action.
 
 ## Support
 

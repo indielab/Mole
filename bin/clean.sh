@@ -154,6 +154,19 @@ safe_clean() {
         return 0
     fi
 
+    local progress_message
+    if [[ "$DRY_RUN" == "true" ]]; then
+        progress_message="Previewing $description..."
+    else
+        progress_message="Cleaning $description..."
+    fi
+
+    if [[ -t 1 ]]; then
+        echo -e "  ${BLUE}⏳${NC} $progress_message"
+    else
+        echo "  $progress_message"
+    fi
+
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
         local temp_dir=$(mktemp -d)
 

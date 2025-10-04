@@ -17,14 +17,12 @@ WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
 )
-# Load user-defined whitelist file if present (~/.config/mole/whitelist)
+# Load user-defined whitelist
 if [[ -f "$HOME/.config/mole/whitelist" ]]; then
     while IFS= read -r line; do
-        # Trim leading/trailing whitespace without relying on external tools
         line="${line#${line%%[![:space:]]*}}"
         line="${line%${line##*[![:space:]]}}"
         [[ -z "$line" || "$line" =~ ^# ]] && continue
-        # Expand leading ~ for user convenience
         [[ "$line" == ~* ]] && line="${line/#~/$HOME}"
         WHITELIST_PATTERNS+=("$line")
     done < "$HOME/.config/mole/whitelist"
@@ -64,17 +62,12 @@ SPINNER_PID=""
 start_spinner() {
     local message="$1"
 
-    # Check if we're in an interactive terminal
     if [[ ! -t 1 ]]; then
-        # Non-interactive, just show static message
         echo -n "  ${BLUE}🔍${NC} $message"
         return
     fi
 
-    # Display message without newline
     echo -n "  ${BLUE}🔍${NC} $message"
-
-    # Start simple dots animation for interactive terminals
     (
         local delay=0.5
         while true; do
@@ -95,7 +88,6 @@ stop_spinner() {
     local result_message="${1:-Done}"
 
     if [[ ! -t 1 ]]; then
-        # Non-interactive, just show result
         echo " ✓ $result_message"
         return
     fi
@@ -104,15 +96,11 @@ stop_spinner() {
         kill "$SPINNER_PID" 2>/dev/null
         wait "$SPINNER_PID" 2>/dev/null
         SPINNER_PID=""
-        # Clear the line and show result
         printf "\r  ${GREEN}✓${NC} %s\n" "$result_message"
     else
-        # No spinner was running, just show result
         echo "  ${GREEN}✓${NC} $result_message"
     fi
 }
-
-# Cleanup background processes on exit
 
 start_section() {
     TRACK_SECTION=1
@@ -148,11 +136,9 @@ safe_clean() {
     local total_size_bytes=0
     local total_count=0
 
-    # Optimized: skip size calculation for empty checks, just try to delete
-    # Size calculation is the slowest part - do it in parallel
+    # Optimized parallel processing for better performance
     local -a existing_paths=()
     for path in "${targets[@]}"; do
-        # Skip if path matches whitelist
         local skip=false
         for w in "${WHITELIST_PATTERNS[@]}"; do
             if [[ "$path" == $w ]]; then
@@ -168,11 +154,10 @@ safe_clean() {
         return 0
     fi
 
-    # Fast parallel processing for multiple targets
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
         local temp_dir=$(mktemp -d)
 
-        # Launch parallel du jobs (bash 3.2 compatible)
+        # Parallel processing (bash 3.2 compatible)
         local -a pids=()
         for path in "${existing_paths[@]}"; do
             (
@@ -182,19 +167,15 @@ safe_clean() {
             ) &
             pids+=($!)
 
-            # Limit to 15 parallel jobs (bash 3.2 compatible)
             if (( ${#pids[@]} >= 15 )); then
                 wait "${pids[0]}" 2>/dev/null || true
                 pids=("${pids[@]:1}")
             fi
         done
 
-        # Wait for remaining jobs
         for pid in "${pids[@]}"; do
             wait "$pid" 2>/dev/null || true
         done
-
-        # Collect results and delete
         for path in "${existing_paths[@]}"; do
             local hash=$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)
             if [[ -f "$temp_dir/$hash" ]]; then
@@ -212,7 +193,6 @@ safe_clean() {
 
         rm -rf "$temp_dir"
     else
-        # Serial processing for few targets (faster than parallel overhead)
         for path in "${existing_paths[@]}"; do
             local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
             local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -228,7 +208,6 @@ safe_clean() {
         done
     fi
 
-    # Only show output if something was actually cleaned
     if [[ $removed_any -eq 1 ]]; then
         local size_human
         if [[ $total_size_bytes -gt 1048576 ]]; then  # > 1GB
@@ -285,7 +264,7 @@ start_cleanup() {
         echo -en "${BLUE}Enter admin password to enable, or press Enter to skip: ${NC}"
         read -s password
         echo ""
-        
+
         if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
             SYSTEM_CLEAN=true
             # Start sudo keepalive with error handling
@@ -640,7 +619,8 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/SentryCrash/* "Sentry crash reports"
     safe_clean ~/Library/Caches/KSCrash/* "KSCrash reports"
     safe_clean ~/Library/Caches/com.crashlytics.data/* "Crashlytics data"
-    safe_clean ~/Library/HTTPStorages/* "HTTP storage cache"
+    # Note: HTTPStorages contains cookies and login sessions, NOT safe to delete
+    # safe_clean ~/Library/HTTPStorages/* "HTTP storage cache"
 
     end_section
 
@@ -765,13 +745,15 @@ perform_cleanup() {
     end_section
 
 
-    # ===== 12. Orphaned leftovers =====
-    start_section "Orphaned app files"
+    # ===== 12. Orphaned app caches =====
+    # Note: We only clean orphaned caches (regenerable) but preserve:
+    # - Preferences (small, contain settings users may want when reinstalling)
+    # - Application Support data (may contain user documents/databases)
+    start_section "Orphaned app caches"
 
     # Build a list of installed application bundle identifiers
     echo -n "  ${BLUE}🔍${NC} Scanning installed applications..."
     local installed_bundles=$(mktemp)
-    # More robust approach that won't hang
     for app in /Applications/*.app; do
         if [[ -d "$app" && -f "$app/Contents/Info.plist" ]]; then
             bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
@@ -781,13 +763,10 @@ perform_cleanup() {
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
     echo " ${GREEN}✓${NC} Found $app_count apps"
 
-    local found_orphaned=false
     local cache_count=0
-    local data_count=0
-    local pref_count=0
 
-    # Check for orphaned caches (with protection for critical system settings)
-    echo -n "  ${BLUE}🔍${NC} Scanning cache directories..."
+    # Check for orphaned caches (safe to remove - caches are regenerable)
+    echo -n "  ${BLUE}🔍${NC} Scanning orphaned cache directories..."
     if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
         for cache_dir in ~/Library/Caches/com.*; do
             [[ -d "$cache_dir" ]] || continue
@@ -798,84 +777,14 @@ perform_cleanup() {
             fi
             if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
                 safe_clean "$cache_dir" "Orphaned cache: $bundle_id"
-                found_orphaned=true
                 ((cache_count++))
             fi
         done
     fi
     echo " ${GREEN}✓${NC} Complete ($cache_count removed)"
 
-    # Check for orphaned application support data (with protection for critical system settings)
-    echo -n "  ${BLUE}🔍${NC} Scanning application data..."
-    if ls ~/Library/Application\ Support/com.* >/dev/null 2>&1; then
-        for support_dir in ~/Library/Application\ Support/com.*; do
-            [[ -d "$support_dir" ]] || continue
-            local bundle_id=$(basename "$support_dir")
-            # CRITICAL: Skip system-essential and protected app data
-            if should_protect_data "$bundle_id"; then
-                continue
-            fi
-            if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
-                safe_clean "$support_dir" "Orphaned data: $bundle_id"
-                found_orphaned=true
-                ((data_count++))
-            fi
-        done
-    fi
-    # Also check for non-com.* folders that may contain user data
-    for support_dir in ~/Library/Application\ Support/*; do
-        [[ -d "$support_dir" ]] || continue
-        local dir_name=$(basename "$support_dir")
-        # Skip if it starts with com. (already processed) or is in dot directories
-        [[ "$dir_name" == com.* || "$dir_name" == .* ]] && continue
-        # CRITICAL: Protect important data folders (JetBrains, database tools, etc.)
-        if should_protect_data "$dir_name"; then
-            continue
-        fi
-        # Only clean if significant size and looks like app data, but be conservative
-        # Skip common system/user folders
-        case "$dir_name" in
-            "CrashReporter"|"AddressBook"|"CallHistoryDB"|"CallHistoryTransactions"|\
-            "CloudDocs"|"icdd"|"IdentityServices"|"Mail"|"CallServices"|\
-            "com.apple."*|"Adobe"|"Google"|"Mozilla"|"Netscape"|"Yahoo"|\
-            "AddressBook"|"iCloud"|"iLifeMediaBrowser"|"MobileSync"|\
-            "CallHistory"|"FaceTime"|"Twitter")
-                # System or commonly used folders, skip
-                continue
-                ;;
-        esac
-    done
-    echo " ${GREEN}✓${NC} Complete ($data_count removed)"
-
-    # Check for orphaned preferences (with protection for critical system settings)
-    echo -n "  ${BLUE}🔍${NC} Scanning preference files..."
-    if ls ~/Library/Preferences/com.*.plist >/dev/null 2>&1; then
-        for pref_file in ~/Library/Preferences/com.*.plist; do
-            [[ -f "$pref_file" ]] || continue
-            local bundle_id=$(basename "$pref_file" .plist)
-            # CRITICAL: Skip system-essential and protected app preferences
-            if should_protect_data "$bundle_id"; then
-                continue
-            fi
-            if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
-                safe_clean "$pref_file" "Orphaned preference: $bundle_id"
-                found_orphaned=true
-                ((pref_count++))
-            fi
-        done
-    fi
-    echo " ${GREEN}✓${NC} Complete ($pref_count removed)"
-
     # Clean up temp file
     rm -f "$installed_bundles"
-
-    # Clean test data
-    safe_clean ~/Library/Application\ Support/TestApp* "Test app data"
-    safe_clean ~/Library/Application\ Support/MyApp/* "Test app data"
-    safe_clean ~/Library/Application\ Support/GitHub*/* "GitHub test data"
-    safe_clean ~/Library/Application\ Support/Twitter*/* "Twitter test data"
-    safe_clean ~/Library/Application\ Support/TestNoValue/* "Test data"
-    safe_clean ~/Library/Application\ Support/Wk*/* "Test data"
 
     end_section
 
@@ -889,14 +798,12 @@ perform_cleanup() {
         end_section
     fi
 
-    # System cleanup was moved to the beginning (right after password verification)
-
     # ===== 14. iOS device backups =====
     start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then
         backup_kb=$(du -sk "$backup_dir" 2>/dev/null | awk '{print $1}')
-        if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then # >100MB
+        if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then
             backup_human=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
             note_activity
             echo -e "  ${BLUE}💾${NC} Found ${GREEN}${backup_human}${NC} iOS backups"
@@ -926,7 +833,6 @@ perform_cleanup() {
         fi
 
         if [[ "$DRY_RUN" != "true" ]]; then
-            # Add some context when actually freed
             if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
                 local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
                 if [[ $movies -gt 0 ]]; then
@@ -941,7 +847,7 @@ perform_cleanup() {
             echo "💾 No significant space was freed (system was already clean) | Free space: $(get_free_space)"
         fi
     fi
-    
+
     if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
         echo "📊 Files cleaned: $files_cleaned | Categories processed: $total_items"
     elif [[ $files_cleaned -gt 0 ]]; then
@@ -983,7 +889,9 @@ main() {
                 DRY_RUN=true
                 ;;
             "--whitelist")
-                echo "Active whitelist patterns:"; for w in "${WHITELIST_PATTERNS[@]}"; do echo "  $w"; done; exit 0
+                source "$SCRIPT_DIR/../lib/whitelist_manager.sh"
+                manage_whitelist
+                exit 0
                 ;;
             "--help"|"-h")
                 echo "Mole - Deeper system cleanup"
@@ -992,7 +900,7 @@ main() {
                 echo "Options:"
                 echo "  --help, -h        Show this help"
                 echo "  --dry-run, -n     Preview what would be cleaned without deleting"
-                echo "  --whitelist       Show active whitelist patterns"
+                echo "  --whitelist       Manage protected caches"
                 echo ""
                 echo "Interactive cleanup with smart password handling"
                 echo ""

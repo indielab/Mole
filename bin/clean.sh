@@ -13,7 +13,10 @@ SYSTEM_CLEAN=false
 DRY_RUN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
 # Default whitelist patterns to avoid removing critical caches (can be extended by user)
-WHITELIST_PATTERNS=("$HOME/Library/Caches/ms-playwright*")
+WHITELIST_PATTERNS=(
+    "$HOME/Library/Caches/ms-playwright*"
+    "$HOME/.cache/huggingface*"
+)
 # Load user-defined whitelist file if present (~/.config/mole/whitelist)
 if [[ -f "$HOME/.config/mole/whitelist" ]]; then
     while IFS= read -r line; do

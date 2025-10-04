@@ -163,6 +163,18 @@ Mole 有智能保护机制：
 - 不会删除系统关键文件
 - 会跳过正在运行的应用
 - 清理前会显示即将删除的内容
+- 默认保护大型缓存（如 Playwright 浏览器、HuggingFace 模型等）
+
+如果你有其他需要保护的文件，可以添加到白名单：
+
+```bash
+# 查看默认保护的文件
+mole clean --whitelist
+
+# 添加自定义保护
+mkdir -p ~/.config/mole
+echo '~/我的重要缓存/*' >> ~/.config/mole/whitelist
+```
 
 ---
 

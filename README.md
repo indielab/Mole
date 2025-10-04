@@ -86,11 +86,11 @@ $ mole clean
 **Protect important files:**
 
 ```bash
-# View whitelist
+# View default whitelist (Playwright browsers, HuggingFace models, etc.)
 mole clean --whitelist
 
-# Add protection
-echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
+# Add custom protection
+echo '~/my-important-cache/*' >> ~/.config/mole/whitelist
 ```
 
 ### 🗑️ Smart App Uninstaller
@@ -150,6 +150,7 @@ Total: 156.8GB
    - System-critical files like Input Methods, Dock, and System Preferences
    - User data from IDEs like JetBrains DataGrip and VS Code, plus database tools
    - License data from paid apps like 1Password and Adobe products
+   - Large downloaded caches like Playwright browsers and HuggingFace models
    - App settings are only removed when you explicitly uninstall the app
 2. **Can I undo cleanup operations?** - Cache files are safe to delete and will regenerate automatically. For important data protection, use the whitelist feature via `mole clean --whitelist`.
 3. **How often should I run cleanup?** - Once a month is sufficient. Run when disk space is low.

@@ -44,18 +44,19 @@ brew install tw93/tap/mole
 mole                      # Interactive menu
 mole clean                # System cleanup
 mole clean --dry-run      # Preview mode
+mole clean --whitelist    # Manage protected caches
 mole uninstall            # Uninstall apps
 mole analyze              # Disk analyzer
 mole update               # Update Mole
 mole --help               # Show help
 ```
 
-> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update  
-> ⚠️ **Recommended:** Always run `mole clean --dry-run` first to preview changes before cleanup
+> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update
+> 💡 **Tip:** Run `mole clean --dry-run` to preview, or `mole clean --whitelist` to protect important caches before cleanup
 
 ## Features
 
-### 🧹 Deep System Cleanup
+### Deep System Cleanup
 
 ```bash
 $ mole clean
@@ -83,17 +84,16 @@ $ mole clean
 ====================================================================
 ```
 
-**Protect important files:**
+**Whitelist Protection:**
 
 ```bash
-# View default whitelist (Playwright browsers, HuggingFace models, etc.)
-mole clean --whitelist
+mole clean --whitelist  # Interactive - select caches to protect
 
-# Add custom protection
-echo '~/my-important-cache/*' >> ~/.config/mole/whitelist
+# Default: Playwright browsers, HuggingFace models (always protected)
+# Or edit: ~/.config/mole/whitelist
 ```
 
-### 🗑️ Smart App Uninstaller
+### Smart App Uninstaller
 
 ```bash
 $ mole uninstall
@@ -119,7 +119,7 @@ Space freed: 12.8GB
 ====================================================================
 ```
 
-### 📊 Disk Space Analyzer
+### Disk Space Analyzer
 
 ```bash
 $ mole analyze
@@ -146,15 +146,11 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Will Mole delete important files?** - No. Mole has built-in protection for:
-   - System-critical files like Input Methods, Dock, and System Preferences
-   - User data from IDEs like JetBrains DataGrip and VS Code, plus database tools
-   - License data from paid apps like 1Password and Adobe products
-   - Large downloaded caches like Playwright browsers and HuggingFace models
-   - App settings are only removed when you explicitly uninstall the app
-2. **Can I undo cleanup operations?** - Cache files are safe to delete and will regenerate automatically. For important data protection, use the whitelist feature via `mole clean --whitelist`.
-3. **How often should I run cleanup?** - Once a month is sufficient. Run when disk space is low.
-4. **Is it safe to use?** - Yes. **Always run `mole clean --dry-run` first** to preview what will be deleted before any action.
+1. **Is Mole safe?** - Yes. Mole only deletes caches and logs (regenerable data). Never deletes app settings, user documents, or system files. Run `mole clean --dry-run` to preview before cleanup.
+
+2. **How often should I clean?** - Once a month, or when disk space is low.
+
+3. **Can I protect specific caches?** - Yes. Use `mole clean --whitelist` to select which caches to keep (Playwright browsers, HuggingFace models are protected by default).
 
 ## Support
 

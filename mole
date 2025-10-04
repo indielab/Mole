@@ -130,6 +130,7 @@ show_help() {
     printf "  %s%-28s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole clean --dry-run" "$NC" "Preview cleanup (no deletions)"
+    printf "  %s%-28s%s %s\n" "$GREEN" "mole clean --whitelist" "$NC" "Manage protected caches"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole analyze" "$NC" "Interactive disk space explorer"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole update" "$NC" "Update Mole to the latest version"

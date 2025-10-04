@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Prevent multiple sourcing
+if [[ -n "${MOLE_COMMON_LOADED:-}" ]]; then
+    return 0
+fi
+readonly MOLE_COMMON_LOADED=1
+
 # Color definitions (readonly for safety)
 readonly ESC=$'\033'
 readonly GREEN="${ESC}[0;32m"

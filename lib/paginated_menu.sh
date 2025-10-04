@@ -31,6 +31,17 @@ paginated_multi_select() {
         selected[i]=false
     done
 
+    if [[ -n "${MOLE_PRESELECTED_INDICES:-}" ]]; then
+        local cleaned_preselect="${MOLE_PRESELECTED_INDICES//[[:space:]]/}"
+        local -a initial_indices=()
+        IFS=',' read -ra initial_indices <<< "$cleaned_preselect"
+        for idx in "${initial_indices[@]}"; do
+            if [[ "$idx" =~ ^[0-9]+$ && $idx -ge 0 && $idx -lt $total_items ]]; then
+                selected[idx]=true
+            fi
+        done
+    fi
+
     # Cleanup function
     cleanup() {
         show_cursor
@@ -184,13 +195,18 @@ EOF
                 fi
 
                 # Store result in global variable instead of returning via stdout
-                local result=""
+                local -a selected_indices=()
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then
-                        result="$result $i"
+                        selected_indices+=("$i")
                     fi
                 done
-                local final_result="${result# }"
+
+                local final_result=""
+                if [[ ${#selected_indices[@]} -gt 0 ]]; then
+                    local IFS=','
+                    final_result="${selected_indices[*]}"
+                fi
                 
                 # Remove the trap to avoid cleanup on normal exit
                 trap - EXIT INT TERM

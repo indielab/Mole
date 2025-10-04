@@ -171,11 +171,11 @@ check_requirements() {
 
     # Check if already installed via Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
-        log_warning "Mole is already installed via Homebrew"
+        echo -e "${YELLOW}Mole is installed via Homebrew${NC}"
         echo ""
-        echo "Please choose one installation method:"
-        echo "  1. Keep Homebrew version (recommended): brew upgrade mole"
-        echo "  2. Switch to manual install: brew uninstall mole && then re-run this script"
+        echo "Choose one:"
+        echo "  1. Update via Homebrew: ${GREEN}brew upgrade mole${NC}"
+        echo "  2. Switch to manual: ${GREEN}brew uninstall mole${NC} then re-run this"
         echo ""
         exit 1
     fi

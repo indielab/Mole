@@ -141,11 +141,7 @@ show_help() {
 update_mole() {
     # Check if installed via Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
-        echo -e "${YELLOW}Mole is installed via Homebrew${NC}"
-        echo ""
-        echo "Please use Homebrew to update:"
-        echo -e "  ${GREEN}brew upgrade mole${NC}"
-        echo ""
+        echo -e "${GREEN}Homebrew detected, use: ${BLUE}brew upgrade mole${NC}"
         exit 0
     fi
 
@@ -159,18 +155,18 @@ update_mole() {
     if command -v curl >/dev/null 2>&1; then
         if ! curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer"; then
             rm -f "$tmp_installer"
-            log_error "Failed to download installer (network timeout or error)"
+            log_error "Failed to download installer"
             exit 1
         fi
     elif command -v wget >/dev/null 2>&1; then
         if ! wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url"; then
             rm -f "$tmp_installer"
-            log_error "Failed to download installer (network timeout or error)"
+            log_error "Failed to download installer"
             exit 1
         fi
     else
         rm -f "$tmp_installer"
-        log_error "Please install curl or wget to update Mole"
+        log_error "curl or wget required"
         exit 1
     fi
 
@@ -182,13 +178,12 @@ update_mole() {
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
-    # Run installer
+    # Run installer quietly
     if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update 2>/dev/null; then
-        log_success "Mole updated successfully"
+        log_success "Updated successfully"
     else
-        log_warning "Update failed, trying reinstall..."
-        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole"; then
-            log_success "Mole reinstalled successfully"
+        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>/dev/null; then
+            log_success "Updated successfully"
         else
             rm -f "$tmp_installer"
             log_error "Update failed"

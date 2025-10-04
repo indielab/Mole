@@ -1,6 +1,5 @@
 <div align="center">
-  <img src="https://cdn.tw93.fun/pic/cole.png" alt="Mole Logo" width="120" height="120" style="border-radius:50%" />
-  <h1 style="margin: 12px 0 6px;">Mole</h1>
+  <h1>Mole</h1>
   <p><em>🦡 Dig deep like a mole to clean your Mac.</em></p>
 </div>
 
@@ -13,14 +12,21 @@
   <a href="https://t.me/+GclQS9ZnxyI2ODQ1"><img src="https://img.shields.io/badge/chat-Telegram-blueviolet?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
-## Highlights
+<p align="center">
+  <img src="https://cdn.tw93.fun/img/mole.jpeg" alt="Mole - 95.50GB freed" width="800" />
+</p>
+
+## Features at a Glance
 
 - 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
 - 📦 **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
+- 📊 **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
 - ⚡️ **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
 - 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
-## Installation
+## Quick Start
+
+**Install:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
@@ -32,110 +38,110 @@ Or via Homebrew:
 brew install tw93/tap/mole
 ```
 
-> Pick one method to avoid conflicts, new users check [小白使用指南](./GUIDE.md)
-
-## Usage
+**Run:**
 
 ```bash
-mole                      # Interactive main menu
-mole clean                # Deep system cleanup
-mole clean --dry-run      # Preview cleanup (no deletions)
-mole uninstall            # Interactive app uninstaller
-mole update               # Update to latest version
+mole                      # Interactive menu
+mole clean                # System cleanup
+mole clean --dry-run      # Preview mode
+mole uninstall            # Uninstall apps
+mole analyze              # Disk analyzer
+mole update               # Update Mole
 mole --help               # Show help
 ```
 
-> Installed via Homebrew? Use `brew upgrade mole` to update
+> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update
 
-## Examples
+## Features
 
-### Deep System Cleanup
+### 🧹 Deep System Cleanup
 
 ```bash
 $ mole clean
 
-Starting user-level cleanup...
-
 ▶ System essentials
-  ✓ User app cache (28 items) (45.2GB)
-  ✓ User app logs (15 items) (2.1GB)
+  ✓ User app cache (45.2GB)        # Caches, logs, trash (20-50GB)
+  ✓ User app logs (2.1GB)
   ✓ Trash (12.3GB)
 
-▶ Browser cleanup
-  ✓ Chrome cache (8 items) (8.4GB)
+▶ Browser cleanup                   # Chrome, Safari, Arc (5-15GB)
+  ✓ Chrome cache (8.4GB)
   ✓ Safari cache (2.1GB)
-  ✓ Arc cache (3.2GB)
 
-▶ Extended developer caches
+▶ Developer tools                   # npm, Docker, Xcode (15-40GB)
   ✓ Xcode derived data (9.1GB)
-  ✓ Node.js cache (4 items) (14.2GB)
-  ✓ VS Code cache (1.4GB)
+  ✓ Node.js cache (14.2GB)
 
-▶ Applications
-  ✓ JetBrains cache (3.8GB)
-  ✓ Slack cache (2.2GB)
-  ✓ Discord cache (1.8GB)
+▶ Others                            # Cloud, Office, Media (10-40GB)
+  ✓ Dropbox cache (5.2GB)
+  ✓ Spotify cache (3.1GB)
 
 ====================================================================
 🎉 CLEANUP COMPLETE!
 💾 Space freed: 95.50GB | Free space now: 223.5GB
-📊 Files cleaned: 6420 | Categories processed: 6
 ====================================================================
 ```
 
-### Smart App Uninstaller
+**Protect important files:**
+
+```bash
+# View whitelist
+mole clean --whitelist
+
+# Add protection
+echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
+```
+
+### 🗑️ Smart App Uninstaller
 
 ```bash
 $ mole uninstall
 
-Select Apps to Remove
-
+🗑️  Select Apps to Remove
+═══════════════════════════
 ▶ ☑ Adobe Creative Cloud      (12.4G) | Old
   ☐ WeChat                    (2.1G) | Recent
   ☐ Final Cut Pro             (3.8G) | Recent
 
 🗑️  Uninstalling: Adobe Creative Cloud
-  ✓ Removed application
-  ✓ Cleaned 52 related files
+  ✓ Removed application              # /Applications/
+  ✓ Cleaned 52 related files         # ~/Library/ (12 locations)
+    - Support files & caches         # Application Support, Caches
+    - Preferences & logs             # Preferences, Logs
+    - WebKit storage & cookies       # WebKit, HTTPStorages
+    - Extensions & plugins           # Internet Plug-Ins, Services
+    - System files (sudo)            # /Library/, Launch daemons
 
 ====================================================================
 🎉 UNINSTALLATION COMPLETE!
-🗑️ Apps uninstalled: 1 | Space freed: 12.8GB
+Space freed: 12.8GB
 ====================================================================
 ```
 
-## What Mole Cleans
-
-| Category | Targets | Typical Recovery |
-|----------|---------|------------------|
-| **System** | App caches, logs, trash, crash reports, Spotlight cache | 20-50GB |
-| **Browsers** | Safari, Chrome, Edge, Arc, Firefox, Brave cache | 5-15GB |
-| **Developer** | npm, pip, Docker, Homebrew, Xcode, Android Studio | 15-40GB |
-| **Cloud Storage** | Dropbox, Google Drive, OneDrive, Baidu Netdisk cache | 5-20GB |
-| **Office Apps** | Microsoft Office, iWork, WPS Office cache | 2-8GB |
-| **Media Apps** | Spotify, Music, VLC, IINA, video players cache | 3-12GB |
-| **Communication** | Slack, Discord, Teams, WeChat, Zoom cache | 3-10GB |
-| **Virtualization** | VMware, Parallels, VirtualBox, Vagrant cache | 5-15GB |
-
-**Protect Important Files:** Create `~/.config/mole/whitelist` to preserve critical caches:
+### 📊 Disk Space Analyzer
 
 ```bash
-# View current whitelist
-mole clean --whitelist
+$ mole analyze
 
-# Example: Protect Playwright browsers and build tools
-echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
+📊 Analyzing: /Users/tw93
+═══════════════════════════════════════════════════════
+Total: 156.8GB
+
+├─ 📁 Library                                        45.2GB
+│  ├─ 📁 Caches                                      28.4GB
+│  └─ 📁 Application Support                         16.8GB
+├─ 📁 Downloads                                      32.6GB
+│  ├─ 📄 Xcode-14.3.1.dmg                           12.3GB
+│  ├─ 📄 backup_2023.zip                             8.6GB
+│  └─ 📦 old_projects.tar.gz                         5.2GB
+├─ 📁 Movies                                         28.9GB
+│  ├─ 📄 vacation_2023.mov                          15.4GB
+│  └─ 📄 screencast_raw.mp4                          8.8GB
+├─ 📁 Documents                                      18.4GB
+└─ 📁 Desktop                                        12.7GB
+
+💡 Navigate folders to find large files, press Delete key to remove
 ```
-
-## What Mole Uninstalls
-
-| Category | What Gets Removed | Locations |
-|----------|------------------|-----------|
-| **App Bundle** | Main application executable | `/Applications/` |
-| **User Data** | Support files, caches, preferences, logs, containers, saved states | `~/Library/` (12 locations) |
-| **Web Data** | WebKit storage, HTTP storage, cookies | `~/Library/WebKit/`, `~/Library/HTTPStorages/` |
-| **Extensions** | Plugins, scripts, services, frameworks, QuickLook generators | `~/Library/Internet Plug-Ins/`, `~/Library/Services/` |
-| **System** | Launch daemons, helper tools, system preferences, install receipts | `/Library/`, `/var/db/receipts/` (requires sudo) |
 
 ## FAQ
 
@@ -147,8 +153,8 @@ echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 ## Support
 
 - ⭐️ **Star this repo** if Mole helped you recover disk space
-- 🐛 **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
 - 💬 **Share with friends** who need to clean their Macs
+- 🐛 **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
 - 🐱 I have two cats, <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like
 
 ## License

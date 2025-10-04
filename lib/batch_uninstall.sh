@@ -20,8 +20,18 @@ batch_uninstall_applications() {
     local -a app_details=()
 
     echo ""
-    echo -e "${BLUE}📋 Analyzing selected applications...${NC}"
+
+    # Show analyzing message with spinner
+    local spinner_chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    local spinner_idx=0
+    local analyzed=0
+
     for selected_app in "${selected_apps[@]}"; do
+        # Update spinner
+        local spinner_char="${spinner_chars:$((spinner_idx % 10)):1}"
+        ((analyzed++))
+        echo -ne "\r🗑️  ${spinner_char} Analyzing... $analyzed/${#selected_apps[@]}" >&2
+        ((spinner_idx++))
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
 
         # Check if app is running
@@ -46,6 +56,9 @@ batch_uninstall_applications() {
         local encoded_files=$(echo "$related_files" | base64)
         app_details+=("$app_name|$app_path|$bundle_id|$total_kb|$encoded_files")
     done
+
+    # Clear spinner line
+    echo -ne "\r\033[K" >&2
 
     # Format size display
     if [[ $total_estimated_size -gt 1048576 ]]; then

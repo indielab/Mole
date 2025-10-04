@@ -63,8 +63,12 @@ paginated_multi_select() {
     draw_menu() {
         printf "\033[H\033[J" >&2  # Clear screen and move to top
 
-        # Header
-        printf "%s\n%s\n" "$title" "$(printf '=%.0s' $(seq 1 ${#title}))" >&2
+        # Header - strip emoji for length calculation
+        local title_clean="${title//[^[:print:]]/}"
+        local title_len_approx=$(( ${#title_clean} - 4 ))  # Rough adjustment for emoji
+        [[ $title_len_approx -lt 10 ]] && title_len_approx=10
+        
+        printf "${PURPLE}%s${NC}\n%s\n" "$title" "$(printf '=%.0s' $(seq 1 $title_len_approx))" >&2
 
         # Status
         local selected_count=0
@@ -92,7 +96,7 @@ paginated_multi_select() {
         done
 
         print_line ""
-        print_line "↑↓: Navigate | Space: Select | Enter: Confirm | Q: Exit"
+        print_line "${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"
     }
 
     # Show help screen
@@ -105,9 +109,7 @@ Help - Navigation Controls
   ↑ / ↓      Navigate up/down
   Space      Select/deselect item
   Enter      Confirm selection
-  A          Select all
-  N          Deselect all
-  Q          Exit
+  Q / ESC    Exit
 
 Press any key to continue...
 EOF

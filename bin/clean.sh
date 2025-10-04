@@ -257,65 +257,66 @@ safe_clean() {
 }
 
 start_cleanup() {
+    clear
+    echo ""
+    echo -e "${PURPLE}🧹 Clean Your Mac${NC}"
     echo ""
     echo "Mole will remove app caches, browser data, developer tools, and temporary files."
-    echo ""
 
     if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
-        echo -e "${BLUE}Tip:${NC} Want a preview first? Run 'mole clean --dry-run'."
         echo ""
+        echo -e "${BLUE}Tip:${NC} Want a preview first? Run 'mole clean --dry-run'."
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
+        echo ""
         echo -e "${YELLOW}🧪 Dry Run mode:${NC} showing what would be removed (no deletions)."
         echo ""
         SYSTEM_CLEAN=false
         return
     fi
 
-    local password=""
     if [[ -t 0 ]]; then
-        echo "Enter admin password for system-level cleanup (or press Enter to skip):"
-        echo -n "> "
+        echo ""
+        echo "System-level cleanup removes system caches and temp files, optional."
+        echo -en "${BLUE}Enter admin password to enable, or press Enter to skip: ${NC}"
         read -s password
         echo ""
-    else
-        password=""
-        echo ""
-        echo -e "${BLUE}ℹ${NC}  Running in non-interactive mode"
-        echo "   • System-level cleanup will be skipped (requires password)"
-        echo "   • User-level cleanup will proceed automatically"
-        echo ""
-    fi
-
-    if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
-        SYSTEM_CLEAN=true
-        # Start sudo keepalive with error handling and shorter intervals
-        (
-            local retry_count=0
-            while true; do
-                if ! sudo -n true 2>/dev/null; then
-                    ((retry_count++))
-                    if [[ $retry_count -ge 3 ]]; then
-                        log_warning "Sudo keepalive failed, system-level cleanup may be interrupted" >&2
-                        exit 1
+        
+        if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
+            SYSTEM_CLEAN=true
+            # Start sudo keepalive with error handling
+            (
+                local retry_count=0
+                while true; do
+                    if ! sudo -n true 2>/dev/null; then
+                        ((retry_count++))
+                        if [[ $retry_count -ge 3 ]]; then
+                            exit 1
+                        fi
+                        sleep 5
+                        continue
                     fi
-                    sleep 5
-                    continue
-                fi
-                retry_count=0
-                sleep 30
-                kill -0 "$$" 2>/dev/null || exit
-            done
-        ) 2>/dev/null &
-        SUDO_KEEPALIVE_PID=$!
-        log_info "Starting comprehensive cleanup with admin privileges..."
+                    retry_count=0
+                    sleep 30
+                    kill -0 "$$" 2>/dev/null || exit
+                done
+            ) 2>/dev/null &
+            SUDO_KEEPALIVE_PID=$!
+        else
+            SYSTEM_CLEAN=false
+            if [[ -n "$password" ]]; then
+                echo ""
+                echo -e "${YELLOW}⚠️  Invalid password, continuing with user-level cleanup${NC}"
+            fi
+        fi
     else
         SYSTEM_CLEAN=false
-        log_info "Starting user-level cleanup..."
-        if [[ -n "$password" ]]; then
-            echo -e "${YELLOW}⚠️  Invalid password, continuing with user-level cleanup${NC}"
-        fi
+        echo ""
+        echo -e "${BLUE}ℹ${NC}  Running in non-interactive mode"
+        echo "   • System-level cleanup skipped (requires interaction)"
+        echo "   • User-level cleanup will proceed automatically"
+        echo ""
     fi
 }
 

@@ -38,16 +38,10 @@ select_apps_for_uninstall() {
     done
 
     echo ""
-    echo "🗑️ App Uninstaller"
-    echo ""
-    echo "Mole will uninstall selected apps and clean all their related files."
-    echo ""
-    echo "Found ${#apps_data[@]} apps. Select apps to remove:"
-    echo ""
 
     # Use paginated menu - result will be stored in MOLE_SELECTION_RESULT
     MOLE_SELECTION_RESULT=""
-    paginated_multi_select "Select Apps to Remove" "${menu_options[@]}"
+    paginated_multi_select "🗑️  Select Apps to Remove" "${menu_options[@]}"
     local exit_code=$?
 
     if [[ $exit_code -ne 0 ]]; then

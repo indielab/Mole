@@ -19,29 +19,29 @@ source "$SCRIPT_DIR/../lib/batch_uninstall.sh"
 
 # Help information
 show_help() {
-    echo "App Uninstaller"
-    echo "==============="
+    echo "Usage: mole uninstall"
     echo ""
-    echo "Uninstall applications and clean their data completely."
+    echo "Interactive application uninstaller - Remove apps completely"
     echo ""
-    echo "Controls:"
-    echo "  ↑/↓     Navigate"
-    echo "  SPACE   Select/deselect"
-    echo "  ENTER   Confirm"
-    echo "  Q       Quit"
-    echo ""
-    echo "Usage:"
-    echo "  ./uninstall.sh          Launch interactive uninstaller"
-    echo "  ./uninstall.sh --help   Show this help message"
+    echo "Keyboard Controls:"
+    echo "  ↑/↓         Navigate items"
+    echo "  Space       Select/deselect"
+    echo "  Enter       Confirm and uninstall"
+    echo "  Q / ESC     Quit"
     echo ""
     echo "What gets cleaned:"
     echo "  • Application bundle"
-    echo "  • Application Support data"
+    echo "  • Application Support data (12+ locations)"
     echo "  • Cache files"
     echo "  • Preference files"
     echo "  • Log files"
     echo "  • Saved application state"
     echo "  • Container data (sandboxed apps)"
+    echo "  • WebKit storage, HTTP storage, cookies"
+    echo "  • Extensions, plugins, services"
+    echo ""
+    echo "Examples:"
+    echo "  mole uninstall         Launch interactive uninstaller"
     echo ""
 }
 
@@ -116,10 +116,12 @@ scan_applications() {
 
     local temp_file=$(mktemp)
 
-    echo -n "Scanning... " >&2
-
     # Pre-cache current epoch to avoid repeated calls
     local current_epoch=$(date "+%s")
+
+    # Spinner for scanning feedback
+    local spinner_chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    local spinner_idx=0
 
     # First pass: quickly collect all valid app paths and bundle IDs
     local -a app_data_tuples=()
@@ -279,8 +281,10 @@ scan_applications() {
         process_app_metadata "$app_data_tuple" "$temp_file" "$current_epoch" &
         pids+=($!)
 
-        # Update progress
-        echo -ne "\rScanning... $app_count/$total_apps" >&2
+        # Update progress with spinner
+        local spinner_char="${spinner_chars:$((spinner_idx % 10)):1}"
+        echo -ne "\r🗑️  ${spinner_char} Scanning... $app_count/$total_apps" >&2
+        ((spinner_idx++))
 
         # Wait if we've hit max parallel limit
         if (( ${#pids[@]} >= max_parallel )); then
@@ -294,7 +298,8 @@ scan_applications() {
         wait "$pid" 2>/dev/null
     done
 
-    echo -e "\rFound $app_count applications ✓" >&2
+    echo -e "\r🗑️  ✓ Found $app_count applications                    " >&2
+    echo "" >&2
 
     # Check if we found any applications
     if [[ ! -s "$temp_file" ]]; then

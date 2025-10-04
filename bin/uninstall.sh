@@ -189,8 +189,9 @@ scan_applications() {
             display_name="$(get_brand_name "$display_name")"
         fi
 
-        # Skip protected system apps early
-        if should_preserve_bundle "$bundle_id"; then
+        # Skip system critical apps (input methods, system components)
+        # Note: Paid apps like CleanMyMac, 1Password are NOT protected here - users can uninstall them
+        if should_protect_from_uninstall "$bundle_id"; then
             continue
         fi
 
@@ -377,21 +378,33 @@ uninstall_applications() {
             fi
         fi
 
-        # Find related files
+        # Find related files (user-level)
         local related_files=$(find_app_files "$bundle_id" "$app_name")
+
+        # Find system-level files (requires sudo)
+        local system_files=$(find_app_system_files "$bundle_id" "$app_name")
 
         # Calculate total size
         local app_size_kb=$(du -sk "$app_path" 2>/dev/null | awk '{print $1}' || echo "0")
         local related_size_kb=$(calculate_total_size "$related_files")
-        local total_kb=$((app_size_kb + related_size_kb))
+        local system_size_kb=$(calculate_total_size "$system_files")
+        local total_kb=$((app_size_kb + related_size_kb + system_size_kb))
 
         # Show what will be removed
         echo -e "  ${YELLOW}Files to be removed:${NC}"
         echo -e "  ${GREEN}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
 
+        # Show user-level files
         while IFS= read -r file; do
             [[ -n "$file" && -e "$file" ]] && echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
         done <<< "$related_files"
+
+        # Show system-level files
+        if [[ -n "$system_files" ]]; then
+            while IFS= read -r file; do
+                [[ -n "$file" && -e "$file" ]] && echo -e "  ${YELLOW}✓${NC} [System] $file"
+            done <<< "$system_files"
+        fi
 
         if [[ $total_kb -gt 1048576 ]]; then  # > 1GB
             local size_display=$(echo "$total_kb" | awk '{printf "%.2fGB", $1/1024/1024}')
@@ -416,7 +429,7 @@ uninstall_applications() {
                 continue
             fi
 
-            # Remove related files
+            # Remove user-level related files
             while IFS= read -r file; do
                 if [[ -n "$file" && -e "$file" ]]; then
                     if rm -rf "$file" 2>/dev/null; then
@@ -424,6 +437,20 @@ uninstall_applications() {
                     fi
                 fi
             done <<< "$related_files"
+
+            # Remove system-level files (requires sudo)
+            if [[ -n "$system_files" ]]; then
+                echo -e "  ${YELLOW}System-level files require administrator privileges${NC}"
+                while IFS= read -r file; do
+                    if [[ -n "$file" && -e "$file" ]]; then
+                        if sudo rm -rf "$file" 2>/dev/null; then
+                            echo -e "  ${GREEN}✓${NC} Removed [System] $(basename "$file")"
+                        else
+                            log_warning "Failed to remove system file: $file"
+                        fi
+                    fi
+                done <<< "$system_files"
+            fi
 
             ((total_size_freed += total_kb))
             ((files_cleaned++))

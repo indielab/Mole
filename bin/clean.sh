@@ -373,12 +373,35 @@ perform_cleanup() {
     end_section
 
 
-    # ===== 2. Browsers =====
+    # ===== 3. macOS System Caches =====
+    start_section "macOS system caches"
+    # Saved Application State only stores window positions/sizes, not login data
+    safe_clean ~/Library/Saved\ Application\ State/* "Saved application states"
+    safe_clean ~/Library/Caches/com.apple.spotlight "Spotlight cache"
+    safe_clean ~/Library/Caches/com.apple.metadata "Metadata cache"
+    safe_clean ~/Library/Caches/com.apple.FontRegistry "Font registry cache"
+    safe_clean ~/Library/Caches/com.apple.ATS "Font cache"
+    safe_clean ~/Library/Caches/com.apple.photoanalysisd "Photo analysis cache"
+    # Apple ID cache is safe to clean, login credentials are stored elsewhere
+    safe_clean ~/Library/Caches/com.apple.akd "Apple ID cache"
+    end_section
+
+
+    # ===== 4. Sandboxed App Caches =====
+    start_section "Sandboxed app caches"
+    # Clean specific high-usage apps first for better user feedback
+    safe_clean ~/Library/Containers/com.apple.wallpaper.agent/Data/Library/Caches/* "Wallpaper agent cache"
+    safe_clean ~/Library/Containers/com.apple.mediaanalysisd/Data/Library/Caches/* "Media analysis cache"
+    safe_clean ~/Library/Containers/com.apple.AppStore/Data/Library/Caches/* "App Store cache"
+    # General pattern last (may match many apps)
+    safe_clean ~/Library/Containers/*/Data/Library/Caches/* "Sandboxed app caches"
+    end_section
+
+
+    # ===== 5. Browsers =====
     start_section "Browser cleanup"
-    # Safari
+    # Safari (cache only, NOT local storage or databases to preserve login states)
     safe_clean ~/Library/Caches/com.apple.Safari/* "Safari cache"
-    safe_clean ~/Library/Safari/LocalStorage/* "Safari local storage"
-    safe_clean ~/Library/Safari/Databases/* "Safari databases"
 
     # Chrome/Chromium family
     safe_clean ~/Library/Caches/Google/Chrome/* "Chrome cache"
@@ -399,7 +422,30 @@ perform_cleanup() {
     end_section
 
 
-    # ===== 3. Developer tools =====
+    # ===== 6. Cloud Storage =====
+    start_section "Cloud storage caches"
+    # Only cache files, not sync state or login credentials
+    safe_clean ~/Library/Caches/com.dropbox.* "Dropbox cache"
+    safe_clean ~/Library/Caches/com.getdropbox.dropbox "Dropbox cache"
+    safe_clean ~/Library/Caches/com.google.GoogleDrive "Google Drive cache"
+    safe_clean ~/Library/Caches/com.baidu.netdisk "Baidu Netdisk cache"
+    safe_clean ~/Library/Caches/com.alibaba.teambitiondisk "Alibaba Cloud cache"
+    safe_clean ~/Library/Caches/com.box.desktop "Box cache"
+    safe_clean ~/Library/Caches/com.microsoft.OneDrive "OneDrive cache"
+    end_section
+
+
+    # ===== 7. Office Applications =====
+    start_section "Office applications"
+    safe_clean ~/Library/Caches/com.microsoft.Word "Microsoft Word cache"
+    safe_clean ~/Library/Caches/com.microsoft.Excel "Microsoft Excel cache"
+    safe_clean ~/Library/Caches/com.microsoft.Powerpoint "Microsoft PowerPoint cache"
+    safe_clean ~/Library/Caches/com.apple.iWork.* "Apple iWork cache"
+    safe_clean ~/Library/Caches/com.kingsoft.wpsoffice.mac "WPS Office cache"
+    end_section
+
+
+    # ===== 8. Developer tools =====
     start_section "Developer tools"
     # Node.js ecosystem
     if command -v npm >/dev/null 2>&1; then
@@ -472,7 +518,7 @@ perform_cleanup() {
     safe_clean ~/.gitconfig.lock "Git config lock"
     end_section
 
-    # ===== Extended developer caches =====
+    # ===== 9. Extended developer caches =====
     start_section "Extended developer caches"
 
     # Additional Node.js and frontend tools
@@ -582,6 +628,9 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.sequel-ace.sequel-ace/* "Sequel Ace cache"
     safe_clean ~/Library/Caches/com.eggerapps.Sequel-Pro/* "Sequel Pro cache"
     safe_clean ~/Library/Caches/redis-desktop-manager/* "Redis Desktop Manager cache"
+    safe_clean ~/Library/Caches/com.navicat.* "Navicat cache"
+    safe_clean ~/Library/Caches/com.dbeaver.* "DBeaver cache"
+    safe_clean ~/Library/Caches/com.redis.RedisInsight "Redis Insight cache"
 
     # Crash reports and debugging
     safe_clean ~/Library/Caches/SentryCrash/* "Sentry crash reports"
@@ -592,7 +641,7 @@ perform_cleanup() {
     end_section
 
 
-    # ===== 4. Applications =====
+    # ===== 10. Applications =====
     start_section "Applications"
 
     # Xcode & iOS development
@@ -601,6 +650,9 @@ perform_cleanup() {
     safe_clean ~/Library/Developer/CoreSimulator/Caches/* "Simulator cache"
     safe_clean ~/Library/Developer/CoreSimulator/Devices/*/data/tmp/* "Simulator temp files"
     safe_clean ~/Library/Caches/com.apple.dt.Xcode/* "Xcode cache"
+    safe_clean ~/Library/Developer/Xcode/iOS\ Device\ Logs/* "iOS device logs"
+    safe_clean ~/Library/Developer/Xcode/watchOS\ Device\ Logs/* "watchOS device logs"
+    safe_clean ~/Library/Developer/Xcode/Products/* "Xcode build products"
 
     # VS Code family
     safe_clean ~/Library/Application\ Support/Code/logs/* "VS Code logs"
@@ -643,10 +695,49 @@ perform_cleanup() {
 
     # Music and entertainment
     safe_clean ~/Library/Caches/com.spotify.client/* "Spotify cache"
+    safe_clean ~/Library/Caches/com.apple.Music "Apple Music cache"
+    safe_clean ~/Library/Caches/com.apple.podcasts "Apple Podcasts cache"
+    safe_clean ~/Library/Caches/tv.plex.player.desktop "Plex cache"
+    safe_clean ~/Library/Caches/com.netease.163music "NetEase Music cache"
+    safe_clean ~/Library/Caches/com.colliderli.iina "IINA cache"
+    safe_clean ~/Library/Caches/org.videolan.vlc "VLC cache"
+    safe_clean ~/Library/Caches/io.mpv "MPV cache"
+    safe_clean ~/Library/Caches/com.iqiyi.player "iQIYI cache"
+    safe_clean ~/Library/Caches/com.tencent.tenvideo "Tencent Video cache"
+
+    # Download tools
+    safe_clean ~/Library/Caches/net.xmac.aria2gui "Aria2 cache"
+    safe_clean ~/Library/Caches/org.m0k.transmission "Transmission cache"
+    safe_clean ~/Library/Caches/com.qbittorrent.qBittorrent "qBittorrent cache"
+    safe_clean ~/Library/Caches/com.downie.Downie-* "Downie cache"
 
     # Gaming and entertainment
     safe_clean ~/Library/Caches/com.valvesoftware.steam/* "Steam cache"
     safe_clean ~/Library/Caches/com.epicgames.EpicGamesLauncher/* "Epic Games cache"
+
+    # Translation tools
+    safe_clean ~/Library/Caches/com.youdao.YoudaoDict "Youdao Dictionary cache"
+    safe_clean ~/Library/Caches/com.eudic.* "Eudict cache"
+    safe_clean ~/Library/Caches/com.bob-build.Bob "Bob Translation cache"
+
+    # Screenshot and recording tools
+    safe_clean ~/Library/Caches/com.cleanshot.* "CleanShot cache"
+    safe_clean ~/Library/Caches/com.reincubate.camo "Camo cache"
+    safe_clean ~/Library/Caches/com.xnipapp.xnip "Xnip cache"
+
+    # Email clients (only cache, NOT database files)
+    safe_clean ~/Library/Caches/com.readdle.smartemail-Mac "Spark cache"
+    safe_clean ~/Library/Caches/com.airmail.* "Airmail cache"
+
+    # Task management
+    safe_clean ~/Library/Caches/com.todoist.mac.Todoist "Todoist cache"
+    safe_clean ~/Library/Caches/com.any.do.* "Any.do cache"
+
+    # Shell and command line
+    safe_clean ~/.zcompdump* "Zsh completion cache"
+    safe_clean ~/.lesshst "less history"
+    safe_clean ~/.viminfo.tmp "Vim temporary files"
+    safe_clean ~/.wget-hsts "wget HSTS cache"
 
     # Utilities and productivity (only cache, avoid license/settings data)
     safe_clean ~/Library/Caches/com.runjuu.Input-Source-Pro/* "Input Source Pro cache"
@@ -661,7 +752,16 @@ perform_cleanup() {
     end_section
 
 
-    # ===== Orphaned leftovers =====
+    # ===== 11. Virtualization Tools =====
+    start_section "Virtualization tools"
+    safe_clean ~/Library/Caches/com.vmware.fusion "VMware Fusion cache"
+    safe_clean ~/Library/Caches/com.parallels.* "Parallels cache"
+    safe_clean ~/VirtualBox\ VMs/.cache "VirtualBox cache"
+    safe_clean ~/.vagrant.d/tmp/* "Vagrant temporary files"
+    end_section
+
+
+    # ===== 12. Orphaned leftovers =====
     start_section "Orphaned app files"
 
     # Build a list of installed application bundle identifiers
@@ -688,8 +788,8 @@ perform_cleanup() {
         for cache_dir in ~/Library/Caches/com.*; do
             [[ -d "$cache_dir" ]] || continue
             local bundle_id=$(basename "$cache_dir")
-            # CRITICAL: Skip system-essential caches
-            if should_preserve_bundle "$bundle_id"; then
+            # CRITICAL: Skip system-essential and protected app caches
+            if should_protect_data "$bundle_id"; then
                 continue
             fi
             if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
@@ -707,28 +807,10 @@ perform_cleanup() {
         for support_dir in ~/Library/Application\ Support/com.*; do
             [[ -d "$support_dir" ]] || continue
             local bundle_id=$(basename "$support_dir")
-            # CRITICAL: Skip system-essential data
-            if should_preserve_bundle "$bundle_id"; then
+            # CRITICAL: Skip system-essential and protected app data
+            if should_protect_data "$bundle_id"; then
                 continue
             fi
-            # Extra safety for Application Support data (preserve licenses and critical settings)
-            case "$bundle_id" in
-                # System components
-                *dock*|*Dock*|*controlcenter*|*ControlCenter*|*systempreferences*|*SystemPreferences*)
-                    continue
-                    ;;
-                # Paid software and license-critical apps
-                *nektony*|*macpaw*|*jetbrains*|*sublimetext*|*adobe*|*1password*|*agilebits*|*omnigroup*|*culturedcode*)
-                    continue
-                    ;;
-                # Security and password managers
-                *lastpass*|*dashlane*|*bitwarden*|*keepass*)
-                    continue
-                    ;;
-                *trackpad*|*Trackpad*|*mouse*|*Mouse*|*keyboard*|*Keyboard*)
-                    continue
-                    ;;
-            esac
             if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
                 safe_clean "$support_dir" "Orphaned data: $bundle_id"
                 found_orphaned=true
@@ -744,33 +826,10 @@ perform_cleanup() {
         for pref_file in ~/Library/Preferences/com.*.plist; do
             [[ -f "$pref_file" ]] || continue
             local bundle_id=$(basename "$pref_file" .plist)
-            # CRITICAL: Skip system-essential preferences
-            if should_preserve_bundle "$bundle_id"; then
+            # CRITICAL: Skip system-essential and protected app preferences
+            if should_protect_data "$bundle_id"; then
                 continue
             fi
-            # Extra safety: Never delete preference files that might affect system behavior or paid app licenses
-            case "$bundle_id" in
-                # System components
-                *dock*|*Dock*|*trackpad*|*Trackpad*|*mouse*|*Mouse*|*keyboard*|*Keyboard*)
-                    continue
-                    ;;
-                *systempreferences*|*SystemPreferences*|*controlcenter*|*ControlCenter*)
-                    continue
-                    ;;
-                *menubar*|*MenuBar*|*hotkeys*|*HotKeys*|*shortcuts*|*Shortcuts*)
-                    continue
-                    ;;
-                # Licensed software and critical apps (preserve activation data)
-                *nektony*|*macpaw*|*jetbrains*|*sublimetext*|*adobe*|*1password*|*agilebits*)
-                    continue
-                    ;;
-                *omnigroup*|*culturedcode*|*lastpass*|*dashlane*|*bitwarden*|*keepass*)
-                    continue
-                    ;;
-                *bohemiancoding*|*figma*|*framer*|*panic*|*sequelpro*|*tinyapp*|*pixelmator*)
-                    continue
-                    ;;
-            esac
             if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
                 safe_clean "$pref_file" "Orphaned preference: $bundle_id"
                 found_orphaned=true
@@ -793,7 +852,7 @@ perform_cleanup() {
 
     end_section
 
-    # ===== Apple Silicon optimizations =====
+    # ===== 13. Apple Silicon optimizations =====
     if [[ "$IS_M_SERIES" == "true" ]]; then
         start_section "Apple Silicon optimizations"
         safe_clean /Library/Apple/usr/share/rosetta/rosetta_update_bundle "Rosetta 2 cache"
@@ -805,7 +864,7 @@ perform_cleanup() {
 
     # System cleanup was moved to the beginning (right after password verification)
 
-    # ===== iOS device backups =====
+    # ===== 14. iOS device backups =====
     start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then

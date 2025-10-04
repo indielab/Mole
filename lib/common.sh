@@ -11,6 +11,7 @@ readonly BLUE="${ESC}[0;34m"
 readonly YELLOW="${ESC}[1;33m"
 readonly PURPLE="${ESC}[0;35m"
 readonly RED="${ESC}[0;31m"
+readonly GRAY="${ESC}[0;90m"
 readonly NC="${ESC}[0m"
 
 # Logging configuration
@@ -104,17 +105,49 @@ read_key() {
         'q'|'Q') echo "QUIT" ;;
         'a'|'A') echo "ALL" ;;
         'n'|'N') echo "NONE" ;;
+        'd'|'D') echo "DELETE" ;;
+        'r'|'R') echo "RETRY" ;;
         '?') echo "HELP" ;;
+        $'\x7f'|$'\x08') echo "DELETE" ;;  # Delete key (labeled "delete" on Mac, actually backspace)
         $'\x1b')
-            # Read the next two bytes within 1s; works well on macOS bash 3.2
-            if IFS= read -r -s -n 2 -t 1 rest 2>/dev/null; then
-                case "$rest" in
-                    "[A") echo "UP" ;;
-                    "[B") echo "DOWN" ;;
-                    "[C") echo "RIGHT" ;;
-                    "[D") echo "LEFT" ;;
-                    *) echo "OTHER" ;;
-                esac
+            # ESC sequence - could be arrow key, delete key, or ESC alone
+            # Read the next two bytes within 1s
+            if IFS= read -r -s -n 1 -t 1 rest 2>/dev/null; then
+                if [[ "$rest" == "[" ]]; then
+                    # Got ESC [, read next character
+                    if IFS= read -r -s -n 1 -t 1 rest2 2>/dev/null; then
+                        case "$rest2" in
+                            "A") echo "UP" ;;
+                            "B") echo "DOWN" ;;
+                            "C") echo "RIGHT" ;;
+                            "D") echo "LEFT" ;;
+                            "3")
+                                # Delete key (Fn+Delete): ESC [ 3 ~
+                                IFS= read -r -s -n 1 -t 1 rest3 2>/dev/null
+                                if [[ "$rest3" == "~" ]]; then
+                                    echo "DELETE"
+                                else
+                                    echo "OTHER"
+                                fi
+                                ;;
+                            "5")
+                                # Page Up key: ESC [ 5 ~
+                                IFS= read -r -s -n 1 -t 1 rest3 2>/dev/null
+                                [[ "$rest3" == "~" ]] && echo "OTHER" || echo "OTHER"
+                                ;;
+                            "6")
+                                # Page Down key: ESC [ 6 ~
+                                IFS= read -r -s -n 1 -t 1 rest3 2>/dev/null
+                                [[ "$rest3" == "~" ]] && echo "OTHER" || echo "OTHER"
+                                ;;
+                            *) echo "OTHER" ;;
+                        esac
+                    else
+                        echo "QUIT"  # ESC [ timeout
+                    fi
+                else
+                    echo "QUIT"  # ESC + something else
+                fi
             else
                 # ESC pressed alone - treat as quit
                 echo "QUIT"
@@ -122,6 +155,19 @@ read_key() {
             ;;
         *) echo "OTHER" ;;
     esac
+}
+
+# Drain pending input (useful for scrolling prevention)
+drain_pending_input() {
+    local dummy
+    local drained=0
+    # Single pass with reasonable timeout
+    # Touchpad scrolling can generate bursts of arrow keys
+    while IFS= read -r -s -n 1 -t 0.001 dummy 2>/dev/null; do
+        ((drained++))
+        # Safety limit to prevent infinite loop
+        [[ $drained -gt 500 ]] && break
+    done
 }
 
 # Menu display helper

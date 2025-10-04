@@ -16,7 +16,7 @@
 ## Highlights
 
 - 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
-- 📦 **Thorough Uninstall** - Removes more app leftovers than CleanMyMac/Lemon, completely free
+- 📦 **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
 - ⚡️ **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
 - 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
@@ -96,11 +96,11 @@ Select Apps to Remove
 
 🗑️  Uninstalling: Adobe Creative Cloud
   ✓ Removed application
-  ✓ Cleaned 45 related files
+  ✓ Cleaned 52 related files
 
 ====================================================================
 🎉 UNINSTALLATION COMPLETE!
-🗑️ Apps uninstalled: 1 | Space freed: 12.4GB
+🗑️ Apps uninstalled: 1 | Space freed: 12.8GB
 ====================================================================
 ```
 
@@ -108,10 +108,14 @@ Select Apps to Remove
 
 | Category | Targets | Typical Recovery |
 |----------|---------|------------------|
-| **System** | App caches, logs, trash, crash reports | 20-50GB |
-| **Browsers** | Safari, Chrome, Edge, Arc, Firefox cache | 5-15GB |
-| **Developer** | npm, pip, Docker, Homebrew, Xcode | 15-40GB |
-| **Apps** | Slack, Discord, Teams, Notion cache | 3-10GB |
+| **System** | App caches, logs, trash, crash reports, Spotlight cache | 20-50GB |
+| **Browsers** | Safari, Chrome, Edge, Arc, Firefox, Brave cache | 5-15GB |
+| **Developer** | npm, pip, Docker, Homebrew, Xcode, Android Studio | 15-40GB |
+| **Cloud Storage** | Dropbox, Google Drive, OneDrive, Baidu Netdisk cache | 5-20GB |
+| **Office Apps** | Microsoft Office, iWork, WPS Office cache | 2-8GB |
+| **Media Apps** | Spotify, Music, VLC, IINA, video players cache | 3-12GB |
+| **Communication** | Slack, Discord, Teams, WeChat, Zoom cache | 3-10GB |
+| **Virtualization** | VMware, Parallels, VirtualBox, Vagrant cache | 5-15GB |
 
 **Protect Important Files:** Create `~/.config/mole/whitelist` to preserve critical caches:
 
@@ -125,14 +129,13 @@ echo '~/Library/Caches/ms-playwright*' >> ~/.config/mole/whitelist
 
 ## What Mole Uninstalls
 
-| Component | Files Removed | Examples |
-|-----------|--------------|----------|
-| **App Bundle** | Main .app executable | `/Applications/App.app` |
-| **Support Data** | App-specific user data | `~/Library/Application Support/AppName` |
-| **Cache Files** | Temporary & cache data | `~/Library/Caches/com.company.app` |
-| **Preferences** | Settings & config files | `~/Library/Preferences/com.app.plist` |
-| **Logs & Reports** | Crash reports & logs | `~/Library/Logs/AppName` |
-| **Containers** | Sandboxed app data | `~/Library/Containers/com.app.id` |
+| Category | What Gets Removed | Locations |
+|----------|------------------|-----------|
+| **App Bundle** | Main application executable | `/Applications/` |
+| **User Data** | Support files, caches, preferences, logs, containers, saved states | `~/Library/` (12 locations) |
+| **Web Data** | WebKit storage, HTTP storage, cookies | `~/Library/WebKit/`, `~/Library/HTTPStorages/` |
+| **Extensions** | Plugins, scripts, services, frameworks, QuickLook generators | `~/Library/Internet Plug-Ins/`, `~/Library/Services/` |
+| **System** | Launch daemons, helper tools, system preferences, install receipts | `/Library/`, `/var/db/receipts/` (requires sudo) |
 
 ## FAQ
 

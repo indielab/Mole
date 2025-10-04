@@ -223,10 +223,9 @@ load_config
 # App Management Functions
 # ============================================================================
 
-# Essential system and critical app patterns that should never be removed
-readonly PRESERVED_BUNDLE_PATTERNS=(
-    # System essentials
-    "com.apple.*"
+# System critical components that should NEVER be uninstalled
+readonly SYSTEM_CRITICAL_BUNDLES=(
+    "com.apple.*"  # System essentials
     "loginwindow"
     "dock"
     "systempreferences"
@@ -252,9 +251,7 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     "KeyLayout*"
     "GlobalPreferences"
     ".GlobalPreferences"
-
     # Input methods (critical for international users)
-    # Specific input method bundles
     "com.tencent.inputmethod.QQInput"
     "com.sogou.inputmethod.*"
     "com.baidu.inputmethod.*"
@@ -262,17 +259,17 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     "com.googlecode.rimeime.*"
     "im.rime.*"
     "org.pqrs.Karabiner*"
-    # Generic patterns (more conservative)
     "*.inputmethod"
     "*.InputMethod"
     "*IME"
-    # Keep system input services safe
     "com.apple.inputsource*"
     "com.apple.TextInputMenuAgent"
     "com.apple.TextInputSwitcher"
+)
 
-    # Cleanup and system tools (avoid infinite loops and preserve licenses)
-    "com.nektony.*"                    # App Cleaner & Uninstaller
+# Apps with important data/licenses - protect during cleanup but allow uninstall
+readonly DATA_PROTECTED_BUNDLES=(
+    "com.nektony.*"                    # App Cleaner & Uninstaller (cleanup tools)
     "com.macpaw.*"                     # CleanMyMac, CleanMaster
     "com.freemacsoft.AppCleaner"       # AppCleaner
     "com.omnigroup.omnidisksweeper"    # OmniDiskSweeper
@@ -283,34 +280,26 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     "com.CharlesProxy.*"               # Charles Proxy (paid)
     "com.proxyman.*"                   # Proxyman (paid)
     "com.getpaw.*"                     # Paw (paid)
-
-    # Security and password managers (critical data)
-    "com.1password.*"                  # 1Password
+    "com.1password.*"                  # 1Password (security apps)
     "com.agilebits.*"                  # 1Password legacy
     "com.lastpass.*"                   # LastPass
     "com.dashlane.*"                   # Dashlane
     "com.bitwarden.*"                  # Bitwarden
     "com.keepassx.*"                   # KeePassXC
-
-    # Development tools (licenses and settings)
-    "com.jetbrains.*"                  # JetBrains IDEs (paid licenses)
+    "com.jetbrains.*"                  # JetBrains IDEs (dev tools)
     "com.sublimetext.*"                # Sublime Text (paid)
     "com.panic.transmit*"              # Transmit (paid)
     "com.sequelpro.*"                  # Database tools
     "com.sequel-ace.*"
     "com.tinyapp.*"                    # TablePlus (paid)
-
-    # Design tools (expensive licenses)
-    "com.adobe.*"                      # Adobe Creative Suite
+    "com.adobe.*"                      # Adobe Creative Suite (design tools)
     "com.bohemiancoding.*"             # Sketch
     "com.figma.*"                      # Figma
     "com.framerx.*"                    # Framer
     "com.zeplin.*"                     # Zeplin
     "com.invisionapp.*"                # InVision
     "com.principle.*"                  # Principle
-
-    # Productivity (important data and licenses)
-    "com.omnigroup.*"                  # OmniFocus, OmniGraffle, etc.
+    "com.omnigroup.*"                  # OmniFocus, OmniGraffle (productivity)
     "com.culturedcode.*"               # Things
     "com.todoist.*"                    # Todoist
     "com.bear-writer.*"                # Bear
@@ -318,9 +307,7 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     "com.ulyssesapp.*"                 # Ulysses
     "com.literatureandlatte.*"         # Scrivener
     "com.dayoneapp.*"                  # Day One
-
-    # Media and entertainment (licenses)
-    "com.spotify.client"               # Spotify (premium accounts)
+    "com.spotify.client"               # Spotify (media apps)
     "com.apple.FinalCutPro"           # Final Cut Pro
     "com.apple.Motion"                # Motion
     "com.apple.Compressor"            # Compressor
@@ -328,10 +315,35 @@ readonly PRESERVED_BUNDLE_PATTERNS=(
     "com.pixelmatorteam.*"            # Pixelmator
 )
 
-# Check if bundle should be preserved (system/critical apps)
+# Legacy function - preserved for backward compatibility
+# Use should_protect_from_uninstall() or should_protect_data() instead
+readonly PRESERVED_BUNDLE_PATTERNS=("${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}")
 should_preserve_bundle() {
     local bundle_id="$1"
     for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
+        if [[ "$bundle_id" == $pattern ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Check if app is a system component that should never be uninstalled
+should_protect_from_uninstall() {
+    local bundle_id="$1"
+    for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}"; do
+        if [[ "$bundle_id" == $pattern ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Check if app data should be protected during cleanup (but app can be uninstalled)
+should_protect_data() {
+    local bundle_id="$1"
+    # Protect both system critical and data protected bundles during cleanup
+    for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}"; do
         if [[ "$bundle_id" == $pattern ]]; then
             return 0
         fi
@@ -345,15 +357,23 @@ find_app_files() {
     local app_name="$2"
     local -a files_to_clean=()
 
+    # ============================================================================
+    # User-level files (no sudo required)
+    # ============================================================================
+
     # Application Support
     [[ -d ~/Library/Application\ Support/"$app_name" ]] && files_to_clean+=("$HOME/Library/Application Support/$app_name")
     [[ -d ~/Library/Application\ Support/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Application Support/$bundle_id")
 
     # Caches
     [[ -d ~/Library/Caches/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Caches/$bundle_id")
+    [[ -d ~/Library/Caches/"$app_name" ]] && files_to_clean+=("$HOME/Library/Caches/$app_name")
 
     # Preferences
     [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
+    while IFS= read -r -d '' pref; do
+        files_to_clean+=("$pref")
+    done < <(find ~/Library/Preferences/ByHost -name "$bundle_id*.plist" -print0 2>/dev/null)
 
     # Logs
     [[ -d ~/Library/Logs/"$app_name" ]] && files_to_clean+=("$HOME/Library/Logs/$app_name")
@@ -370,9 +390,85 @@ find_app_files() {
         files_to_clean+=("$container")
     done < <(find ~/Library/Group\ Containers -name "*$bundle_id*" -type d -print0 2>/dev/null)
 
+    # WebKit data
+    [[ -d ~/Library/WebKit/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/WebKit/$bundle_id")
+    [[ -d ~/Library/WebKit/com.apple.WebKit.WebContent/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/WebKit/com.apple.WebKit.WebContent/$bundle_id")
+
+    # HTTP Storage
+    [[ -d ~/Library/HTTPStorages/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/HTTPStorages/$bundle_id")
+
+    # Cookies
+    [[ -f ~/Library/Cookies/"$bundle_id".binarycookies ]] && files_to_clean+=("$HOME/Library/Cookies/$bundle_id.binarycookies")
+
+    # Launch Agents (user-level)
+    [[ -f ~/Library/LaunchAgents/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/LaunchAgents/$bundle_id.plist")
+
+    # Application Scripts
+    [[ -d ~/Library/Application\ Scripts/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Application Scripts/$bundle_id")
+
+    # Services
+    [[ -d ~/Library/Services/"$app_name".workflow ]] && files_to_clean+=("$HOME/Library/Services/$app_name.workflow")
+
+    # Internet Plug-Ins
+    while IFS= read -r -d '' plugin; do
+        files_to_clean+=("$plugin")
+    done < <(find ~/Library/Internet\ Plug-Ins -name "$bundle_id*" -o -name "$app_name*" -print0 2>/dev/null)
+
+    # QuickLook Plugins
+    [[ -d ~/Library/QuickLook/"$app_name".qlgenerator ]] && files_to_clean+=("$HOME/Library/QuickLook/$app_name.qlgenerator")
+
+    # Preference Panes
+    [[ -d ~/Library/PreferencePanes/"$app_name".prefPane ]] && files_to_clean+=("$HOME/Library/PreferencePanes/$app_name.prefPane")
+
+    # Screen Savers
+    [[ -d ~/Library/Screen\ Savers/"$app_name".saver ]] && files_to_clean+=("$HOME/Library/Screen Savers/$app_name.saver")
+
+    # Frameworks
+    [[ -d ~/Library/Frameworks/"$app_name".framework ]] && files_to_clean+=("$HOME/Library/Frameworks/$app_name.framework")
+
+    # CoreData
+    while IFS= read -r -d '' coredata; do
+        files_to_clean+=("$coredata")
+    done < <(find ~/Library/CoreData -name "*$bundle_id*" -o -name "*$app_name*" -print0 2>/dev/null)
+
     # Only print if array has elements to avoid unbound variable error
     if [[ ${#files_to_clean[@]} -gt 0 ]]; then
         printf '%s\n' "${files_to_clean[@]}"
+    fi
+}
+
+# Find system-level app files (requires sudo)
+find_app_system_files() {
+    local bundle_id="$1"
+    local app_name="$2"
+    local -a system_files=()
+
+    # System Application Support
+    [[ -d /Library/Application\ Support/"$app_name" ]] && system_files+=("/Library/Application Support/$app_name")
+    [[ -d /Library/Application\ Support/"$bundle_id" ]] && system_files+=("/Library/Application Support/$bundle_id")
+
+    # System Launch Agents
+    [[ -f /Library/LaunchAgents/"$bundle_id".plist ]] && system_files+=("/Library/LaunchAgents/$bundle_id.plist")
+
+    # System Launch Daemons
+    [[ -f /Library/LaunchDaemons/"$bundle_id".plist ]] && system_files+=("/Library/LaunchDaemons/$bundle_id.plist")
+
+    # Privileged Helper Tools
+    while IFS= read -r -d '' helper; do
+        system_files+=("$helper")
+    done < <(find /Library/PrivilegedHelperTools -name "$bundle_id*" -print0 2>/dev/null)
+
+    # System Preferences
+    [[ -f /Library/Preferences/"$bundle_id".plist ]] && system_files+=("/Library/Preferences/$bundle_id.plist")
+
+    # Installation Receipts
+    while IFS= read -r -d '' receipt; do
+        system_files+=("$receipt")
+    done < <(find /private/var/db/receipts -name "*$bundle_id*" -print0 2>/dev/null)
+
+    # Only print if array has elements
+    if [[ ${#system_files[@]} -gt 0 ]]; then
+        printf '%s\n' "${system_files[@]}"
     fi
 }
 

@@ -270,7 +270,8 @@ start_cleanup() {
     if [[ -t 0 ]]; then
         echo ""
         echo "System-level cleanup removes system caches and temp files, optional."
-        echo -en "${BLUE}Enter admin password to enable, or press Enter to skip: ${NC}"
+        echo -e "${BLUE}Enter admin password to enable, or press Enter to skip:${NC}"
+        echo -n "> "
         read -s password
         echo ""
 

@@ -47,7 +47,7 @@ brew install tw93/tap/mole
 **Run:**
 
 ```bash
-mo                      # Shortcut alias for Mole
+mo                      # Interactive menu
 mo clean                # System cleanup
 mo clean --dry-run      # Preview mode
 mo clean --whitelist    # Manage protected caches
@@ -56,8 +56,8 @@ mo analyze              # Disk analyzer
 mo update               # Update Mole
 mo remove               # Remove Mole from system
 mo --help               # Show help
-
-// If the command is not found, you can enter `mole update` to upgrade to the latest version.
+mo --version            # Show installed version
+# If the command is not found, run `mole update` once to upgrade to the latest version.
 ```
 
 > Recommended start with `mo clean --dry-run` to preview, `mo clean --whitelist` to protect caches

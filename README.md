@@ -29,7 +29,7 @@
 **Friendly Tips:**
 
 - ⚠️ On mission-critical Macs, wait for Mole to mature—safety first. **假如此 Mac 对你非常重要，请等 Mole 成熟时再使用**。
-- ⚠️ Start with `--dry-run` to preview, enable `--whitelist` to protect caches.
+- 👀 Start with `--dry-run` to preview, enable `--whitelist` to protect caches.
 - ❤️ I'm not very tech-savvy ？Check [小白使用指南](./GUIDE.md)
 
 **Install:**

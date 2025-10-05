@@ -28,10 +28,9 @@
 
 **Friendly Tips:**
 
-- ⚠️ **On mission-critical Macs, wait for Mole to mature, safety first**
-- ⚠️ **假如此 Mac 对你非常重要，你要更谨慎，建议等 Mole 更成熟时来使用，安全第一**
-- 👀 Start with `--dry-run` to preview, enable `--whitelist` to protect caches
-- ❤️ I'm not very tech-savvy ？Check [小白使用指南](./GUIDE.md)
+- **On mission-critical Macs, wait for Mole to mature, safety first**
+- **假如此 Mac 对你非常重要，你要更谨慎，建议等 Mole 更成熟时来使用，安全第一**
+- I'm not very tech-savvy ？Check [❤️小白使用指南](./GUIDE.md)
 
 **Install:**
 
@@ -59,7 +58,7 @@ mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 
-> 💡 **Homebrew users:** No updates showing? Run `brew update` first, then `brew upgrade mole`
+> ⚠️ Start with `--dry-run` to preview, enable `--whitelist` to protect caches
 
 ## Features
 

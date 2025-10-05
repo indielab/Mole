@@ -62,7 +62,7 @@ mo --version            # Show installed version
 
 > Recommended start with `mo clean --dry-run` to preview, `mo clean --whitelist` to protect caches
 
-## Features
+## Features in Detail
 
 ### Deep System Cleanup
 

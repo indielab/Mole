@@ -178,8 +178,8 @@ check_requirements() {
         echo -e "${YELLOW}Mole is installed via Homebrew${NC}"
         echo ""
         echo "Choose one:"
-        echo "  1. Update via Homebrew: ${GREEN}brew upgrade mole${NC}"
-        echo "  2. Switch to manual: ${GREEN}brew uninstall mole${NC} then re-run this"
+        echo -e "  1. Update via Homebrew: ${GREEN}brew upgrade mole${NC}"
+        echo -e "  2. Switch to manual: ${GREEN}brew uninstall mole${NC} then re-run this"
         echo ""
         exit 1
     fi

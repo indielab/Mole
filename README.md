@@ -56,9 +56,9 @@ mole analyze              # Disk analyzer
 mole update               # Update Mole
 mole remove               # Remove Mole from system
 mole --help               # Show help
-
-💡 Start with `--dry-run` to preview, enable `--whitelist` to protect caches
 ```
+
+> 💡 Start with `--dry-run` to preview, enable `--whitelist` to protect caches
 
 ## Features
 
@@ -88,15 +88,6 @@ $ mole clean
 🎉 CLEANUP COMPLETE!
 💾 Space freed: 95.50GB | Free space now: 223.5GB
 ====================================================================
-```
-
-**Whitelist Protection:**
-
-```bash
-mole clean --whitelist  # Interactive - select caches to protect
-
-# Default: Playwright browsers, HuggingFace models (always protected)
-# Or edit: ~/.config/mole/whitelist
 ```
 
 ### Smart App Uninstaller
@@ -130,7 +121,7 @@ Space freed: 12.8GB
 ```bash
 $ mole analyze
 
-📊 Analyzing: /Users/tw93
+📊 Analyzing: /Users/You
 ═══════════════════════════════════════════════════════
 Total: 156.8GB
 
@@ -146,8 +137,6 @@ Total: 156.8GB
 │  └─ 📄 screencast_raw.mp4                          8.8GB
 ├─ 📁 Documents                                      18.4GB
 └─ 📁 Desktop                                        12.7GB
-
-💡 Navigate folders to find large files, press Delete key to remove
 ```
 
 ## FAQ

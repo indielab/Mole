@@ -98,8 +98,11 @@ scan_applications() {
 
     mkdir -p "$cache_dir" 2>/dev/null
 
-    # Quick count of current apps
-    local current_app_count=$(find /Applications -name "*.app" -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
+    # Quick count of current apps (system + user directories)
+    local current_app_count=$(
+        (find /Applications -name "*.app" -maxdepth 1 2>/dev/null;
+         find ~/Applications -name "*.app" -maxdepth 1 2>/dev/null) | wc -l | tr -d ' '
+    )
 
     # Check if cache is valid
     if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
@@ -199,7 +202,11 @@ scan_applications() {
 
         # Store tuple: app_path|app_name|bundle_id|display_name
         app_data_tuples+=("${app_path}|${app_name}|${bundle_id}|${display_name}")
-    done < <(find /Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null)
+    done < <(
+        # Scan both system and user application directories
+        find /Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null
+        find ~/Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null
+    )
 
     # Second pass: process each app with parallel size calculation
     local app_count=0

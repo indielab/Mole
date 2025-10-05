@@ -481,22 +481,22 @@ perform_cleanup() {
     # Rust
     safe_clean ~/.cargo/registry/cache/* "Rust cargo cache"
 
-    # Docker
+    # Docker (only clean build cache, preserve images and volumes)
     if command -v docker >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Docker...\r"
-        docker system prune -af --volumes >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Docker build cache...\r"
+        docker builder prune -af >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Docker resources cleaned"
+        echo -e "  ${GREEN}✓${NC} Docker build cache cleaned"
         note_activity
     fi
 
     # Container tools
     safe_clean ~/.kube/cache/* "Kubernetes cache"
     if command -v podman >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Podman...\r"
-        podman system prune -af --volumes >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Podman build cache...\r"
+        podman system prune -f >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Podman resources cleaned"
+        echo -e "  ${GREEN}✓${NC} Podman build cache cleaned"
         note_activity
     fi
     safe_clean ~/.local/share/containers/storage/tmp/* "Container storage temp"

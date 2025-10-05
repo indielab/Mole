@@ -1256,7 +1256,7 @@ scan_directory_contents_fast() {
 
     # Show initial scanning message
     if [[ "$show_progress" == "true" ]]; then
-        printf "\033[H\033[J" >&2
+        printf "\033[?25l\033[H\033[J" >&2
         echo "" >&2
         printf "  ${BLUE}📊 ⠋ Scanning...${NC}\r" >&2
     fi
@@ -1336,6 +1336,8 @@ scan_directory_contents_fast() {
             fi
         done
         printf "\r\033[K" >&2
+        # Ensure cursor stays hidden after clearing spinner
+        printf "\033[?25l" >&2
     fi
 
     # Wait for completion (non-blocking if already killed)
@@ -1410,83 +1412,64 @@ combine_initial_scan_results() {
 show_volumes_overview() {
     local temp_volumes="$TEMP_PREFIX.volumes"
 
-    # Collect all mounted volumes
+    # Collect most useful locations (quick display, no size calculation)
     {
-        # Root volume
-        local root_size=$(df -k / 2>/dev/null | tail -1 | awk '{print $3}')
-        echo "$((root_size * 1024))|/|Macintosh HD (Root)"
+        # Priority order for display (prioritized by typical usefulness)
+        [[ -d "$HOME" ]] && echo "1000|$HOME|🏠 Home Directory"
+        [[ -d "$HOME/Downloads" ]] && echo "900|$HOME/Downloads|📥 Downloads"
+        [[ -d "/Applications" ]] && echo "800|/Applications|📦 Applications"
+        [[ -d "$HOME/Library" ]] && echo "700|$HOME/Library|📚 User Library"
+        [[ -d "/Library" ]] && echo "600|/Library|📚 System Library"
 
-        # External volumes
+        # External volumes (if any)
         if [[ -d "/Volumes" ]]; then
+            local vol_priority=500
             find /Volumes -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r vol; do
-                local vol_size=$(df -k "$vol" 2>/dev/null | tail -1 | awk '{print $3}')
                 local vol_name=$(basename "$vol")
-                echo "$((vol_size * 1024))|$vol|$vol_name"
+                echo "$((vol_priority))|$vol|🔌 $vol_name"
+                ((vol_priority--))
             done
         fi
-
-        # Common user directories
-        for dir in "$HOME" "$HOME/Downloads" "$HOME/Documents" "$HOME/Library"; do
-            if [[ -d "$dir" ]]; then
-                local dir_size=$(du -sk "$dir" 2>/dev/null | cut -f1)
-                local dir_name=$(echo "$dir" | sed "s|^$HOME|~|")
-                echo "$((dir_size * 1024))|$dir|$dir_name"
-            fi
-        done
     } | sort -t'|' -k1 -rn > "$temp_volumes"
 
-    # Setup alternate screen
+    # Setup alternate screen and hide cursor (keep hidden throughout)
     tput smcup 2>/dev/null || true
-    printf "\033[?25l"  # Hide cursor
+    printf "\033[?25l" >&2  # Hide cursor
 
     cleanup_volumes() {
-        printf "\033[?25h"  # Show cursor
+        printf "\033[?25h" >&2  # Show cursor
         tput rmcup 2>/dev/null || true
     }
     trap cleanup_volumes EXIT INT TERM
+
+    # Force cursor hidden at the start
+    stty -echo 2>/dev/null || true
 
     local cursor=0
     local total_items=$(wc -l < "$temp_volumes" | tr -d ' ')
 
     while true; do
+        # Ensure cursor is always hidden
+        printf "\033[?25l" >&2
+
         # Drain burst input (trackpad scroll -> many arrows)
         type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         # Build output buffer to reduce flicker
         local output=""
+        output+="\033[?25l"  # Hide cursor
         output+="\033[H\033[J"
         output+=$'\n'
         output+="\033[0;35m💾 Select a location to explore\033[0m"$'\n'
         output+=$'\n'
 
         local idx=0
-        while IFS='|' read -r size path display_name; do
-            local human_size=$(bytes_to_human "$size")
-
-            # Determine icon
-            local icon="💾"
-            local color="${NC}"
-            if [[ "$path" == "/" ]]; then
-                icon="💿"
-                color="${BLUE}"
-            elif [[ "$path" == /Volumes/* ]]; then
-                icon="🔌"
-                color="${YELLOW}"
-            elif [[ "$path" == "$HOME" ]]; then
-                icon="🏠"
-                color="${GREEN}"
-            elif [[ "$path" == *"/Library" ]]; then
-                icon="📚"
-                color="${GRAY}"
-            else
-                icon="📁"
-            fi
-
-            # Build line
+        while IFS='|' read -r priority path display_name; do
+            # Build line (simple display without size)
             local line=""
             if [[ $idx -eq $cursor ]]; then
-                line=$(printf "  ${GREEN}▶${NC} ${color}%-4s  %-10s  %s${NC}" "$icon" "$human_size" "$display_name")
+                line=$(printf "  ${GREEN}▶${NC} ${BLUE}%s${NC}" "$display_name")
             else
-                line=$(printf "    ${color}%-4s  %-10s  %s${NC}" "$icon" "$human_size" "$display_name")
+                line=$(printf "    ${GRAY}%s${NC}" "$display_name")
             fi
             output+="$line"$'\n'
 
@@ -1513,7 +1496,7 @@ show_volumes_overview() {
                 # Get selected path and enter it
                 local selected_path=""
                 idx=0
-                while IFS='|' read -r size path display_name; do
+                while IFS='|' read -r priority path display_name; do
                     if [[ $idx -eq $cursor ]]; then
                         selected_path="$path"
                         break
@@ -1522,10 +1505,24 @@ show_volumes_overview() {
                 done < "$temp_volumes"
 
                 if [[ -n "$selected_path" ]] && [[ -d "$selected_path" ]]; then
-                    cleanup_volumes
+                    # Save cursor for potential return
+                    local saved_cursor=$cursor
+
+                    # Don't cleanup yet - stay in alternate screen
                     trap - EXIT INT TERM
-                    interactive_drill_down "$selected_path" ""
-                    return
+
+                    # Enter drill-down, check return value
+                    if interactive_drill_down "$selected_path" ""; then
+                        # User quit (Q/ESC) - cleanup and exit
+                        cleanup_volumes
+                        return 0
+                    else
+                        # User went back (LEFT at root) - return to menu
+                        # Restore trap
+                        trap cleanup_volumes EXIT INT TERM
+                        cursor=$saved_cursor
+                        # Just continue loop to redraw menu
+                    fi
                 fi
                 ;;
             "LEFT")
@@ -1565,8 +1562,8 @@ interactive_drill_down() {
     local cache_dir="$TEMP_PREFIX.cache.$$"
     mkdir -p "$cache_dir" 2>/dev/null || true
 
-    # Setup alternate screen and hide cursor
-    tput smcup 2>/dev/null || true  # Enter alternate screen
+    # Note: We're already in alternate screen from show_volumes_overview
+    # Just hide cursor, don't re-enter alternate screen
     printf "\033[?25l"  # Hide cursor
 
     # Save terminal settings and disable echo
@@ -1576,14 +1573,14 @@ interactive_drill_down() {
         stty -echo 2>/dev/null || true
     fi
 
-    # Cleanup on exit
+    # Cleanup on exit (but don't exit alternate screen - may return to menu)
     cleanup_drill_down() {
         # Restore terminal settings
         if [[ -n "${old_tty_settings:-}" ]]; then
             stty "$old_tty_settings" 2>/dev/null || true
         fi
         printf "\033[?25h"  # Show cursor
-        tput rmcup 2>/dev/null || true  # Exit alternate screen
+        # Don't call tput rmcup - we may be returning to volumes menu
         [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2>/dev/null || true  # Clean up cache
     }
     trap cleanup_drill_down EXIT INT TERM
@@ -1592,6 +1589,9 @@ interactive_drill_down() {
     type drain_pending_input >/dev/null 2>&1 && drain_pending_input
 
     while true; do
+        # Ensure cursor is always hidden during navigation
+        printf "\033[?25l" >&2
+
         # Drain any burst input (e.g. trackpad scroll converted to many arrow keys)
         type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         # Only scan if needed (directory changed or refresh requested)
@@ -1691,6 +1691,7 @@ interactive_drill_down() {
 
         # Build output buffer once for smooth rendering
         local output=""
+        output+="\033[?25l"  # Hide cursor
         output+="\033[H\033[J"  # Clear screen
         output+=$'\n'
         output+="\033[0;35m📊 Disk space explorer > $(echo "$current_path" | sed "s|^$HOME|~|")\033[0m"$'\n'
@@ -1879,10 +1880,17 @@ interactive_drill_down() {
                     current_path="${path_stack[$last_index]}"
                     unset "path_stack[$last_index]"
                     cursor=0
+                    scroll_offset=0
                     need_scan=true
                 else
-                    # Already at root/start path - do nothing (don't quit)
-                    :
+                    # Already at start path - return to volumes menu
+                    # Don't show cursor or exit screen - menu will handle it
+                    if [[ -n "${old_tty_settings:-}" ]]; then
+                        stty "$old_tty_settings" 2>/dev/null || true
+                    fi
+                    [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2>/dev/null || true
+                    trap - EXIT INT TERM
+                    return 1  # Return to menu
                 fi
                 ;;
             "DELETE")
@@ -1997,7 +2005,9 @@ interactive_drill_down() {
                 ;;
             "QUIT"|"q")
                 # Quit the explorer
-                break
+                cleanup_drill_down
+                trap - EXIT INT TERM
+                return 0  # Return true to indicate normal exit
                 ;;
             *)
                 # Unknown key - ignore it
@@ -2006,6 +2016,7 @@ interactive_drill_down() {
     done
 
     # Cleanup is handled by trap
+    return 0  # Normal exit if loop ends
 }
 
 # Main interactive loop
@@ -2212,8 +2223,8 @@ main() {
     # Create cache directory
     mkdir -p "$CACHE_DIR" 2>/dev/null || true
 
-    # Start interactive drill-down mode (no volumes view, no export)
-    interactive_drill_down "$target_path" ""
+    # Start with volumes overview to let user choose location
+    show_volumes_overview
 }
 
 # Run if executed directly

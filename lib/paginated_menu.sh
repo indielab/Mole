@@ -48,10 +48,18 @@ paginated_multi_select() {
         stty echo icanon 2>/dev/null || true
         leave_alt_screen
     }
-    trap cleanup EXIT INT TERM
 
-    # Setup terminal
-    stty -echo -icanon 2>/dev/null || true
+    # Interrupt handler
+    handle_interrupt() {
+        cleanup
+        exit 130  # Standard exit code for Ctrl+C
+    }
+
+    trap cleanup EXIT
+    trap handle_interrupt INT TERM
+
+    # Setup terminal - preserve interrupt character
+    stty -echo -icanon intr ^C 2>/dev/null || true
     enter_alt_screen
     hide_cursor
 

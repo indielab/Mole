@@ -82,12 +82,14 @@ paginated_multi_select() {
     draw_menu() {
         printf "\033[H\033[J" >&2  # Clear screen and move to top
 
-        # Header - strip emoji for length calculation
+        # Header - compute underline length without external seq dependency
         local title_clean="${title//[^[:print:]]/}"
-        local title_len_approx=$(( ${#title_clean} - 4 ))  # Rough adjustment for emoji
-        [[ $title_len_approx -lt 10 ]] && title_len_approx=10
-        
-        printf "${PURPLE}%s${NC}\n%s\n" "$title" "$(printf '=%.0s' $(seq 1 $title_len_approx))" >&2
+        local underline_len=${#title_clean}
+        [[ $underline_len -lt 10 ]] && underline_len=10
+        # Build underline robustly (no seq); printf width then translate spaces to '='
+        local underline
+        underline=$(printf '%*s' "$underline_len" '' | tr ' ' '=')
+        printf "${PURPLE}%s${NC}\n%s\n" "$title" "$underline" >&2
 
         # Status
         local selected_count=0

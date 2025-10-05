@@ -404,11 +404,11 @@ uninstall_applications() {
 
         # Show what will be removed
         echo -e "  ${YELLOW}Files to be removed:${NC}"
-        echo -e "  ${BLUE}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
+        echo -e "  ${GREEN}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
 
         # Show user-level files
         while IFS= read -r file; do
-            [[ -n "$file" && -e "$file" ]] && echo -e "  ${BLUE}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
+            [[ -n "$file" && -e "$file" ]] && echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
         done <<< "$related_files"
 
         # Show system-level files
@@ -435,7 +435,7 @@ uninstall_applications() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             # Remove the application
             if rm -rf "$app_path" 2>/dev/null; then
-                echo -e "  ${BLUE}✓${NC} Removed application"
+                echo -e "  ${GREEN}✓${NC} Removed application"
             else
                 log_error "Failed to remove $app_path"
                 continue
@@ -445,7 +445,7 @@ uninstall_applications() {
             while IFS= read -r file; do
                 if [[ -n "$file" && -e "$file" ]]; then
                     if rm -rf "$file" 2>/dev/null; then
-                        echo -e "  ${BLUE}✓${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
+                        echo -e "  ${GREEN}✓${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
                     fi
                 fi
             done <<< "$related_files"
@@ -456,7 +456,7 @@ uninstall_applications() {
                 while IFS= read -r file; do
                     if [[ -n "$file" && -e "$file" ]]; then
                         if sudo rm -rf "$file" 2>/dev/null; then
-                            echo -e "  ${BLUE}✓${NC} Removed [System] $(basename "$file")"
+                            echo -e "  ${GREEN}✓${NC} Removed [System] $(basename "$file")"
                         else
                             log_warning "Failed to remove system file: $file"
                         fi

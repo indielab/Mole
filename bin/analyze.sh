@@ -720,7 +720,7 @@ display_cleanup_suggestions() {
         echo ""
         echo "  ${YELLOW}Tip:${NC} Run 'mole clean' to perform cleanup operations"
     else
-        echo "  ${BLUE}✓${NC} No obvious cleanup opportunities found"
+        echo "  ${GREEN}✓${NC} No obvious cleanup opportunities found"
     fi
     echo ""
 }
@@ -1858,7 +1858,7 @@ interactive_drill_down() {
                                         open "$selected_path" 2>/dev/null && open_success=true
                                         if [[ "$open_success" == "true" ]]; then
                                             echo ""
-                                            echo "  ${BLUE}✓${NC} File opened in external app"
+                                            echo "  ${GREEN}✓${NC} File opened in external app"
                                             sleep 0.8
                                         fi
                                     fi
@@ -1879,7 +1879,7 @@ interactive_drill_down() {
                                     # Show brief success message
                                     if [[ "$open_success" == "true" ]]; then
                                         echo ""
-                                        echo "  ${BLUE}✓${NC} File opened in external app"
+                                        echo "  ${GREEN}✓${NC} File opened in external app"
                                         sleep 0.8
                                     fi
                                 fi
@@ -2002,7 +2002,7 @@ interactive_drill_down() {
                         fi
 
                         if [[ "$delete_success" == "true" ]]; then
-                            echo "  ${BLUE}✓ Deleted successfully${NC}"
+                            echo "  ${GREEN}✓ Deleted successfully${NC}"
                             echo "  ${GRAY}Freed: $human_size${NC}"
                             sleep 0.8
 

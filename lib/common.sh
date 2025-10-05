@@ -36,7 +36,7 @@ log_info() {
 
 log_success() {
     rotate_log
-    echo -e "  ${BLUE}✓${NC} $1"
+    echo -e "  ${GREEN}✓${NC} $1"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -276,7 +276,7 @@ update_via_homebrew() {
         # Get current version
         local current_version
         current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${BLUE}✓${NC} Already on latest version (${current_version:-$version})"
+        echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$version})"
     elif echo "$upgrade_output" | grep -q "Error:"; then
         log_error "Homebrew upgrade failed"
         echo "$upgrade_output" | grep "Error:" >&2
@@ -287,7 +287,7 @@ update_via_homebrew() {
         # Get new version
         local new_version
         new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-$version})"
+        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$version})"
     fi
 
     # Clear version check cache

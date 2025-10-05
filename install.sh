@@ -458,7 +458,7 @@ perform_update() {
             if echo "$upgrade_output" | grep -q "already installed"; then
                 local current_version
                 current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-                echo -e "${BLUE}✓${NC} Already on latest version (${current_version:-$VERSION})"
+                echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$VERSION})"
             elif echo "$upgrade_output" | grep -q "Error:"; then
                 log_error "Homebrew upgrade failed"
                 echo "$upgrade_output" | grep "Error:" >&2
@@ -467,7 +467,7 @@ perform_update() {
                 echo "$upgrade_output" | grep -Ev "^(==>|Updating Homebrew|Warning:)" || true
                 local new_version
                 new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-                echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-$VERSION})"
+                echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
             fi
 
             rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
@@ -494,7 +494,7 @@ perform_update() {
     fi
 
     if [[ "$installed_version" == "$target_version" ]]; then
-        echo -e "${BLUE}✓${NC} Already on latest version ($installed_version)"
+        echo -e "${GREEN}✓${NC} Already on latest version ($installed_version)"
         exit 0
     fi
 
@@ -514,7 +514,7 @@ perform_update() {
         updated_version="$target_version"
     fi
 
-    echo -e "${BLUE}✓${NC} Updated to latest version ($updated_version)"
+    echo -e "${GREEN}✓${NC} Updated to latest version ($updated_version)"
 }
 
 # Run requested action

@@ -123,10 +123,8 @@ show_version() {
 show_help() {
     show_brand_banner
     echo
-    printf "%s%s%s\n" "$BLUE" "USAGE" "$NC"
-    printf "  %s%s%s [command]\n\n" "$GREEN" "mole" "$NC"
-
     printf "%s%s%s\n" "$BLUE" "COMMANDS" "$NC"
+    printf "  %s%-28s%s %s\n" "$GREEN" "mo" "$NC" "Shortcut alias for Mole"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole" "$NC" "Interactive main menu"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole clean" "$NC" "Deeper system cleanup"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole clean --dry-run" "$NC" "Preview cleanup (no deletions)"
@@ -212,6 +210,7 @@ remove_mole() {
     # Detect all installations
     local is_homebrew=false
     local -a manual_installs=()
+    local -a alias_installs=()
 
     # Check Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
@@ -234,6 +233,18 @@ remove_mole() {
         fi
     done
 
+    local -a alias_candidates=(
+        "/usr/local/bin/mo"
+        "$HOME/.local/bin/mo"
+        "/opt/local/bin/mo"
+    )
+
+    for alias in "${alias_candidates[@]}"; do
+        if [[ -f "$alias" ]]; then
+            alias_installs+=("$alias")
+        fi
+    done
+
     # Show what will be removed
     echo "This will remove:"
     echo ""
@@ -253,10 +264,16 @@ remove_mole() {
         done
     fi
 
+    if [[ ${#alias_installs[@]} -gt 0 ]]; then
+        for alias in "${alias_installs[@]}"; do
+            echo -e "  ${GREEN}✓${NC} $alias"
+        done
+    fi
+
     echo -e "  ${GREEN}✓${NC} ~/.config/mole/ (configuration)"
     echo -e "  ${GREEN}✓${NC} ~/.cache/mole/ (cache)"
 
-    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 ]]; then
+    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 && ${#alias_installs[@]} -eq 0 ]]; then
         echo ""
         echo -e "${YELLOW}No Mole installation detected${NC}"
         exit 0
@@ -305,6 +322,18 @@ remove_mole() {
                     log_success "Removed library files from $install_root"
                 else
                     log_warning "Could not remove $install_root/lib (may need sudo)"
+                fi
+            fi
+        done
+    fi
+
+    if [[ ${#alias_installs[@]} -gt 0 ]]; then
+        for alias in "${alias_installs[@]}"; do
+            if [[ -f "$alias" ]]; then
+                if rm -f "$alias" 2>/dev/null; then
+                    log_success "Removed alias: $alias"
+                else
+                    log_warning "Could not remove alias $alias (may need sudo)"
                 fi
             fi
         done

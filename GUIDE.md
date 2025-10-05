@@ -65,8 +65,10 @@ brew install tw93/tap/mole
    在终端中输入以下命令并按回车：
 
    ```bash
-   mole
+   mo
    ```
+
+   如果提示找不到命令，也可以输入 `mole`（功能完全相同）。
 
 2. **了解界面操作**
    - 用键盘的 `↑` `↓` 方向键 选择菜单项
@@ -82,8 +84,8 @@ brew install tw93/tap/mole
 
 **首次使用强烈建议：**
 
-1. **预览模式：** 先运行 `mole clean --dry-run` 查看将删除的内容，不会真的删除任何文件
-2. **白名单保护：** 使用 `mole clean --whitelist` 保护重要的缓存文件
+1. **预览模式：** 先运行 `mo clean --dry-run` 查看将删除的内容，不会真的删除任何文件
+2. **白名单保护：** 使用 `mo clean --whitelist` 保护重要的缓存文件
 3. **谨慎使用：** 如果你的 Mac 非常重要（生产环境、关键工作设备），建议等待 Mole 更加成熟稳定后再使用
 
 ### 清理垃圾文件
@@ -91,7 +93,7 @@ brew install tw93/tap/mole
 **安全预览模式（推荐第一次使用）：**
 
 ```bash
-mole clean --dry-run
+mo clean --dry-run
 ```
 
 这个命令只会**显示**哪些文件会被清理，**不会真的删除**。你可以先看看效果再决定。
@@ -99,7 +101,7 @@ mole clean --dry-run
 **管理白名单（保护重要缓存）：**
 
 ```bash
-mole clean --whitelist
+mo clean --whitelist
 ```
 
 交互式选择哪些缓存不要删除，比如开发工具的大型缓存（Homebrew、Gradle 等）。
@@ -107,7 +109,7 @@ mole clean --whitelist
 **正式清理：**
 
 ```bash
-mole clean
+mo clean
 ```
 
 会清理系统缓存、日志、临时文件等，释放磁盘空间。Mole 很安全，只删除可重新生成的文件。
@@ -115,7 +117,7 @@ mole clean
 ### 卸载应用（彻底删除）
 
 ```bash
-mole uninstall
+mo uninstall
 ```
 
 这个功能会：
@@ -129,7 +131,7 @@ mole uninstall
 ### 查看帮助
 
 ```bash
-mole --help
+mo --help
 ```
 
 可以查看所有可用的命令和说明。
@@ -137,7 +139,7 @@ mole --help
 ### 磁盘空间分析 🆕
 
 ```bash
-mole analyze
+mo analyze
 ```
 
 交互式查看哪些文件和文件夹最占空间，帮助你快速找到并清理大文件。
@@ -190,9 +192,9 @@ mole analyze
 
 ### 如何更新和卸载 Mole？
 
-**更新：** 一键安装用 `mole update` · Homebrew 用 `brew upgrade mole`（检测不到新版本？先运行 `brew update`）
+**更新：** 一键安装用 `mo update` · Homebrew 用 `brew upgrade mole`（检测不到新版本？先运行 `brew update`）
 
-**卸载：** 任何安装方式都用 `mole remove`（会自动识别安装方式，清理所有相关文件）
+**卸载：** 任何安装方式都用 `mo remove`（会自动识别安装方式，清理所有相关文件）
 
 ---
 

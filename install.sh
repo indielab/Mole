@@ -235,6 +235,21 @@ install_files() {
         exit 1
     fi
 
+    # Install mo alias for Mole if available
+    if [[ -f "$SOURCE_DIR/mo" ]]; then
+        if [[ "$source_dir_abs" == "$install_dir_abs" ]]; then
+            log_info "mo alias already present in $INSTALL_DIR"
+        else
+            if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+                sudo cp "$SOURCE_DIR/mo" "$INSTALL_DIR/mo"
+                sudo chmod +x "$INSTALL_DIR/mo"
+            else
+                cp "$SOURCE_DIR/mo" "$INSTALL_DIR/mo"
+                chmod +x "$INSTALL_DIR/mo"
+            fi
+        fi
+    fi
+
     # Copy configuration and modules
     if [[ -d "$SOURCE_DIR/bin" ]]; then
         local source_bin_abs="$(cd "$SOURCE_DIR/bin" && pwd)"
@@ -337,12 +352,14 @@ print_usage_summary() {
     echo ""
     echo "Usage:"
     if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        echo "  mo                # Shortcut alias for Mole"
         echo "  mole              # Interactive menu"
         echo "  mole clean        # System cleanup"
         echo "  mole uninstall    # Remove applications"
         echo "  mole update       # Update Mole to the latest version"
         echo "  mole --version    # Show installed version"
     else
+        echo "  $INSTALL_DIR/mo                # Shortcut alias for Mole"
         echo "  $INSTALL_DIR/mole              # Interactive menu"
         echo "  $INSTALL_DIR/mole clean        # System cleanup"
         echo "  $INSTALL_DIR/mole uninstall    # Remove applications"
@@ -364,6 +381,15 @@ uninstall_mole() {
             rm -f "$INSTALL_DIR/mole"
         fi
         log_success "Removed executable from $INSTALL_DIR"
+    fi
+
+    if [[ -f "$INSTALL_DIR/mo" ]]; then
+        if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
+            sudo rm -f "$INSTALL_DIR/mo"
+        else
+            rm -f "$INSTALL_DIR/mo"
+        fi
+        log_success "Removed mo alias from $INSTALL_DIR"
     fi
 
     # Ask before removing config directory

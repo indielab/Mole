@@ -47,6 +47,7 @@ brew install tw93/tap/mole
 **Run:**
 
 ```bash
+mo                        # Shortcut alias for Mole
 mole                      # Interactive menu
 mole clean                # System cleanup
 mole clean --dry-run      # Preview mode
@@ -57,6 +58,8 @@ mole update               # Update Mole
 mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
+
+Prefer the shorter alias `mo` for every command; `mole` remains available.
 
 > Highly recommended start with `--dry-run` to preview, enable `--whitelist` to protect caches
 

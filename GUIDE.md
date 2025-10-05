@@ -192,7 +192,7 @@ mo analyze
 
 ### 如何更新和卸载 Mole？
 
-**更新：** 一键安装用 `mo update` · Homebrew 用 `brew upgrade mole`（检测不到新版本？先运行 `brew update`）
+**更新：** 直接运行 `mo update`，Homebrew 安装会自动执行 `brew update && brew upgrade mole`
 
 **卸载：** 任何安装方式都用 `mo remove`（会自动识别安装方式，清理所有相关文件）
 

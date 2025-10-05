@@ -143,29 +143,50 @@ show_help() {
 update_mole() {
     # Check if installed via Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
-        echo -e "${GREEN}Homebrew detected, use: ${BLUE}brew upgrade mole${NC}"
+        echo -e "${BLUE}→${NC} Updating Homebrew..."
+        # Update Homebrew with real-time output
+        brew update 2>&1 | grep -v "^==>" | grep -v "^Already up-to-date" || true
+
+        echo -e "${BLUE}→${NC} Upgrading Mole..."
+        local upgrade_output
+        upgrade_output=$(brew upgrade mole 2>&1) || true
+
+        if echo "$upgrade_output" | grep -q "already installed"; then
+            echo -e "${GREEN}✓${NC} Already on latest version ($VERSION)"
+        elif echo "$upgrade_output" | grep -q "Error:"; then
+            log_error "Update failed. Try: brew update && brew upgrade mole"
+            exit 1
+        else
+            # Show upgrade output (exclude headers and warnings)
+            echo "$upgrade_output" | grep -v "^==>" | grep -v "^Updating Homebrew" | grep -v "^Warning:"
+            # Get new version
+            local new_version
+            new_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
+            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
+        fi
+
+        rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
         exit 0
     fi
 
-    log_info "Updating Mole..."
-
+    # Download and run installer silently
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
     local tmp_installer
-    tmp_installer="$(mktemp)" || { log_error "Failed to create temp file"; exit 1; }
+    tmp_installer="$(mktemp)" || { log_error "Update failed"; exit 1; }
 
-    # Download installer with timeout
+    # Download installer silently
     if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer"; then
+        curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer" 2>/dev/null || {
             rm -f "$tmp_installer"
-            log_error "Failed to download installer"
+            log_error "Update failed. Check network connection."
             exit 1
-        fi
+        }
     elif command -v wget >/dev/null 2>&1; then
-        if ! wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url"; then
+        wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url" 2>/dev/null || {
             rm -f "$tmp_installer"
-            log_error "Failed to download installer"
+            log_error "Update failed. Check network connection."
             exit 1
-        fi
+        }
     else
         rm -f "$tmp_installer"
         log_error "curl or wget required"
@@ -180,12 +201,16 @@ update_mole() {
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
-    # Run installer quietly
-    if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update 2>/dev/null; then
-        log_success "Updated successfully"
+    # Run installer quietly and get new version
+    if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update >/dev/null 2>&1; then
+        local new_version
+        new_version=$(grep '^VERSION=' "$tmp_installer" 2>/dev/null | head -1 | sed 's/VERSION="\(.*\)"/\1/' || echo "")
+        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
     else
-        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>/dev/null; then
-            log_success "Updated successfully"
+        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" >/dev/null 2>&1; then
+            local new_version
+            new_version=$(grep '^VERSION=' "$tmp_installer" 2>/dev/null | head -1 | sed 's/VERSION="\(.*\)"/\1/' || echo "")
+            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
         else
             rm -f "$tmp_installer"
             log_error "Update failed"
@@ -194,8 +219,6 @@ update_mole() {
     fi
 
     rm -f "$tmp_installer"
-
-    # Clear version check cache after successful update
     rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
 }
 

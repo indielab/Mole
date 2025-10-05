@@ -171,6 +171,10 @@ check_requirements() {
 
     # Check if already installed via Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+        if [[ "$ACTION" == "update" ]]; then
+            return 0
+        fi
+
         echo -e "${YELLOW}Mole is installed via Homebrew${NC}"
         echo ""
         echo "Choose one:"
@@ -435,6 +439,36 @@ perform_install() {
 perform_update() {
     check_requirements
 
+    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+        echo -e "${BLUE}→${NC} Updating Homebrew..."
+        # Update Homebrew with real-time output
+        brew update 2>&1 | grep -v "^==>" | grep -v "^Already up-to-date" || true
+
+        echo -e "${BLUE}→${NC} Upgrading Mole..."
+        local upgrade_output
+        upgrade_output=$(brew upgrade mole 2>&1) || true
+
+        if echo "$upgrade_output" | grep -q "already installed"; then
+            # Get current version from brew
+            local current_version
+            current_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
+            echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$VERSION})"
+        elif echo "$upgrade_output" | grep -q "Error:"; then
+            log_error "Update failed. Try: brew update && brew upgrade mole"
+            exit 1
+        else
+            # Show upgrade output (exclude headers and warnings)
+            echo "$upgrade_output" | grep -v "^==>" | grep -v "^Updating Homebrew" | grep -v "^Warning:"
+            # Get new version
+            local new_version
+            new_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
+            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
+        fi
+
+        rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+        exit 0
+    fi
+
     local installed_version
     installed_version="$(get_installed_version || true)"
 
@@ -454,16 +488,15 @@ perform_update() {
     fi
 
     if [[ "$installed_version" == "$target_version" ]]; then
-        log_success "Mole is already up to date (version $installed_version)!"
+        echo -e "${GREEN}✓${NC} Already on latest version ($installed_version)"
         exit 0
     fi
 
-    log_info "Updating Mole from $installed_version to $target_version..."
-
-    create_directories
-    install_files
-    verify_installation
-    setup_path
+    # Update silently
+    create_directories >/dev/null 2>&1
+    install_files >/dev/null 2>&1
+    verify_installation >/dev/null 2>&1
+    setup_path >/dev/null 2>&1
 
     local updated_version
     updated_version="$(get_installed_version || true)"
@@ -472,7 +505,7 @@ perform_update() {
         updated_version="$target_version"
     fi
 
-    print_usage_summary "updated" "$updated_version" "$installed_version"
+    echo -e "${GREEN}✓${NC} Updated to latest version ($updated_version)"
 }
 
 # Run requested action

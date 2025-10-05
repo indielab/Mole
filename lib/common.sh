@@ -519,6 +519,9 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.tencent.xinWeChat"            # WeChat (Chinese users)
     "com.tencent.qq"                   # QQ
     "com.alibaba.DingTalkMac"          # DingTalk
+    "com.alibaba.AliLang.osx"          # AliLang (retain login/config data)
+    "com.alibaba.alilang3.osx.ShipIt"  # AliLang updater component
+    "com.alibaba.AlilangMgr.QueryNetworkInfo" # AliLang network helper
     "us.zoom.xos"                      # Zoom
     "com.microsoft.teams*"             # Microsoft Teams
     "com.slack.Slack"                  # Slack

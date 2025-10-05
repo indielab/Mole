@@ -16,7 +16,7 @@
   <img src="https://cdn.tw93.fun/img/mole.jpeg" alt="Mole - 95.50GB freed" width="800" />
 </p>
 
-## Features at a Glance
+## Features
 
 - 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
 - 📦 **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon

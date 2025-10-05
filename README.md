@@ -58,7 +58,7 @@ mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 
-> 💡 Start with `--dry-run` to preview, enable `--whitelist` to protect caches
+> Highly recommended start with `--dry-run` to preview, enable `--whitelist` to protect caches
 
 ## Features
 

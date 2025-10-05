@@ -440,32 +440,38 @@ perform_update() {
     check_requirements
 
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
-        echo -e "${BLUE}→${NC} Updating Homebrew..."
-        # Update Homebrew with real-time output
-        brew update 2>&1 | grep -v "^==>" | grep -v "^Already up-to-date" || true
-
-        echo -e "${BLUE}→${NC} Upgrading Mole..."
-        local upgrade_output
-        upgrade_output=$(brew upgrade mole 2>&1) || true
-
-        if echo "$upgrade_output" | grep -q "already installed"; then
-            # Get current version from brew
-            local current_version
-            current_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
-            echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$VERSION})"
-        elif echo "$upgrade_output" | grep -q "Error:"; then
-            log_error "Update failed. Try: brew update && brew upgrade mole"
-            exit 1
+        # Try to use shared function if available (when running from installed Mole)
+        resolve_source_dir 2>/dev/null || true
+        if [[ -f "$SOURCE_DIR/lib/common.sh" ]]; then
+            # shellcheck disable=SC1090,SC1091
+            source "$SOURCE_DIR/lib/common.sh"
+            update_via_homebrew "$VERSION"
         else
-            # Show upgrade output (exclude headers and warnings)
-            echo "$upgrade_output" | grep -v "^==>" | grep -v "^Updating Homebrew" | grep -v "^Warning:"
-            # Get new version
-            local new_version
-            new_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
-            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
-        fi
+            # Fallback: inline implementation
+            echo -e "${BLUE}→${NC} Updating Homebrew..."
+            brew update 2>&1 | grep -Ev "^(==>|Already up-to-date)" || true
 
-        rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+            echo -e "${BLUE}→${NC} Upgrading Mole..."
+            local upgrade_output
+            upgrade_output=$(brew upgrade mole 2>&1) || true
+
+            if echo "$upgrade_output" | grep -q "already installed"; then
+                local current_version
+                current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+                echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$VERSION})"
+            elif echo "$upgrade_output" | grep -q "Error:"; then
+                log_error "Homebrew upgrade failed"
+                echo "$upgrade_output" | grep "Error:" >&2
+                exit 1
+            else
+                echo "$upgrade_output" | grep -Ev "^(==>|Updating Homebrew|Warning:)" || true
+                local new_version
+                new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+                echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
+            fi
+
+            rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+        fi
         exit 0
     fi
 
@@ -492,11 +498,14 @@ perform_update() {
         exit 0
     fi
 
-    # Update silently
-    create_directories >/dev/null 2>&1
-    install_files >/dev/null 2>&1
-    verify_installation >/dev/null 2>&1
-    setup_path >/dev/null 2>&1
+    # Update with minimal output (suppress info/success, show errors only)
+    local old_verbose=$VERBOSE
+    VERBOSE=0
+    create_directories || { VERBOSE=$old_verbose; log_error "Failed to create directories"; exit 1; }
+    install_files || { VERBOSE=$old_verbose; log_error "Failed to install files"; exit 1; }
+    verify_installation || { VERBOSE=$old_verbose; log_error "Failed to verify installation"; exit 1; }
+    setup_path
+    VERBOSE=$old_verbose
 
     local updated_version
     updated_version="$(get_installed_version || true)"

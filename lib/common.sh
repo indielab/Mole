@@ -260,6 +260,41 @@ request_sudo() {
     fi
 }
 
+# Homebrew update utilities
+update_via_homebrew() {
+    local version="${1:-unknown}"
+
+    echo -e "${BLUE}→${NC} Updating Homebrew..."
+    # Filter out common noise but show important info
+    brew update 2>&1 | grep -Ev "^(==>|Already up-to-date)" || true
+
+    echo -e "${BLUE}→${NC} Upgrading Mole..."
+    local upgrade_output
+    upgrade_output=$(brew upgrade mole 2>&1) || true
+
+    if echo "$upgrade_output" | grep -q "already installed"; then
+        # Get current version
+        local current_version
+        current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+        echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$version})"
+    elif echo "$upgrade_output" | grep -q "Error:"; then
+        log_error "Homebrew upgrade failed"
+        echo "$upgrade_output" | grep "Error:" >&2
+        return 1
+    else
+        # Show relevant output, filter noise
+        echo "$upgrade_output" | grep -Ev "^(==>|Updating Homebrew|Warning:)" || true
+        # Get new version
+        local new_version
+        new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$version})"
+    fi
+
+    # Clear version check cache
+    rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+    return 0
+}
+
 # Load basic configuration
 load_config() {
     MOLE_MAX_LOG_SIZE="${MOLE_MAX_LOG_SIZE:-1048576}"

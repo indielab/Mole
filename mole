@@ -143,29 +143,7 @@ show_help() {
 update_mole() {
     # Check if installed via Homebrew
     if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
-        echo -e "${BLUE}→${NC} Updating Homebrew..."
-        # Update Homebrew with real-time output
-        brew update 2>&1 | grep -v "^==>" | grep -v "^Already up-to-date" || true
-
-        echo -e "${BLUE}→${NC} Upgrading Mole..."
-        local upgrade_output
-        upgrade_output=$(brew upgrade mole 2>&1) || true
-
-        if echo "$upgrade_output" | grep -q "already installed"; then
-            echo -e "${GREEN}✓${NC} Already on latest version ($VERSION)"
-        elif echo "$upgrade_output" | grep -q "Error:"; then
-            log_error "Update failed. Try: brew update && brew upgrade mole"
-            exit 1
-        else
-            # Show upgrade output (exclude headers and warnings)
-            echo "$upgrade_output" | grep -v "^==>" | grep -v "^Updating Homebrew" | grep -v "^Warning:"
-            # Get new version
-            local new_version
-            new_version=$(brew info mole 2>/dev/null | grep "mole:" | awk '{print $3}' | head -1)
-            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
-        fi
-
-        rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+        update_via_homebrew "$VERSION"
         exit 0
     fi
 

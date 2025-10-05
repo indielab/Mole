@@ -36,7 +36,7 @@ log_info() {
 
 log_success() {
     rotate_log
-    echo -e "  ${GREEN}✓${NC} $1"
+    echo -e "  ${BLUE}✓${NC} $1"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -48,7 +48,7 @@ log_warning() {
 
 log_error() {
     rotate_log
-    echo -e "${RED}❌ $1${NC}" >&2
+    echo -e "${RED}$1${NC}" >&2
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -264,11 +264,11 @@ request_sudo() {
 update_via_homebrew() {
     local version="${1:-unknown}"
 
-    echo -e "${BLUE}→${NC} Updating Homebrew..."
+    echo -e "${BLUE}◎${NC} Updating Homebrew..."
     # Filter out common noise but show important info
     brew update 2>&1 | grep -Ev "^(==>|Already up-to-date)" || true
 
-    echo -e "${BLUE}→${NC} Upgrading Mole..."
+    echo -e "${BLUE}◎${NC} Upgrading Mole..."
     local upgrade_output
     upgrade_output=$(brew upgrade mole 2>&1) || true
 
@@ -276,7 +276,7 @@ update_via_homebrew() {
         # Get current version
         local current_version
         current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$version})"
+        echo -e "${BLUE}✓${NC} Already on latest version (${current_version:-$version})"
     elif echo "$upgrade_output" | grep -q "Error:"; then
         log_error "Homebrew upgrade failed"
         echo "$upgrade_output" | grep "Error:" >&2
@@ -287,7 +287,7 @@ update_via_homebrew() {
         # Get new version
         local new_version
         new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$version})"
+        echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-$version})"
     fi
 
     # Clear version check cache
@@ -368,7 +368,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.tunabellysoftware.*"          # Disk Utility apps
     "com.grandperspectiv.*"            # GrandPerspective
     "com.binaryfruit.*"                # FusionCast
-    
+
     # ============================================================================
     # Password Managers & Security
     # ============================================================================
@@ -381,7 +381,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "org.keepassx.*"                   # KeePassX
     "com.authy.*"                      # Authy
     "com.yubico.*"                     # YubiKey Manager
-    
+
     # ============================================================================
     # Development Tools - IDEs & Editors
     # ============================================================================
@@ -398,7 +398,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.panic.Nova"                   # Nova
     "abnerworks.Typora"                # Typora (Markdown editor)
     "com.uranusjr.macdown"             # MacDown
-    
+
     # ============================================================================
     # Development Tools - Database Clients
     # ============================================================================
@@ -413,7 +413,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.eggerapps.Sequel-Pro"         # Sequel Pro legacy
     "com.valentina-db.Valentina-Studio" # Valentina Studio
     "com.dbvis.DbVisualizer"           # DbVisualizer
-    
+
     # ============================================================================
     # Development Tools - API & Network
     # ============================================================================
@@ -426,7 +426,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.charlesproxy.charles"         # Charles
     "com.telerik.Fiddler"              # Fiddler
     "com.usebruno.app"                 # Bruno (API client)
-    
+
     # ============================================================================
     # Development Tools - Git & Version Control
     # ============================================================================
@@ -438,7 +438,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.github.Gitify"                # Gitify
     "com.fork.Fork"                    # Fork
     "com.axosoft.gitkraken"            # GitKraken
-    
+
     # ============================================================================
     # Development Tools - Terminal & Shell
     # ============================================================================
@@ -451,7 +451,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.fig.Fig"                      # Fig (terminal assistant)
     "dev.warp.Warp-Stable"             # Warp
     "com.termius-dmg"                  # Termius (SSH client)
-    
+
     # ============================================================================
     # Development Tools - Docker & Virtualization
     # ============================================================================
@@ -462,7 +462,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "org.virtualbox.app.VirtualBox"    # VirtualBox
     "com.vagrant.*"                    # Vagrant
     "com.orbstack.OrbStack"            # OrbStack
-    
+
     # ============================================================================
     # System Monitoring & Performance
     # ============================================================================
@@ -473,7 +473,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.mediaatelier.MenuMeters"      # MenuMeters
     "com.activity-indicator.app"       # Activity Indicator
     "net.cindori.sensei"               # Sensei
-    
+
     # ============================================================================
     # Window Management & Productivity
     # ============================================================================
@@ -493,7 +493,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.surteesstudios.Bartender"     # Bartender
     "com.gaosun.eul"                   # eul (system monitor)
     "com.pointum.hazeover"             # HazeOver
-    
+
     # ============================================================================
     # Launcher & Automation
     # ============================================================================
@@ -506,7 +506,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.pilotmoon.scroll-reverser"    # Scroll Reverser
     "org.pqrs.Karabiner-Elements"      # Karabiner-Elements
     "com.apple.Automator"              # Automator (system, but keep user workflows)
-    
+
     # ============================================================================
     # Note-Taking & Documentation
     # ============================================================================
@@ -527,7 +527,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.roamresearch.*"               # Roam Research
     "com.reflect.ReflectApp"           # Reflect
     "com.inkdrop.*"                    # Inkdrop
-    
+
     # ============================================================================
     # Design & Creative Tools
     # ============================================================================
@@ -547,7 +547,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.maxon.cinema4d"               # Cinema 4D
     "com.autodesk.*"                   # Autodesk products
     "com.sketchup.*"                   # SketchUp
-    
+
     # ============================================================================
     # Communication & Collaboration
     # ============================================================================
@@ -571,7 +571,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.airmail.*"                    # Airmail
     "com.postbox-inc.postbox"          # Postbox
     "com.tinyspeck.slackmacgap"        # Slack legacy
-    
+
     # ============================================================================
     # Task Management & Productivity
     # ============================================================================
@@ -588,7 +588,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.airtable.airtable"            # Airtable
     "com.notion.id"                    # Notion (also note-taking)
     "com.linear.linear"                # Linear
-    
+
     # ============================================================================
     # File Transfer & Sync
     # ============================================================================
@@ -599,7 +599,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "io.filezilla.FileZilla"           # FileZilla
     "com.apple.Xcode.CloudDocuments"   # Xcode Cloud Documents
     "com.synology.*"                   # Synology apps
-    
+
     # ============================================================================
     # Screenshot & Recording
     # ============================================================================
@@ -615,7 +615,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.getkap.*"                     # Kap legacy
     "com.linebreak.CloudApp"           # CloudApp
     "com.droplr.droplr-mac"            # Droplr
-    
+
     # ============================================================================
     # Media & Entertainment
     # ============================================================================
@@ -632,7 +632,7 @@ readonly DATA_PROTECTED_BUNDLES=(
     "com.noodlesoft.Hazel"             # Hazel (automation)
     "tv.plex.player.desktop"           # Plex
     "com.netease.163music"             # NetEase Music
-    
+
     # ============================================================================
     # License Management & App Stores
     # ============================================================================

@@ -185,14 +185,14 @@ batch_uninstall_applications() {
         if [[ "$needs_sudo" == "true" ]]; then
             if sudo rm -rf "$app_path" 2>/dev/null; then
                 removal_success=true
-                echo -e "  ${GREEN}✓${NC} Removed application"
+                echo -e "  ${BLUE}✓${NC} Removed application"
             else
                 error_msg="Failed to remove with sudo (check permissions or SIP protection)"
             fi
         else
             if rm -rf "$app_path" 2>/dev/null; then
                 removal_success=true
-                echo -e "  ${GREEN}✓${NC} Removed application"
+                echo -e "  ${BLUE}✓${NC} Removed application"
             else
                 error_msg="Failed to remove (check if app is running or protected)"
             fi
@@ -211,7 +211,7 @@ batch_uninstall_applications() {
             done <<< "$related_files"
 
             if [[ $files_removed -gt 0 ]]; then
-                echo -e "  ${GREEN}✓${NC} Cleaned $files_removed related files"
+                echo -e "  ${BLUE}✓${NC} Cleaned $files_removed related files"
             fi
 
             ((total_size_freed += total_kb))

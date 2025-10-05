@@ -42,7 +42,7 @@ collect_files_to_be_cleaned() {
     local clean_sh="$SCRIPT_DIR/../bin/clean.sh"
     local -a items=()
 
-    echo -e "${BLUE}🔍${NC} Scanning cache files..."
+    echo -e "${BLUE}◎${NC} Scanning cache files..."
     echo ""
 
     # Run clean.sh in dry-run mode
@@ -298,7 +298,7 @@ manage_whitelist() {
     fi
 
     if [[ ${#all_items[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✨${NC} No cache files found - system is clean!"
+        echo -e "${BLUE}✓${NC} No cache files found - system is clean!"
         echo ""
         echo "Press any key to exit..."
         read -n 1 -s
@@ -308,7 +308,7 @@ manage_whitelist() {
     # Update global array with all items
     AVAILABLE_CACHE_ITEMS=("${all_items[@]}")
 
-    echo -e "${GREEN}✓${NC} Found ${#AVAILABLE_CACHE_ITEMS[@]} items"
+    echo -e "${BLUE}✓${NC} Found ${#AVAILABLE_CACHE_ITEMS[@]} items"
     echo ""
 
     local -a menu_options=()
@@ -432,7 +432,7 @@ EOF
     fi
 
     echo ""
-    echo -e "${GREEN}✓${NC} Protected $total_count items${summary}"
+    echo -e "${BLUE}✓${NC} Protected $total_count items${summary}"
     echo -e "${GRAY}Config: ${WHITELIST_CONFIG}${NC}"
 }
 

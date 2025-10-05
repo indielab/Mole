@@ -720,7 +720,7 @@ display_cleanup_suggestions() {
         echo ""
         echo "  ${YELLOW}Tip:${NC} Run 'mole clean' to perform cleanup operations"
     else
-        echo "  ${GREEN}✓${NC} No obvious cleanup opportunities found"
+        echo "  ${BLUE}✓${NC} No obvious cleanup opportunities found"
     fi
     echo ""
 }
@@ -1272,11 +1272,11 @@ scan_directory_contents_fast() {
         xargs -0 -n 1 -P "$num_jobs" sh -c '
             dir="$1"
             size=""
-            
+
             # Ultra-fast strategy: Try du with 1 second timeout only
             du -sk "$dir" 2>/dev/null > /tmp/mole_du_$$ &
             du_pid=$!
-            
+
             # Wait only 1 second (aggressive!)
             if ! sleep 1 || kill -0 $du_pid 2>/dev/null; then
                 # Still running after 1s = large dir, kill it
@@ -1289,7 +1289,7 @@ scan_directory_contents_fast() {
                 size=$(cat /tmp/mole_du_$$ 2>/dev/null | cut -f1)
                 rm -f /tmp/mole_du_$$ 2>/dev/null
             fi
-            
+
             # If timeout or empty, use instant estimation
             if [[ -z "$size" ]] || [[ "$size" -eq 0 ]]; then
                 # Ultra-fast: count only immediate files (no recursion)
@@ -1297,7 +1297,7 @@ scan_directory_contents_fast() {
                 size=$(find "$dir" -type f -maxdepth 1 -print0 2>/dev/null | \
                        xargs -0 stat -f%z 2>/dev/null | \
                        awk "BEGIN{sum=0} {sum+=\$1} END{print int(sum/1024)}")
-                
+
                 # If still 0, mark as unknown but ensure it shows up
                 [[ -z "$size" ]] || [[ "$size" -eq 0 ]] && size=1
             fi
@@ -1318,7 +1318,7 @@ scan_directory_contents_fast() {
             ((i++))
             sleep 0.1  # Faster animation (100ms per frame)
             ((tick++))
-            
+
             # Update elapsed seconds every 10 ticks (1 second)
             if [[ $((tick % 10)) -eq 0 ]]; then
                 ((elapsed++))
@@ -1343,7 +1343,7 @@ scan_directory_contents_fast() {
     # Wait for completion (non-blocking if already killed)
     wait "$file_pid" 2>/dev/null || true
     wait "$dir_pid" 2>/dev/null || true
-    
+
     # Small delay only if scan was very fast (let user see the spinner briefly)
     if [[ "$show_progress" == "true" ]] && [[ ${elapsed:-0} -lt 1 ]]; then
         sleep 0.2
@@ -1592,8 +1592,6 @@ interactive_drill_down() {
         # Ensure cursor is always hidden during navigation
         printf "\033[?25l" >&2
 
-        # Drain any burst input (e.g. trackpad scroll converted to many arrow keys)
-        type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         # Only scan if needed (directory changed or refresh requested)
         if [[ "$need_scan" == "true" ]]; then
             # Generate cache key (use md5 hash of path)
@@ -1632,7 +1630,7 @@ interactive_drill_down() {
             has_calculating=false
             need_scan=false
             wait_for_calc=false
-            
+
             # Reset scroll when entering new directory
             scroll_offset=0
 
@@ -1701,7 +1699,7 @@ interactive_drill_down() {
         local page_start=$scroll_offset
         local page_end=$((scroll_offset + max_show))
         [[ $page_end -gt $total_items ]] && page_end=$total_items
-        
+
         local display_idx=0
         local idx=0
         for item_info in "${items[@]}"; do
@@ -1710,7 +1708,7 @@ interactive_drill_down() {
                 ((idx++))
                 continue
             fi
-            
+
             # Stop if we've shown enough items for this page
             if [[ $idx -ge $page_end ]]; then
                 break
@@ -1782,10 +1780,7 @@ interactive_drill_down() {
         # Output everything at once (single write = no flicker)
         printf "%b" "$output" >&2
 
-        # Drain any pending input to prevent escape sequence leakage
-        drain_pending_input 2>/dev/null || true
-
-        # Read key (suppress any escape sequences that might leak)
+        # Read key directly without draining (to preserve all user input)
         local key
         key=$(read_key 2>/dev/null || echo "OTHER")
 
@@ -1832,41 +1827,75 @@ interactive_drill_down() {
                         need_scan=true
                     else
                         # It's a file - open it for viewing
-                        # Exit alternate screen temporarily
-                        printf "\033[?25h"  # Show cursor
-                        tput rmcup 2>/dev/null || true
-                        
-                        # Try to open with system default viewer
                         local file_ext="${selected_path##*.}"
+                        local filename=$(basename "$selected_path")
                         local open_success=false
-                        
-                        # For text-like files, use less
+
+                        # For text-like files, use less or fallback to open
                         case "$file_ext" in
                             txt|log|md|json|xml|yaml|yml|conf|cfg|ini|sh|bash|zsh|py|js|ts|go|rs|c|cpp|h|java|rb|php|html|css|sql)
+                                # Clear screen and show loading message
+                                printf "\033[H\033[J"
+                                echo ""
+                                echo "  ${BLUE}📄 Opening: $filename${NC}"
+                                echo ""
+
+                                # Try less first (best for text viewing)
                                 if command -v less &>/dev/null; then
+                                    # Exit alternate screen only for less
+                                    printf "\033[?25h"  # Show cursor
+                                    tput rmcup 2>/dev/null || true
+
                                     less -F "$selected_path" 2>/dev/null && open_success=true
+
+                                    # Return to alternate screen
+                                    tput smcup 2>/dev/null || true
+                                    printf "\033[?25l"  # Hide cursor
+                                else
+                                    # Fallback to system open if less is not available
+                                    echo "  ${GRAY}Launching default application...${NC}"
+                                    if command -v open &>/dev/null; then
+                                        open "$selected_path" 2>/dev/null && open_success=true
+                                        if [[ "$open_success" == "true" ]]; then
+                                            echo ""
+                                            echo "  ${BLUE}✓${NC} File opened in external app"
+                                            sleep 0.8
+                                        fi
+                                    fi
                                 fi
                                 ;;
                             *)
-                                # For other files, try system open
+                                # For other files, use system open (keep in alternate screen)
+                                # Show message without flashing
+                                printf "\033[H\033[J"
+                                echo ""
+                                echo "  ${BLUE}📦 Opening: $filename${NC}"
+                                echo ""
+                                echo "  ${GRAY}Launching default application...${NC}"
+
                                 if command -v open &>/dev/null; then
                                     open "$selected_path" 2>/dev/null && open_success=true
-                                    sleep 0.5  # Give time for app to launch
+
+                                    # Show brief success message
+                                    if [[ "$open_success" == "true" ]]; then
+                                        echo ""
+                                        echo "  ${BLUE}✓${NC} File opened in external app"
+                                        sleep 0.8
+                                    fi
                                 fi
                                 ;;
                         esac
-                        
-                        # If nothing worked, show a message
+
+                        # If nothing worked, show error message
                         if [[ "$open_success" != "true" ]]; then
+                            printf "\033[H\033[J"
                             echo ""
-                            echo "  ${YELLOW}File: $selected_path${NC}"
+                            echo "  ${YELLOW}⚠️  Could not open file${NC}"
+                            echo ""
+                            echo "  ${GRAY}File: $selected_path${NC}"
                             echo "  ${GRAY}Press any key to return...${NC}"
                             read -n 1 -s 2>/dev/null
                         fi
-                        
-                        # Return to alternate screen
-                        tput smcup 2>/dev/null || true
-                        printf "\033[?25l"  # Hide cursor
                     fi
                 fi
                 ;;
@@ -1973,7 +2002,7 @@ interactive_drill_down() {
                         fi
 
                         if [[ "$delete_success" == "true" ]]; then
-                            echo "  ${GREEN}✓ Deleted successfully${NC}"
+                            echo "  ${BLUE}✓ Deleted successfully${NC}"
                             echo "  ${GRAY}Freed: $human_size${NC}"
                             sleep 0.8
 

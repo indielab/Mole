@@ -144,11 +144,11 @@ scan_applications() {
 
             # Smart display name selection - prefer descriptive names over generic ones
             local candidates=()
-            
+
             # Get all potential names
             local bundle_display_name=$(plutil -extract CFBundleDisplayName raw "$app_path/Contents/Info.plist" 2>/dev/null)
             local bundle_name=$(plutil -extract CFBundleName raw "$app_path/Contents/Info.plist" 2>/dev/null)
-            
+
             # Check if executable name is generic/technical (should be avoided)
             local is_generic_executable=false
             if [[ -n "$bundle_executable" ]]; then
@@ -158,35 +158,35 @@ scan_applications() {
                         ;;
                 esac
             fi
-            
+
             # Priority order for name selection:
             # 1. App folder name (if ASCII and descriptive) - often the most complete name
             if [[ "$app_name" =~ ^[A-Za-z0-9\ ._-]+$ && ${#app_name} -gt 3 ]]; then
                 candidates+=("$app_name")
             fi
-            
+
             # 2. CFBundleDisplayName (if meaningful and ASCII)
             if [[ -n "$bundle_display_name" && "$bundle_display_name" =~ ^[A-Za-z0-9\ ._-]+$ ]]; then
                 candidates+=("$bundle_display_name")
             fi
-            
-            # 3. CFBundleName (if meaningful and ASCII)  
+
+            # 3. CFBundleName (if meaningful and ASCII)
             if [[ -n "$bundle_name" && "$bundle_name" =~ ^[A-Za-z0-9\ ._-]+$ && "$bundle_name" != "$bundle_display_name" ]]; then
                 candidates+=("$bundle_name")
             fi
-            
+
             # 4. CFBundleExecutable (only if not generic and ASCII)
             if [[ -n "$bundle_executable" && "$bundle_executable" =~ ^[A-Za-z0-9._-]+$ && "$is_generic_executable" == false ]]; then
                 candidates+=("$bundle_executable")
             fi
-            
+
             # 5. Fallback to non-ASCII names if no ASCII found
             if [[ ${#candidates[@]} -eq 0 ]]; then
                 [[ -n "$bundle_display_name" ]] && candidates+=("$bundle_display_name")
                 [[ -n "$bundle_name" && "$bundle_name" != "$bundle_display_name" ]] && candidates+=("$bundle_name")
                 candidates+=("$app_name")
             fi
-            
+
             # Select the first (best) candidate
             display_name="${candidates[0]:-$app_name}"
 
@@ -404,11 +404,11 @@ uninstall_applications() {
 
         # Show what will be removed
         echo -e "  ${YELLOW}Files to be removed:${NC}"
-        echo -e "  ${GREEN}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
+        echo -e "  ${BLUE}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
 
         # Show user-level files
         while IFS= read -r file; do
-            [[ -n "$file" && -e "$file" ]] && echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
+            [[ -n "$file" && -e "$file" ]] && echo -e "  ${BLUE}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
         done <<< "$related_files"
 
         # Show system-level files
@@ -435,7 +435,7 @@ uninstall_applications() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             # Remove the application
             if rm -rf "$app_path" 2>/dev/null; then
-                echo -e "  ${GREEN}✓${NC} Removed application"
+                echo -e "  ${BLUE}✓${NC} Removed application"
             else
                 log_error "Failed to remove $app_path"
                 continue
@@ -445,7 +445,7 @@ uninstall_applications() {
             while IFS= read -r file; do
                 if [[ -n "$file" && -e "$file" ]]; then
                     if rm -rf "$file" 2>/dev/null; then
-                        echo -e "  ${GREEN}✓${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
+                        echo -e "  ${BLUE}✓${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
                     fi
                 fi
             done <<< "$related_files"
@@ -456,7 +456,7 @@ uninstall_applications() {
                 while IFS= read -r file; do
                     if [[ -n "$file" && -e "$file" ]]; then
                         if sudo rm -rf "$file" 2>/dev/null; then
-                            echo -e "  ${GREEN}✓${NC} Removed [System] $(basename "$file")"
+                            echo -e "  ${BLUE}✓${NC} Removed [System] $(basename "$file")"
                         else
                             log_warning "Failed to remove system file: $file"
                         fi
@@ -508,7 +508,7 @@ trap cleanup EXIT INT TERM
 main() {
     # Hide cursor during operation
     hide_cursor
-    
+
     # Scan applications
     local apps_file=$(scan_applications)
 

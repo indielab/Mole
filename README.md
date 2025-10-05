@@ -28,8 +28,8 @@
 
 **Friendly Tips:**
 
-- **On mission-critical Macs, wait for Mole to mature, safety first**
-- **假如此 Mac 对你非常重要，你要更谨慎，建议等 Mole 更成熟时来使用，安全第一**
+- On mission-critical Macs, wait for Mole to mature, safety first
+- 如果这台 Mac 对你非常重要，建议等 Mole 更成熟时来使用，安全第一
 - I'm not very tech-savvy ？Check [❤️小白使用指南](./GUIDE.md)
 
 **Install:**

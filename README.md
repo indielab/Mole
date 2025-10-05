@@ -47,28 +47,27 @@ brew install tw93/tap/mole
 **Run:**
 
 ```bash
-mo                        # Shortcut alias for Mole
-mole                      # Interactive menu
-mole clean                # System cleanup
-mole clean --dry-run      # Preview mode
-mole clean --whitelist    # Manage protected caches
-mole uninstall            # Uninstall apps
-mole analyze              # Disk analyzer
-mole update               # Update Mole
-mole remove               # Remove Mole from system
-mole --help               # Show help
+mo                      # Shortcut alias for Mole
+mo clean                # System cleanup
+mo clean --dry-run      # Preview mode
+mo clean --whitelist    # Manage protected caches
+mo uninstall            # Uninstall apps
+mo analyze              # Disk analyzer
+mo update               # Update Mole
+mo remove               # Remove Mole from system
+mo --help               # Show help
+
+// If the command is not found, you can enter `mole update` to upgrade to the latest version.
 ```
 
-Prefer the shorter alias `mo` for every command; `mole` remains available.
-
-> Highly recommended start with `--dry-run` to preview, enable `--whitelist` to protect caches
+> Recommended start with `mo clean --dry-run` to preview, `mo clean --whitelist` to protect caches
 
 ## Features
 
 ### Deep System Cleanup
 
 ```bash
-$ mole clean
+$ mo clean
 
 ▶ System essentials
   ✓ User app cache (45.2GB)
@@ -96,7 +95,7 @@ $ mole clean
 ### Smart App Uninstaller
 
 ```bash
-$ mole uninstall
+$ mo uninstall
 
 🗑️  Select Apps to Remove
 ═══════════════════════════
@@ -122,7 +121,7 @@ $ mole uninstall
 ### Disk Space Analyzer
 
 ```bash
-$ mole analyze
+$ mo analyze
 
 📊 Analyzing: /Users/You
 ═══════════════════════════════════════════════════════
@@ -144,9 +143,9 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Is Mole safe?** – Mole focuses on cleaning caches and logs, without touching app settings, user documents, or system files. You can run `mole clean --dry-run` to preview what will be removed before actually cleaning.  
+1. **Is Mole safe?** – Mole focuses on cleaning caches and logs, without touching app settings, user documents, or system files. You can run `mo clean --dry-run` to preview what will be removed before actually cleaning.  
 2. **How often should I clean?** – About once a month, or whenever you notice disk space running low.  
-3. **Can I protect specific caches?** – Yes. Run `mole clean --whitelist` to interactively choose which caches to keep. Some common ones like Playwright browsers and HuggingFace models are already protected by default.  
+3. **Can I protect specific caches?** – Yes. Run `mo clean --whitelist` to interactively choose which caches to keep. Some common ones like Playwright browsers and HuggingFace models are already protected by default.  
 
 ## Support
 

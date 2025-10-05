@@ -26,6 +26,12 @@
 
 ## Quick Start
 
+**Friendly Tips:**
+
+- ⚠️ On mission-critical Macs, wait for Mole to mature—safety first. **假如此 Mac 对你非常重要，请等 Mole 成熟时再使用**。
+- ⚠️ Start with `--dry-run` to preview, enable `--whitelist` to protect caches.
+- ❤️ I'm not very tech-savvy ？Check [小白使用指南](./GUIDE.md)
+
 **Install:**
 
 ```bash
@@ -52,10 +58,6 @@ mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 
-> 💡 **New to terminal?** Check [小白使用指南](./GUIDE.md)
->
-> ⚠️ Start with `--dry-run` to preview, then enable `--whitelist` to protect caches; on mission-critical Macs, wait for Mole to mature—safety first. 首次使用非常建议用 `--dry-run` 预览删除内容，假如这台 Mac 非常重要，请等到 Mole 更成熟时候使用。
->
 > 💡 **Homebrew users:** No updates showing? Run `brew update` first, then `brew upgrade mole`
 
 ## Features

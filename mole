@@ -147,24 +147,26 @@ update_mole() {
         exit 0
     fi
 
-    # Download and run installer silently
+    # Download and run installer with progress
+    echo -e "${BLUE}→${NC} Downloading latest version..."
+
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
     local tmp_installer
     tmp_installer="$(mktemp)" || { log_error "Update failed"; exit 1; }
 
-    # Download installer silently
+    # Download installer with progress
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer" 2>/dev/null || {
+        if ! curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer" 2>&1; then
             rm -f "$tmp_installer"
             log_error "Update failed. Check network connection."
             exit 1
-        }
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url" 2>/dev/null || {
+        if ! wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url" 2>&1; then
             rm -f "$tmp_installer"
             log_error "Update failed. Check network connection."
             exit 1
-        }
+        fi
     else
         rm -f "$tmp_installer"
         log_error "curl or wget required"
@@ -179,19 +181,26 @@ update_mole() {
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
-    # Run installer quietly and get new version
-    if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update >/dev/null 2>&1; then
+    echo -e "${BLUE}→${NC} Installing update..."
+
+    # Run installer with visible output (but capture for error handling)
+    local install_output
+    if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update 2>&1); then
+        echo "$install_output" | grep -Ev "^$" || true
         local new_version
         new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
         echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
     else
-        if "$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" >/dev/null 2>&1; then
+        # Retry without --update flag
+        if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>&1); then
+            echo "$install_output" | grep -Ev "^$" || true
             local new_version
             new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
             echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
         else
             rm -f "$tmp_installer"
             log_error "Update failed"
+            echo "$install_output" | tail -10 >&2  # Show last 10 lines of error
             exit 1
         fi
     fi

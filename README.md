@@ -52,11 +52,11 @@ mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 
-> 💡 New to terminal? Check [小白使用指南](./GUIDE.md)
+> 💡 **New to terminal?** Check [小白使用指南](./GUIDE.md)
 >
-> 💡 **Homebrew users:** If `brew upgrade mole` shows no updates, run `brew update` first to refresh the tap, then `brew upgrade mole`
+> ⚠️ Start with `--dry-run` to preview, then enable `--whitelist` to protect caches; on mission-critical Macs, wait for Mole to mature—safety first. 首次使用非常建议用 `--dry-run` 预览删除内容，假如这台 Mac 非常重要，请等到 Mole 更成熟时候使用。
 >
-> 💡 **Tip:** Run `mole clean --dry-run` to preview, or `mole clean --whitelist` to protect important caches before cleanup
+> 💡 **Homebrew users:** No updates showing? Run `brew update` first, then `brew upgrade mole`
 
 ## Features
 
@@ -66,19 +66,19 @@ mole --help               # Show help
 $ mole clean
 
 ▶ System essentials
-  ✓ User app cache (45.2GB)        # Caches, logs, trash 20-50GB typical
+  ✓ User app cache (45.2GB)
   ✓ User app logs (2.1GB)
   ✓ Trash (12.3GB)
 
-▶ Browser cleanup                   # Chrome, Safari, Arc 5-15GB typical
+▶ Browser cleanup
   ✓ Chrome cache (8.4GB)
   ✓ Safari cache (2.1GB)
 
-▶ Developer tools                   # npm, Docker, Xcode 15-40GB typical
+▶ Developer tools
   ✓ Xcode derived data (9.1GB)
   ✓ Node.js cache (14.2GB)
 
-▶ Others                            # Cloud, Office, Media 10-40GB typical
+▶ Others
   ✓ Dropbox cache (5.2GB)
   ✓ Spotify cache (3.1GB)
 

@@ -154,20 +154,9 @@ safe_clean() {
         return 0
     fi
 
-    local progress_message
-    if [[ "$DRY_RUN" == "true" ]]; then
-        progress_message="Previewing $description..."
-    else
-        progress_message="Cleaning $description..."
-    fi
-
-    if [[ -t 1 ]]; then
-        echo -e "  ${BLUE}⏳${NC} $progress_message"
-    else
-        echo "  $progress_message"
-    fi
-
+    # Show progress indicator for potentially slow operations
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Checking $description...\r"
         local temp_dir=$(mktemp -d)
 
         # Parallel processing (bash 3.2 compatible)
@@ -189,6 +178,7 @@ safe_clean() {
         for pid in "${pids[@]}"; do
             wait "$pid" 2>/dev/null || true
         done
+
         for path in "${existing_paths[@]}"; do
             local hash=$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)
             if [[ -f "$temp_dir/$hash" ]]; then
@@ -206,6 +196,9 @@ safe_clean() {
 
         rm -rf "$temp_dir"
     else
+        # Show progress for small batches too (simpler jobs)
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Checking $description...\r"
+
         for path in "${existing_paths[@]}"; do
             local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
             local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -220,6 +213,9 @@ safe_clean() {
             fi
         done
     fi
+
+    # Clear progress indicator before showing result
+    [[ -t 1 ]] && echo -ne "\r\033[K"
 
     if [[ $removed_any -eq 1 ]]; then
         local size_human
@@ -445,7 +441,9 @@ perform_cleanup() {
     start_section "Developer tools"
     # Node.js ecosystem
     if command -v npm >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning npm cache...\r"
         npm cache clean --force >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} npm cache cleaned"
         note_activity
     fi
@@ -456,7 +454,9 @@ perform_cleanup() {
 
     # Python ecosystem
     if command -v pip3 >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning pip cache...\r"
         pip3 cache purge >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} pip cache cleaned"
         note_activity
     fi
@@ -467,8 +467,10 @@ perform_cleanup() {
 
     # Go ecosystem
     if command -v go >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Go cache...\r"
         go clean -modcache >/dev/null 2>&1 || true
         go clean -cache >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} Go cache cleaned"
         note_activity
     fi
@@ -481,7 +483,9 @@ perform_cleanup() {
 
     # Docker
     if command -v docker >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Docker...\r"
         docker system prune -af --volumes >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} Docker resources cleaned"
         note_activity
     fi
@@ -489,7 +493,9 @@ perform_cleanup() {
     # Container tools
     safe_clean ~/.kube/cache/* "Kubernetes cache"
     if command -v podman >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Podman...\r"
         podman system prune -af --volumes >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} Podman resources cleaned"
         note_activity
     fi
@@ -505,7 +511,9 @@ perform_cleanup() {
     safe_clean /opt/homebrew/var/homebrew/locks/* "Homebrew lock files (M series)"
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
     if command -v brew >/dev/null 2>&1; then
+        [[ -t 1 ]] && echo -ne "  ${BLUE}●${NC} Cleaning Homebrew...\r"
         brew cleanup >/dev/null 2>&1 || true
+        [[ -t 1 ]] && echo -ne "\r\033[K"
         echo -e "  ${GREEN}✓${NC} Homebrew cache cleaned"
         note_activity
     fi
@@ -767,14 +775,16 @@ perform_cleanup() {
     # Build a list of installed application bundle identifiers
     echo -n "  ${BLUE}🔍${NC} Scanning installed applications..."
     local installed_bundles=$(mktemp)
-    for app in /Applications/*.app; do
+
+    # Scan both system and user application directories
+    for app in /Applications/*.app ~/Applications/*.app; do
         if [[ -d "$app" && -f "$app/Contents/Info.plist" ]]; then
             bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
             [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
         fi
     done
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
-    echo " ${GREEN}✓${NC} Found $app_count apps"
+    echo "  ${GREEN}✓${NC} Found $app_count apps"
 
     local cache_count=0
 
@@ -794,7 +804,7 @@ perform_cleanup() {
             fi
         done
     fi
-    echo " ${GREEN}✓${NC} Complete ($cache_count removed)"
+    echo "  ${GREEN}✓${NC} Complete ($cache_count removed)"
 
     # Clean up temp file
     rm -f "$installed_bundles"

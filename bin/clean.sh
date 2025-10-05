@@ -96,9 +96,9 @@ stop_spinner() {
         kill "$SPINNER_PID" 2>/dev/null
         wait "$SPINNER_PID" 2>/dev/null
         SPINNER_PID=""
-        printf "\r  ${BLUE}✓${NC} %s\n" "$result_message"
+        printf "\r  ${GREEN}✓${NC} %s\n" "$result_message"
     else
-        echo "  ${BLUE}✓${NC} $result_message"
+        echo "  ${GREEN}✓${NC} $result_message"
     fi
 }
 
@@ -235,7 +235,7 @@ safe_clean() {
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "  ${YELLOW}→${NC} $label ${YELLOW}($size_human, dry)${NC}"
         else
-            echo -e "  ${BLUE}✓${NC} $label ${GREEN}($size_human)${NC}"
+            echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
         fi
         ((files_cleaned+=total_count))
         ((total_size_cleaned+=total_size_bytes))
@@ -445,7 +445,7 @@ perform_cleanup() {
         [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning npm cache...\r"
         npm cache clean --force >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} npm cache cleaned"
+        echo -e "  ${GREEN}✓${NC} npm cache cleaned"
         note_activity
     fi
 
@@ -458,7 +458,7 @@ perform_cleanup() {
         [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning pip cache...\r"
         pip3 cache purge >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} pip cache cleaned"
+        echo -e "  ${GREEN}✓${NC} pip cache cleaned"
         note_activity
     fi
 
@@ -472,7 +472,7 @@ perform_cleanup() {
         go clean -modcache >/dev/null 2>&1 || true
         go clean -cache >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} Go cache cleaned"
+        echo -e "  ${GREEN}✓${NC} Go cache cleaned"
         note_activity
     fi
 
@@ -487,7 +487,7 @@ perform_cleanup() {
         [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Docker build cache...\r"
         docker builder prune -af >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} Docker build cache cleaned"
+        echo -e "  ${GREEN}✓${NC} Docker build cache cleaned"
         note_activity
     fi
 
@@ -497,7 +497,7 @@ perform_cleanup() {
         [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Podman build cache...\r"
         podman system prune -f >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} Podman build cache cleaned"
+        echo -e "  ${GREEN}✓${NC} Podman build cache cleaned"
         note_activity
     fi
     safe_clean ~/.local/share/containers/storage/tmp/* "Container storage temp"
@@ -515,7 +515,7 @@ perform_cleanup() {
         [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Homebrew...\r"
         brew cleanup >/dev/null 2>&1 || true
         [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${BLUE}✓${NC} Homebrew cache cleaned"
+        echo -e "  ${GREEN}✓${NC} Homebrew cache cleaned"
         note_activity
     fi
 
@@ -785,7 +785,7 @@ perform_cleanup() {
         fi
     done
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
-    echo "  ${BLUE}✓${NC} Found $app_count apps"
+    echo "  ${GREEN}✓${NC} Found $app_count apps"
 
     local cache_count=0
 
@@ -805,7 +805,7 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${BLUE}✓${NC} Complete ($cache_count removed)"
+    echo "  ${GREEN}✓${NC} Complete ($cache_count removed)"
 
     # Clean up temp file
     rm -f "$installed_bundles"

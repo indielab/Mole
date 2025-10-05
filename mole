@@ -189,14 +189,14 @@ update_mole() {
         echo "$install_output" | grep -Ev "^$" || true
         local new_version
         new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-        echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-unknown})"
+        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
     else
         # Retry without --update flag
         if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>&1); then
             echo "$install_output" | grep -Ev "^$" || true
             local new_version
             new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-            echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-unknown})"
+            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
         else
             rm -f "$tmp_installer"
             log_error "Update failed"
@@ -259,28 +259,28 @@ remove_mole() {
     echo ""
 
     if [[ "$is_homebrew" == "true" ]]; then
-        echo -e "  ${BLUE}✓${NC} Mole (via Homebrew)"
+        echo -e "  ${GREEN}✓${NC} Mole (via Homebrew)"
     fi
 
     if [[ ${#manual_installs[@]} -gt 0 ]]; then
         for install in "${manual_installs[@]}"; do
-            echo -e "  ${BLUE}✓${NC} $install"
+            echo -e "  ${GREEN}✓${NC} $install"
             local install_dir="$(dirname "$install")"
             local install_root="$(dirname "$install_dir")"
             if [[ -d "$install_root/lib" ]]; then
-                echo -e "  ${BLUE}✓${NC} $install_root/lib/"
+                echo -e "  ${GREEN}✓${NC} $install_root/lib/"
             fi
         done
     fi
 
     if [[ ${#alias_installs[@]} -gt 0 ]]; then
         for alias in "${alias_installs[@]}"; do
-            echo -e "  ${BLUE}✓${NC} $alias"
+            echo -e "  ${GREEN}✓${NC} $alias"
         done
     fi
 
-    echo -e "  ${BLUE}✓${NC} ~/.config/mole/ (configuration)"
-    echo -e "  ${BLUE}✓${NC} ~/.cache/mole/ (cache)"
+    echo -e "  ${GREEN}✓${NC} ~/.config/mole/ (configuration)"
+    echo -e "  ${GREEN}✓${NC} ~/.cache/mole/ (cache)"
 
     if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 && ${#alias_installs[@]} -eq 0 ]]; then
         echo ""

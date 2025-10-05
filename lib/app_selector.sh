@@ -59,8 +59,8 @@ select_apps_for_uninstall() {
     selected_apps=()
 
     # Parse indices and build selected apps array
-    # Convert space-separated string to array for better handling
-    read -a indices_array <<< "$MOLE_SELECTION_RESULT"
+    # MOLE_SELECTION_RESULT is comma-separated list of indices from the paginated menu
+    IFS=',' read -r -a indices_array <<< "$MOLE_SELECTION_RESULT"
 
     for idx in "${indices_array[@]}"; do
         if [[ "$idx" =~ ^[0-9]+$ ]] && [[ $idx -ge 0 ]] && [[ $idx -lt ${#apps_data[@]} ]]; then

@@ -48,6 +48,7 @@ mole clean --whitelist    # Manage protected caches
 mole uninstall            # Uninstall apps
 mole analyze              # Disk analyzer
 mole update               # Update Mole
+mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 

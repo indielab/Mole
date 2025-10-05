@@ -134,6 +134,7 @@ show_help() {
     printf "  %s%-28s%s %s\n" "$GREEN" "mole uninstall" "$NC" "Remove applications completely"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole analyze" "$NC" "Interactive disk space explorer"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole update" "$NC" "Update Mole to the latest version"
+    printf "  %s%-28s%s %s\n" "$GREEN" "mole remove" "$NC" "Remove Mole from the system"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole --version" "$NC" "Show installed version"
     printf "  %s%-28s%s %s\n" "$GREEN" "mole --help" "$NC" "Show this help message"
 
@@ -199,6 +200,126 @@ update_mole() {
 
     # Clear version check cache after successful update
     rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message"
+}
+
+# Remove Mole from system
+remove_mole() {
+    clear
+    echo ""
+    echo -e "${YELLOW}⚠️  Remove Mole${NC}"
+    echo ""
+
+    # Detect all installations
+    local is_homebrew=false
+    local -a manual_installs=()
+
+    # Check Homebrew
+    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+        is_homebrew=true
+    fi
+
+    # Check common manual install locations
+    local -a common_paths=(
+        "/usr/local/bin/mole"
+        "$HOME/.local/bin/mole"
+        "/opt/local/bin/mole"
+    )
+
+    for path in "${common_paths[@]}"; do
+        if [[ -f "$path" ]]; then
+            # Check if it's not a Homebrew symlink
+            if [[ ! -L "$path" ]] || ! readlink "$path" | grep -q "Cellar/mole"; then
+                manual_installs+=("$path")
+            fi
+        fi
+    done
+
+    # Show what will be removed
+    echo "This will remove:"
+    echo ""
+
+    if [[ "$is_homebrew" == "true" ]]; then
+        echo -e "  ${GREEN}✓${NC} Mole (via Homebrew)"
+    fi
+
+    for install in "${manual_installs[@]}"; do
+        echo -e "  ${GREEN}✓${NC} $install"
+        local install_dir="$(dirname "$install")"
+        local install_root="$(dirname "$install_dir")"
+        if [[ -d "$install_root/lib" ]]; then
+            echo -e "  ${GREEN}✓${NC} $install_root/lib/"
+        fi
+    done
+
+    echo -e "  ${GREEN}✓${NC} ~/.config/mole/ (configuration)"
+    echo -e "  ${GREEN}✓${NC} ~/.cache/mole/ (cache)"
+
+    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}No Mole installation detected${NC}"
+        exit 0
+    fi
+
+    echo ""
+
+    # Confirm removal
+    read -p "Are you sure you want to remove Mole? (y/N): " -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelled."
+        exit 0
+    fi
+
+    echo ""
+    log_info "Removing Mole..."
+
+    # Remove Homebrew installation
+    if [[ "$is_homebrew" == "true" ]]; then
+        if brew uninstall mole 2>&1 | grep -q "Uninstalling"; then
+            log_success "Uninstalled via Homebrew"
+        else
+            log_error "Failed to uninstall via Homebrew"
+            echo "Try manually: brew uninstall mole"
+        fi
+    fi
+
+    # Remove manual installations
+    for install in "${manual_installs[@]}"; do
+        if [[ -f "$install" ]]; then
+            if rm -f "$install" 2>/dev/null; then
+                log_success "Removed: $install"
+            else
+                log_error "Failed to remove $install (try with sudo)"
+            fi
+        fi
+
+        # Remove lib directory if it exists
+        local install_dir="$(dirname "$install")"
+        local install_root="$(dirname "$install_dir")"
+        if [[ -d "$install_root/lib" ]]; then
+            if rm -rf "$install_root/lib" 2>/dev/null; then
+                log_success "Removed library files from $install_root"
+            else
+                log_warning "Could not remove $install_root/lib (may need sudo)"
+            fi
+        fi
+    done
+
+    # Clean up configuration and cache (both methods)
+    if [[ -d "$HOME/.config/mole" ]]; then
+        rm -rf "$HOME/.config/mole" 2>/dev/null && log_success "Removed configuration"
+    fi
+    if [[ -d "$HOME/.cache/mole" ]]; then
+        rm -rf "$HOME/.cache/mole" 2>/dev/null && log_success "Removed cache"
+    fi
+
+    echo ""
+    echo -e "${GREEN}✨ Mole has been removed successfully${NC}"
+    echo ""
+    echo "Thank you for using Mole!"
+
+    exit 0
 }
 
 # Display main menu options
@@ -308,6 +429,10 @@ main() {
             ;;
         "update")
             update_mole
+            exit 0
+            ;;
+        "remove")
+            remove_mole
             exit 0
             ;;
         "help"|"--help"|"-h")

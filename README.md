@@ -26,7 +26,7 @@
 
 ## Quick Start
 
-**Friendly Tips:**
+**Tips:**
 
 - On mission-critical Macs, wait for Mole to mature, safety first
 - 如果这台 Mac 对你非常重要，建议等 Mole 更成熟时来使用，安全第一
@@ -56,9 +56,9 @@ mole analyze              # Disk analyzer
 mole update               # Update Mole
 mole remove               # Remove Mole from system
 mole --help               # Show help
-```
 
-> ⚠️ Start with `--dry-run` to preview, enable `--whitelist` to protect caches
+💡 Start with `--dry-run` to preview, enable `--whitelist` to protect caches
+```
 
 ## Features
 
@@ -138,11 +138,11 @@ Total: 156.8GB
 │  ├─ 📁 Caches                                      28.4GB
 │  └─ 📁 Application Support                         16.8GB
 ├─ 📁 Downloads                                      32.6GB
-│  ├─ 📄 Xcode-14.3.1.dmg                           12.3GB
+│  ├─ 📄 Xcode-14.3.1.dmg                            12.3GB
 │  ├─ 📄 backup_2023.zip                             8.6GB
 │  └─ 📦 old_projects.tar.gz                         5.2GB
 ├─ 📁 Movies                                         28.9GB
-│  ├─ 📄 vacation_2023.mov                          15.4GB
+│  ├─ 📄 vacation_2023.mov                           15.4GB
 │  └─ 📄 screencast_raw.mp4                          8.8GB
 ├─ 📁 Documents                                      18.4GB
 └─ 📁 Desktop                                        12.7GB

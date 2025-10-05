@@ -52,7 +52,9 @@ mole remove               # Remove Mole from system
 mole --help               # Show help
 ```
 
-> 💡 New to terminal? Check [小白使用指南](./GUIDE.md) · Homebrew users: `brew upgrade mole` to update
+> 💡 New to terminal? Check [小白使用指南](./GUIDE.md)
+>
+> 💡 **Homebrew users:** If `brew upgrade mole` shows no updates, run `brew update` first to refresh the tap, then `brew upgrade mole`
 >
 > 💡 **Tip:** Run `mole clean --dry-run` to preview, or `mole clean --whitelist` to protect important caches before cleanup
 

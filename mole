@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.5.3"
+VERSION="1.5.4"
 MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Check for updates (non-blocking, cached)
@@ -242,14 +242,16 @@ remove_mole() {
         echo -e "  ${GREEN}✓${NC} Mole (via Homebrew)"
     fi
 
-    for install in "${manual_installs[@]}"; do
-        echo -e "  ${GREEN}✓${NC} $install"
-        local install_dir="$(dirname "$install")"
-        local install_root="$(dirname "$install_dir")"
-        if [[ -d "$install_root/lib" ]]; then
-            echo -e "  ${GREEN}✓${NC} $install_root/lib/"
-        fi
-    done
+    if [[ ${#manual_installs[@]} -gt 0 ]]; then
+        for install in "${manual_installs[@]}"; do
+            echo -e "  ${GREEN}✓${NC} $install"
+            local install_dir="$(dirname "$install")"
+            local install_root="$(dirname "$install_dir")"
+            if [[ -d "$install_root/lib" ]]; then
+                echo -e "  ${GREEN}✓${NC} $install_root/lib/"
+            fi
+        done
+    fi
 
     echo -e "  ${GREEN}✓${NC} ~/.config/mole/ (configuration)"
     echo -e "  ${GREEN}✓${NC} ~/.cache/mole/ (cache)"
@@ -285,26 +287,28 @@ remove_mole() {
     fi
 
     # Remove manual installations
-    for install in "${manual_installs[@]}"; do
-        if [[ -f "$install" ]]; then
-            if rm -f "$install" 2>/dev/null; then
-                log_success "Removed: $install"
-            else
-                log_error "Failed to remove $install (try with sudo)"
+    if [[ ${#manual_installs[@]} -gt 0 ]]; then
+        for install in "${manual_installs[@]}"; do
+            if [[ -f "$install" ]]; then
+                if rm -f "$install" 2>/dev/null; then
+                    log_success "Removed: $install"
+                else
+                    log_error "Failed to remove $install (try with sudo)"
+                fi
             fi
-        fi
 
-        # Remove lib directory if it exists
-        local install_dir="$(dirname "$install")"
-        local install_root="$(dirname "$install_dir")"
-        if [[ -d "$install_root/lib" ]]; then
-            if rm -rf "$install_root/lib" 2>/dev/null; then
-                log_success "Removed library files from $install_root"
-            else
-                log_warning "Could not remove $install_root/lib (may need sudo)"
+            # Remove lib directory if it exists
+            local install_dir="$(dirname "$install")"
+            local install_root="$(dirname "$install_dir")"
+            if [[ -d "$install_root/lib" ]]; then
+                if rm -rf "$install_root/lib" 2>/dev/null; then
+                    log_success "Removed library files from $install_root"
+                else
+                    log_warning "Could not remove $install_root/lib (may need sudo)"
+                fi
             fi
-        fi
-    done
+        done
+    fi
 
     # Clean up configuration and cache (both methods)
     if [[ -d "$HOME/.config/mole" ]]; then

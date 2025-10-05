@@ -219,6 +219,13 @@ mole update
 brew upgrade mole
 ```
 
+**💡 提示：** 如果 `brew upgrade mole` 显示已是最新版本，但实际上有新版本发布：
+
+```bash
+brew update          # 先刷新 Homebrew tap 信息
+brew upgrade mole    # 再执行升级
+```
+
 ### 如何卸载 Mole？
 
 如果你想要卸载 Mole（不管是一键安装还是 Homebrew 安装）：

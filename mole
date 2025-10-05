@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.6.0"
+VERSION="1.6.1"
 MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Check for updates (non-blocking, cached)
@@ -148,7 +148,7 @@ update_mole() {
     fi
 
     # Download and run installer with progress
-    echo -e "${BLUE}→${NC} Downloading latest version..."
+    echo -e "${BLUE}◎${NC} Downloading latest version..."
 
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
     local tmp_installer
@@ -181,7 +181,7 @@ update_mole() {
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
-    echo -e "${BLUE}→${NC} Installing update..."
+    echo -e "${BLUE}◎${NC} Installing update..."
 
     # Run installer with visible output (but capture for error handling)
     local install_output
@@ -189,14 +189,14 @@ update_mole() {
         echo "$install_output" | grep -Ev "^$" || true
         local new_version
         new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+        echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-unknown})"
     else
         # Retry without --update flag
         if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>&1); then
             echo "$install_output" | grep -Ev "^$" || true
             local new_version
             new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+            echo -e "${BLUE}✓${NC} Updated to latest version (${new_version:-unknown})"
         else
             rm -f "$tmp_installer"
             log_error "Update failed"
@@ -259,28 +259,28 @@ remove_mole() {
     echo ""
 
     if [[ "$is_homebrew" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Mole (via Homebrew)"
+        echo -e "  ${BLUE}✓${NC} Mole (via Homebrew)"
     fi
 
     if [[ ${#manual_installs[@]} -gt 0 ]]; then
         for install in "${manual_installs[@]}"; do
-            echo -e "  ${GREEN}✓${NC} $install"
+            echo -e "  ${BLUE}✓${NC} $install"
             local install_dir="$(dirname "$install")"
             local install_root="$(dirname "$install_dir")"
             if [[ -d "$install_root/lib" ]]; then
-                echo -e "  ${GREEN}✓${NC} $install_root/lib/"
+                echo -e "  ${BLUE}✓${NC} $install_root/lib/"
             fi
         done
     fi
 
     if [[ ${#alias_installs[@]} -gt 0 ]]; then
         for alias in "${alias_installs[@]}"; do
-            echo -e "  ${GREEN}✓${NC} $alias"
+            echo -e "  ${BLUE}✓${NC} $alias"
         done
     fi
 
-    echo -e "  ${GREEN}✓${NC} ~/.config/mole/ (configuration)"
-    echo -e "  ${GREEN}✓${NC} ~/.cache/mole/ (cache)"
+    echo -e "  ${BLUE}✓${NC} ~/.config/mole/ (configuration)"
+    echo -e "  ${BLUE}✓${NC} ~/.cache/mole/ (cache)"
 
     if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 && ${#alias_installs[@]} -eq 0 ]]; then
         echo ""

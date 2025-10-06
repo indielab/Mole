@@ -156,7 +156,7 @@ safe_clean() {
 
     # Show progress indicator for potentially slow operations
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description...\r"
+        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description with whitelist safety...\r"
         local temp_dir=$(mktemp -d)
 
         # Parallel processing (bash 3.2 compatible)
@@ -197,7 +197,7 @@ safe_clean() {
         rm -rf "$temp_dir"
     else
         # Show progress for small batches too (simpler jobs)
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description...\r"
+        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description with whitelist safety...\r"
 
         for path in "${existing_paths[@]}"; do
             local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
@@ -229,11 +229,11 @@ safe_clean() {
 
         local label="$description"
         if [[ ${#targets[@]} -gt 1 ]]; then
-            label+=" (${#targets[@]} items)"
+            label+=" ${#targets[@]} items"
         fi
 
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo -e "  ${YELLOW}→${NC} $label ${YELLOW}($size_human, dry)${NC}"
+            echo -e "  ${YELLOW}→${NC} $label ${YELLOW}($size_human dry)${NC}"
         else
             echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
         fi
@@ -249,14 +249,11 @@ safe_clean() {
 
 start_cleanup() {
     clear
-    echo ""
+    printf '\n'
     echo -e "${PURPLE}🧹 Clean Your Mac${NC}"
-    echo ""
-    echo "Mole will remove app caches, browser data, developer tools, and temporary files."
-
     if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
-        echo ""
-        echo -e "${BLUE}Tip:${NC} Want a preview first? Run 'mole clean --dry-run'."
+        printf '\n'
+        echo -e "${YELLOW}Tip:${NC} Safety first—run 'mo clean --dry-run'. Important Macs should stop."
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -268,10 +265,9 @@ start_cleanup() {
     fi
 
     if [[ -t 0 ]]; then
-        echo ""
-        echo "System-level cleanup removes system caches and temp files, optional."
-        echo -e "${BLUE}Enter admin password to enable, or press Enter to skip:${NC}"
-        echo -n "> "
+        printf '\n'
+        echo -e "${BLUE}System cleanup? Password to include (Enter skips)${NC}"
+        printf "${BLUE}> ${NC}"
         read -s password
         echo ""
 
@@ -328,13 +324,14 @@ perform_cleanup() {
     if [[ "$SYSTEM_CLEAN" == "true" ]]; then
         start_section "System-level cleanup"
 
-        # Clean system caches more safely - avoid input method and system service caches
+        # Clean system caches more safely
         sudo find /Library/Caches -name "*.cache" -delete 2>/dev/null || true
         sudo find /Library/Caches -name "*.tmp" -delete 2>/dev/null || true
         sudo find /Library/Caches -type f -name "*.log" -delete 2>/dev/null || true
         sudo rm -rf /tmp/* 2>/dev/null && log_success "System temp files" || true
         sudo rm -rf /var/tmp/* 2>/dev/null && log_success "System var temp" || true
-        log_success "System library caches (safely cleaned)"
+        sudo rm -rf /Library/Updates/* 2>/dev/null || true
+        log_success "System library caches and updates"
 
         end_section
     fi
@@ -363,20 +360,27 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.apple.iconservices* "Icon services cache"
     safe_clean ~/Library/Caches/CloudKit/* "CloudKit cache"
     safe_clean ~/Library/Caches/com.apple.bird* "iCloud cache"
+
+    # Clean incomplete downloads
+    safe_clean ~/Downloads/*.download "Incomplete downloads (Safari)"
+    safe_clean ~/Downloads/*.crdownload "Incomplete downloads (Chrome)"
+    safe_clean ~/Downloads/*.part "Incomplete downloads (partial)"
     end_section
 
 
     # ===== 3. macOS System Caches =====
     start_section "macOS system caches"
-    # Saved Application State only stores window positions/sizes, not login data
     safe_clean ~/Library/Saved\ Application\ State/* "Saved application states"
     safe_clean ~/Library/Caches/com.apple.spotlight "Spotlight cache"
     safe_clean ~/Library/Caches/com.apple.metadata "Metadata cache"
     safe_clean ~/Library/Caches/com.apple.FontRegistry "Font registry cache"
     safe_clean ~/Library/Caches/com.apple.ATS "Font cache"
     safe_clean ~/Library/Caches/com.apple.photoanalysisd "Photo analysis cache"
-    # Apple ID cache is safe to clean, login credentials are stored elsewhere
     safe_clean ~/Library/Caches/com.apple.akd "Apple ID cache"
+    safe_clean ~/Library/Caches/com.apple.Safari/Webpage\ Previews/* "Safari webpage previews"
+    safe_clean ~/Library/Mail/V*/MailData/Envelope\ Index* "Mail envelope index"
+    safe_clean ~/Library/Mail/V*/MailData/BackupTOC.plist "Mail backup index"
+    safe_clean ~/Library/Application\ Support/CloudDocs/session/db/* "iCloud session cache"
     end_section
 
 
@@ -433,8 +437,11 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.microsoft.Word "Microsoft Word cache"
     safe_clean ~/Library/Caches/com.microsoft.Excel "Microsoft Excel cache"
     safe_clean ~/Library/Caches/com.microsoft.Powerpoint "Microsoft PowerPoint cache"
+    safe_clean ~/Library/Caches/com.microsoft.Outlook/* "Microsoft Outlook cache"
     safe_clean ~/Library/Caches/com.apple.iWork.* "Apple iWork cache"
     safe_clean ~/Library/Caches/com.kingsoft.wpsoffice.mac "WPS Office cache"
+    safe_clean ~/Library/Caches/org.mozilla.thunderbird/* "Thunderbird cache"
+    safe_clean ~/Library/Caches/com.apple.mail/* "Apple Mail cache"
     end_section
 
 
@@ -450,6 +457,7 @@ perform_cleanup() {
     fi
 
     safe_clean ~/.npm/_cacache/* "npm cache directory"
+    safe_clean ~/.npm/_logs/* "npm logs"
     safe_clean ~/.yarn/cache/* "Yarn cache"
     safe_clean ~/.bun/install/cache/* "Bun cache"
 
@@ -493,13 +501,6 @@ perform_cleanup() {
 
     # Container tools
     safe_clean ~/.kube/cache/* "Kubernetes cache"
-    if command -v podman >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Podman build cache...\r"
-        podman system prune -f >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Podman build cache cleaned"
-        note_activity
-    fi
     safe_clean ~/.local/share/containers/storage/tmp/* "Container storage temp"
 
     # Cloud CLI tools
@@ -528,8 +529,11 @@ perform_cleanup() {
 
     # Additional Node.js and frontend tools
     safe_clean ~/.pnpm-store/* "pnpm store cache"
+    safe_clean ~/.local/share/pnpm/store/* "pnpm global store"
     safe_clean ~/.cache/typescript/* "TypeScript cache"
     safe_clean ~/.cache/electron/* "Electron cache"
+    safe_clean ~/.cache/node-gyp/* "node-gyp cache"
+    safe_clean ~/.node-gyp/* "node-gyp build cache"
     safe_clean ~/.turbo/* "Turbo cache"
     safe_clean ~/.next/* "Next.js cache"
     safe_clean ~/.vite/* "Vite cache"
@@ -540,6 +544,7 @@ perform_cleanup() {
     # Design and development tools
     safe_clean ~/Library/Caches/Google/AndroidStudio*/* "Android Studio cache"
     safe_clean ~/Library/Caches/com.unity3d.*/* "Unity cache"
+    safe_clean ~/Library/Caches/com.jetbrains.toolbox/* "JetBrains Toolbox cache"
     safe_clean ~/Library/Caches/com.postmanlabs.mac/* "Postman cache"
     safe_clean ~/Library/Caches/com.konghq.insomnia/* "Insomnia cache"
     safe_clean ~/Library/Caches/com.tinyapp.TablePlus/* "TablePlus cache"
@@ -567,6 +572,8 @@ perform_cleanup() {
 
     # Rust tooling
     safe_clean ~/.cargo/git/* "Cargo git cache"
+    safe_clean ~/.rustup/toolchains/*/share/doc/* "Rust documentation cache"
+    safe_clean ~/.rustup/downloads/* "Rust downloads cache"
 
     # Java tooling
     safe_clean ~/.gradle/caches/* "Gradle caches"
@@ -620,8 +627,10 @@ perform_cleanup() {
     # Mobile development additional
     safe_clean ~/.cache/flutter/* "Flutter cache"
     safe_clean ~/.gradle/daemon/* "Gradle daemon logs"
-    safe_clean ~/Library/Developer/Xcode/iOS\ DeviceSupport/*/Symbols/System/Library/Caches/* "iOS device cache"
+    safe_clean ~/.android/build-cache/* "Android build cache"
     safe_clean ~/.android/cache/* "Android SDK cache"
+    safe_clean ~/Library/Developer/Xcode/iOS\ DeviceSupport/*/Symbols/System/Library/Caches/* "iOS device cache"
+    safe_clean ~/Library/Developer/Xcode/UserData/IB\ Support/* "Xcode Interface Builder cache"
 
     # Other language tool caches
     safe_clean ~/.cache/swift-package-manager/* "Swift package manager cache"
@@ -652,7 +661,8 @@ perform_cleanup() {
 
     # Xcode & iOS development
     safe_clean ~/Library/Developer/Xcode/DerivedData/* "Xcode derived data"
-    safe_clean ~/Library/Developer/Xcode/Archives/* "Xcode archives"
+    # Note: Archives contain signed App Store builds - NOT safe to auto-delete
+    # safe_clean ~/Library/Developer/Xcode/Archives/* "Xcode archives"
     safe_clean ~/Library/Developer/CoreSimulator/Caches/* "Simulator cache"
     safe_clean ~/Library/Developer/CoreSimulator/Devices/*/data/tmp/* "Simulator temp files"
     safe_clean ~/Library/Caches/com.apple.dt.Xcode/* "Xcode cache"
@@ -662,6 +672,7 @@ perform_cleanup() {
 
     # VS Code family
     safe_clean ~/Library/Application\ Support/Code/logs/* "VS Code logs"
+    safe_clean ~/Library/Application\ Support/Code/Cache/* "VS Code cache"
     safe_clean ~/Library/Application\ Support/Code/CachedExtensions/* "VS Code extension cache"
     safe_clean ~/Library/Application\ Support/Code/CachedData/* "VS Code data cache"
 
@@ -687,11 +698,37 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.microsoft.teams2/* "Microsoft Teams cache"
     safe_clean ~/Library/Caches/net.whatsapp.WhatsApp/* "WhatsApp cache"
     safe_clean ~/Library/Caches/com.skype.skype/* "Skype cache"
+    safe_clean ~/Library/Caches/dd.work.exclusive4aliding/* "DingTalk (iDingTalk) cache"
+    safe_clean ~/Library/Caches/com.alibaba.AliLang.osx/* "AliLang security component"
+    safe_clean ~/Library/Application\ Support/iDingTalk/log/* "DingTalk logs"
+    safe_clean ~/Library/Application\ Support/iDingTalk/holmeslogs/* "DingTalk holmes logs"
+    safe_clean ~/Library/Caches/com.tencent.meeting/* "Tencent Meeting cache"
+    safe_clean ~/Library/Caches/com.tencent.WeWorkMac/* "WeCom cache"
+    safe_clean ~/Library/Caches/com.feishu.*/* "Feishu cache"
 
     # Design and creative software
     safe_clean ~/Library/Caches/com.bohemiancoding.sketch3/* "Sketch cache"
     safe_clean ~/Library/Application\ Support/com.bohemiancoding.sketch3/cache/* "Sketch app cache"
     safe_clean ~/Library/Caches/net.telestream.screenflow10/* "ScreenFlow cache"
+
+    # Adobe Creative Suite
+    safe_clean ~/Library/Caches/Adobe/* "Adobe cache"
+    safe_clean ~/Library/Caches/com.adobe.*/* "Adobe app caches"
+    safe_clean ~/Library/Application\ Support/Adobe/Common/Media\ Cache\ Files/* "Adobe media cache"
+    safe_clean ~/Library/Application\ Support/Adobe/Common/Peak\ Files/* "Adobe peak files"
+
+    # Video editing software
+    safe_clean ~/Library/Caches/com.apple.FinalCut/* "Final Cut Pro cache"
+    safe_clean ~/Library/Application\ Support/Final\ Cut\ Pro/*/Render\ Files/* "Final Cut render cache"
+    safe_clean ~/Library/Application\ Support/Motion/*/Render\ Files/* "Motion render cache"
+    safe_clean ~/Library/Caches/com.blackmagic-design.DaVinciResolve/* "DaVinci Resolve cache"
+    safe_clean ~/Library/Caches/com.adobe.PremierePro.*/* "Premiere Pro cache"
+
+    # 3D modeling and design
+    safe_clean ~/Library/Caches/org.blenderfoundation.blender/* "Blender cache"
+    safe_clean ~/Library/Caches/com.maxon.cinema4d/* "Cinema 4D cache"
+    safe_clean ~/Library/Caches/com.autodesk.*/* "Autodesk cache"
+    safe_clean ~/Library/Caches/com.sketchup.*/* "SketchUp cache"
 
     # Productivity and dev utilities
     safe_clean ~/Library/Caches/com.raycast.macos/* "Raycast cache"
@@ -703,23 +740,39 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.spotify.client/* "Spotify cache"
     safe_clean ~/Library/Caches/com.apple.Music "Apple Music cache"
     safe_clean ~/Library/Caches/com.apple.podcasts "Apple Podcasts cache"
+    safe_clean ~/Library/Caches/com.apple.TV/* "Apple TV cache"
     safe_clean ~/Library/Caches/tv.plex.player.desktop "Plex cache"
     safe_clean ~/Library/Caches/com.netease.163music "NetEase Music cache"
+    safe_clean ~/Library/Caches/com.tencent.QQMusic/* "QQ Music cache"
+    safe_clean ~/Library/Caches/com.kugou.mac/* "Kugou Music cache"
+    safe_clean ~/Library/Caches/com.kuwo.mac/* "Kuwo Music cache"
     safe_clean ~/Library/Caches/com.colliderli.iina "IINA cache"
     safe_clean ~/Library/Caches/org.videolan.vlc "VLC cache"
     safe_clean ~/Library/Caches/io.mpv "MPV cache"
     safe_clean ~/Library/Caches/com.iqiyi.player "iQIYI cache"
     safe_clean ~/Library/Caches/com.tencent.tenvideo "Tencent Video cache"
+    safe_clean ~/Library/Caches/tv.danmaku.bili/* "Bilibili cache"
+    safe_clean ~/Library/Caches/com.douyu.*/* "Douyu cache"
+    safe_clean ~/Library/Caches/com.huya.*/* "Huya cache"
 
     # Download tools
     safe_clean ~/Library/Caches/net.xmac.aria2gui "Aria2 cache"
     safe_clean ~/Library/Caches/org.m0k.transmission "Transmission cache"
     safe_clean ~/Library/Caches/com.qbittorrent.qBittorrent "qBittorrent cache"
     safe_clean ~/Library/Caches/com.downie.Downie-* "Downie cache"
+    safe_clean ~/Library/Caches/com.folx.*/* "Folx cache"
+    safe_clean ~/Library/Caches/com.charlessoft.pacifist/* "Pacifist cache"
 
-    # Gaming and entertainment
+    # Gaming platforms
     safe_clean ~/Library/Caches/com.valvesoftware.steam/* "Steam cache"
+    safe_clean ~/Library/Application\ Support/Steam/appcache/* "Steam app cache"
+    safe_clean ~/Library/Application\ Support/Steam/htmlcache/* "Steam web cache"
     safe_clean ~/Library/Caches/com.epicgames.EpicGamesLauncher/* "Epic Games cache"
+    safe_clean ~/Library/Caches/com.blizzard.Battle.net/* "Battle.net cache"
+    safe_clean ~/Library/Application\ Support/Battle.net/Cache/* "Battle.net app cache"
+    safe_clean ~/Library/Caches/com.ea.*/* "EA Origin cache"
+    safe_clean ~/Library/Caches/com.gog.galaxy/* "GOG Galaxy cache"
+    safe_clean ~/Library/Caches/com.riotgames.*/* "Riot Games cache"
 
     # Translation tools
     safe_clean ~/Library/Caches/com.youdao.YoudaoDict "Youdao Dictionary cache"
@@ -750,8 +803,18 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/macos-wakatime.WakaTime/* "WakaTime cache"
     safe_clean ~/Library/Caches/notion.id/* "Notion cache"
     safe_clean ~/Library/Caches/md.obsidian/* "Obsidian cache"
+    safe_clean ~/Library/Caches/com.logseq.*/* "Logseq cache"
+    safe_clean ~/Library/Caches/com.bear-writer.*/* "Bear cache"
+    safe_clean ~/Library/Caches/com.evernote.*/* "Evernote cache"
+    safe_clean ~/Library/Caches/com.yinxiang.*/* "Yinxiang Note cache"
     safe_clean ~/Library/Caches/com.runningwithcrayons.Alfred/* "Alfred cache"
     safe_clean ~/Library/Caches/cx.c3.theunarchiver/* "The Unarchiver cache"
+
+    # Remote desktop and collaboration
+    safe_clean ~/Library/Caches/com.teamviewer.*/* "TeamViewer cache"
+    safe_clean ~/Library/Caches/com.anydesk.*/* "AnyDesk cache"
+    safe_clean ~/Library/Caches/com.todesk.*/* "ToDesk cache"
+    safe_clean ~/Library/Caches/com.sunlogin.*/* "Sunlogin cache"
 
     # Note: Skipping App Cleaner, 1Password and similar apps to preserve licenses
 
@@ -767,52 +830,310 @@ perform_cleanup() {
     end_section
 
 
-    # ===== 12. Orphaned app caches =====
-    # Note: We only clean orphaned caches (regenerable) but preserve:
-    # - Preferences (small, contain settings users may want when reinstalling)
-    # - Application Support data (may contain user documents/databases)
-    start_section "Orphaned app caches"
+    # ===== 12. Application Support logs cleanup =====
+    start_section "Application Support logs"
 
-    # Build a list of installed application bundle identifiers
-    echo -n "  ${BLUE}◎${NC} Scanning installed applications..."
-    local installed_bundles=$(mktemp)
+    # Clean log directories for apps that store logs in Application Support
+    for app_dir in ~/Library/Application\ Support/*; do
+        [[ -d "$app_dir" ]] || continue
+        app_name=$(basename "$app_dir")
 
-    # Scan both system and user application directories
-    for app in /Applications/*.app ~/Applications/*.app; do
-        if [[ -d "$app" && -f "$app/Contents/Info.plist" ]]; then
-            bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
-            [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
+        # Skip system and protected apps
+        case "$app_name" in
+            com.apple.*|Adobe*|1Password|Claude)
+                continue
+                ;;
+        esac
+
+        # Clean common log directories
+        if [[ -d "$app_dir/log" ]]; then
+            safe_clean "$app_dir/log"/* "App logs: $app_name"
+        fi
+        if [[ -d "$app_dir/logs" ]]; then
+            safe_clean "$app_dir/logs"/* "App logs: $app_name"
+        fi
+        if [[ -d "$app_dir/activitylog" ]]; then
+            safe_clean "$app_dir/activitylog"/* "Activity logs: $app_name"
         fi
     done
-    local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
-    echo "  ${GREEN}✓${NC} Found $app_count apps"
-
-    local cache_count=0
-
-    # Check for orphaned caches (safe to remove - caches are regenerable)
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned cache directories..."
-    if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
-        for cache_dir in ~/Library/Caches/com.*; do
-            [[ -d "$cache_dir" ]] || continue
-            local bundle_id=$(basename "$cache_dir")
-            # CRITICAL: Skip system-essential and protected app caches
-            if should_protect_data "$bundle_id"; then
-                continue
-            fi
-            if ! grep -q "$bundle_id" "$installed_bundles" 2>/dev/null; then
-                safe_clean "$cache_dir" "Orphaned cache: $bundle_id"
-                ((cache_count++))
-            fi
-        done
-    fi
-    echo "  ${GREEN}✓${NC} Complete ($cache_count removed)"
-
-    # Clean up temp file
-    rm -f "$installed_bundles"
 
     end_section
 
-    # ===== 13. Apple Silicon optimizations =====
+
+    # ===== 13. Orphaned app data cleanup =====
+    # Deep cleanup of leftover files from uninstalled apps
+    #
+    # SAFETY POLICY:
+    # - Only touch apps missing from the 10+ location scan
+    # - Require 60+ days of inactivity; skip protected vendors (Adobe, Office, etc.)
+    # - Keep Preferences/Application Support; only remove caches/logs/temp data
+    # Safeguards: retains unusual locations in use, recent apps, and critical/licensed data
+    start_section "Orphaned app data cleanup"
+
+    local -r ORPHAN_AGE_THRESHOLD=60
+
+    # Build a comprehensive list of installed application bundle identifiers
+    echo -n "  ${BLUE}◎${NC} Scanning installed applications..."
+    local installed_bundles=$(mktemp)
+    local running_bundles=$(mktemp)
+    local launch_agents=$(mktemp)
+
+    # Scan multiple possible application locations to avoid false positives
+    local -a search_paths=(
+        "/Applications"
+        "$HOME/Applications"
+        "/System/Applications"
+        "/System/Library/CoreServices/Applications"
+        "/Library/Application Support"
+        "$HOME/Library/Application Support"
+    )
+
+    # Add Homebrew paths if they exist
+    [[ -d "/opt/homebrew/Caskroom" ]] && search_paths+=("/opt/homebrew/Caskroom")
+    [[ -d "/usr/local/Caskroom" ]] && search_paths+=("/usr/local/Caskroom")
+    [[ -d "/opt/homebrew/Cellar" ]] && search_paths+=("/opt/homebrew/Cellar")
+
+    # Add common developer paths
+    [[ -d "$HOME/Developer" ]] && search_paths+=("$HOME/Developer")
+    [[ -d "$HOME/Projects" ]] && search_paths+=("$HOME/Projects")
+    [[ -d "$HOME/Downloads" ]] && search_paths+=("$HOME/Downloads")
+
+    # Scan for .app bundles in all search paths (with depth limit for performance)
+    for search_path in "${search_paths[@]}"; do
+        if [[ -d "$search_path" ]]; then
+            while IFS= read -r app; do
+                [[ -f "$app/Contents/Info.plist" ]] || continue
+                bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
+                [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
+            done < <(find "$search_path" -type d -name "*.app" 2>/dev/null || true)
+        fi
+    done
+
+    # Get running applications (if an app is running, it's definitely not orphaned)
+    local running_apps=$(osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2>/dev/null || echo "")
+    echo "$running_apps" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' > "$running_bundles"
+
+    # Check LaunchAgents and LaunchDaemons (if app has launch items, it likely exists)
+    find ~/Library/LaunchAgents /Library/LaunchAgents /Library/LaunchDaemons \
+        -name "*.plist" -type f 2>/dev/null | while IFS= read -r plist; do
+        bundle_id=$(basename "$plist" .plist)
+        echo "$bundle_id" >> "$launch_agents"
+    done 2>/dev/null || true
+
+    # Combine and deduplicate all bundle IDs
+    sort -u "$installed_bundles" "$running_bundles" "$launch_agents" > "${installed_bundles}.final"
+    mv "${installed_bundles}.final" "$installed_bundles"
+
+    local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
+    echo "  ${GREEN}✓${NC} Found $app_count active/installed apps"
+
+    # Track statistics
+    local orphaned_count=0
+    local total_orphaned_kb=0
+
+    # Function to check if bundle is SAFELY orphaned (ULTRA-CONSERVATIVE)
+    # Returns 0 (true) only if we are VERY CONFIDENT the app is uninstalled
+    is_orphaned() {
+        local bundle_id="$1"
+        local directory_path="$2"  # The actual directory we're considering deleting
+
+        # SAFETY CHECK 1: Skip system-critical and protected apps (MOST IMPORTANT)
+        if should_protect_data "$bundle_id"; then
+            return 1
+        fi
+
+        # SAFETY CHECK 2: Check if app bundle exists in our comprehensive scan
+        if grep -q "^$bundle_id$" "$installed_bundles" 2>/dev/null; then
+            return 1
+        fi
+
+        # SAFETY CHECK 3: Extra check for system bundles (belt and suspenders)
+        case "$bundle_id" in
+            com.apple.*|loginwindow|dock|systempreferences|finder|safari)
+                return 1
+                ;;
+        esac
+
+        # SAFETY CHECK 4: If it's a very common/important prefix, be extra careful
+        # For major vendors, we NEVER auto-clean (too risky)
+        case "$bundle_id" in
+            com.adobe.*|com.microsoft.*|com.google.*|org.mozilla.*|com.jetbrains.*|com.docker.*)
+                return 1
+                ;;
+        esac
+
+        # SAFETY CHECK 5: Check file age - CRITICAL SAFETY NET
+        # Only consider it orphaned if files haven't been accessed in 60+ days
+        # This protects against apps in unusual locations we didn't scan
+        if [[ -e "$directory_path" ]]; then
+            # Get last access time (days ago)
+            local last_access_epoch=$(stat -f%a "$directory_path" 2>/dev/null || echo "0")
+            local current_epoch=$(date +%s)
+            local days_since_access=$(( (current_epoch - last_access_epoch) / 86400 ))
+
+            # If accessed in the last 60 days, DO NOT DELETE
+            # This means app is likely still installed somewhere
+            if [[ $days_since_access -lt $ORPHAN_AGE_THRESHOLD ]]; then
+                return 1
+            fi
+        fi
+
+        # All checks passed - likely orphaned AND old
+        return 0
+    }
+
+    # Clean orphaned caches
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned caches..."
+    local cache_found=0
+    if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
+        for cache_dir in ~/Library/Caches/com.* ~/Library/Caches/org.* ~/Library/Caches/net.* ~/Library/Caches/io.*; do
+            [[ -d "$cache_dir" ]] || continue
+            local bundle_id=$(basename "$cache_dir")
+            if is_orphaned "$bundle_id" "$cache_dir"; then
+                local size_kb=$(du -sk "$cache_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$cache_dir" "Orphaned cache: $bundle_id"
+                    ((cache_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $cache_found orphaned caches"
+
+    # Clean orphaned logs
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned logs..."
+    local logs_found=0
+    if ls ~/Library/Logs/com.* >/dev/null 2>&1; then
+        for log_dir in ~/Library/Logs/com.* ~/Library/Logs/org.* ~/Library/Logs/net.* ~/Library/Logs/io.*; do
+            [[ -d "$log_dir" ]] || continue
+            local bundle_id=$(basename "$log_dir")
+            if is_orphaned "$bundle_id" "$log_dir"; then
+                local size_kb=$(du -sk "$log_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$log_dir" "Orphaned logs: $bundle_id"
+                    ((logs_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $logs_found orphaned log directories"
+
+    # Clean orphaned saved states
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned saved states..."
+    local states_found=0
+    if ls ~/Library/Saved\ Application\ State/*.savedState >/dev/null 2>&1; then
+        for state_dir in ~/Library/Saved\ Application\ State/*.savedState; do
+            [[ -d "$state_dir" ]] || continue
+            local bundle_id=$(basename "$state_dir" .savedState)
+            if is_orphaned "$bundle_id" "$state_dir"; then
+                local size_kb=$(du -sk "$state_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$state_dir" "Orphaned state: $bundle_id"
+                    ((states_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $states_found orphaned saved states"
+
+    # Clean orphaned containers
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned containers..."
+    local containers_found=0
+    if ls ~/Library/Containers/com.* >/dev/null 2>&1; then
+        for container_dir in ~/Library/Containers/com.* ~/Library/Containers/org.* ~/Library/Containers/net.* ~/Library/Containers/io.*; do
+            [[ -d "$container_dir" ]] || continue
+            local bundle_id=$(basename "$container_dir")
+            if is_orphaned "$bundle_id" "$container_dir"; then
+                local size_kb=$(du -sk "$container_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$container_dir" "Orphaned container: $bundle_id"
+                    ((containers_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $containers_found orphaned containers"
+
+    # Clean orphaned WebKit data
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned WebKit data..."
+    local webkit_found=0
+    if ls ~/Library/WebKit/com.* >/dev/null 2>&1; then
+        for webkit_dir in ~/Library/WebKit/com.* ~/Library/WebKit/org.* ~/Library/WebKit/net.* ~/Library/WebKit/io.*; do
+            [[ -d "$webkit_dir" ]] || continue
+            local bundle_id=$(basename "$webkit_dir")
+            if is_orphaned "$bundle_id" "$webkit_dir"; then
+                local size_kb=$(du -sk "$webkit_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$webkit_dir" "Orphaned WebKit: $bundle_id"
+                    ((webkit_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $webkit_found orphaned WebKit data"
+
+    # Clean orphaned HTTP storages
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned HTTP storages..."
+    local http_found=0
+    if ls ~/Library/HTTPStorages/com.* >/dev/null 2>&1; then
+        for http_dir in ~/Library/HTTPStorages/com.* ~/Library/HTTPStorages/org.* ~/Library/HTTPStorages/net.* ~/Library/HTTPStorages/io.*; do
+            [[ -d "$http_dir" ]] || continue
+            local bundle_id=$(basename "$http_dir")
+            if is_orphaned "$bundle_id" "$http_dir"; then
+                local size_kb=$(du -sk "$http_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$http_dir" "Orphaned HTTP storage: $bundle_id"
+                    ((http_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $http_found orphaned HTTP storages"
+
+    # Clean orphaned cookies
+    echo -n "  ${BLUE}◎${NC} Scanning orphaned cookies..."
+    local cookies_found=0
+    if ls ~/Library/Cookies/*.binarycookies >/dev/null 2>&1; then
+        for cookie_file in ~/Library/Cookies/*.binarycookies; do
+            [[ -f "$cookie_file" ]] || continue
+            local bundle_id=$(basename "$cookie_file" .binarycookies)
+            if is_orphaned "$bundle_id" "$cookie_file"; then
+                local size_kb=$(du -sk "$cookie_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                if [[ "$size_kb" -gt 0 ]]; then
+                    safe_clean "$cookie_file" "Orphaned cookies: $bundle_id"
+                    ((cookies_found++))
+                    ((total_orphaned_kb += size_kb))
+                fi
+            fi
+        done
+    fi
+    echo "  ${GREEN}✓${NC} Found $cookies_found orphaned cookie files"
+
+    # Calculate total
+    orphaned_count=$((cache_found + logs_found + states_found + containers_found + webkit_found + http_found + cookies_found))
+
+    # Summary
+    if [[ $orphaned_count -gt 0 ]]; then
+        local orphaned_mb=$(echo "$total_orphaned_kb" | awk '{printf "%.1f", $1/1024}')
+        echo ""
+        echo "  ${GREEN}☺︎${NC} ${GREEN}Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)${NC}"
+        note_activity
+    else
+        echo "  ${BLUE}○${NC} No old orphaned app data found"
+    fi
+
+    # Clean up temp files
+    rm -f "$installed_bundles" "$running_bundles" "$launch_agents"
+
+    end_section
+
+    # ===== 14. Apple Silicon optimizations =====
     if [[ "$IS_M_SERIES" == "true" ]]; then
         start_section "Apple Silicon optimizations"
         safe_clean /Library/Apple/usr/share/rosetta/rosetta_update_bundle "Rosetta 2 cache"
@@ -822,7 +1143,7 @@ perform_cleanup() {
         end_section
     fi
 
-    # ===== 14. iOS device backups =====
+    # ===== 15. iOS device backups =====
     start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then

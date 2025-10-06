@@ -22,7 +22,6 @@
 - 📦 **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
 - 📊 **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
 - ⚡️ **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
-- 🧹 **Massive Space Recovery** - Reclaim 100GB+ of wasted disk space
 
 ## Quick Start
 

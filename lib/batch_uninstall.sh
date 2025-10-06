@@ -96,13 +96,13 @@ batch_uninstall_applications() {
     fi
 
     # Show summary and get batch confirmation
-    echo ""
-    echo -e "${YELLOW}📦 Will remove ${BLUE}${#selected_apps[@]}${YELLOW} applications, free ${GREEN}$size_display${NC}"
+    printf '\n'
+    local app_total=${#selected_apps[@]}
+    echo -e "${YELLOW}📦 Remove ${BLUE}${app_total}${YELLOW} app(s), free about ${GREEN}$size_display${NC}"
     if [[ ${#running_apps[@]} -gt 0 ]]; then
-        echo -e "${YELLOW}⚠️  Running apps will be force-quit: ${RED}${running_apps[*]}${NC}"
+        echo -e "${YELLOW}⚠️  Will force-quit: ${RED}${running_apps[*]}${NC}"
     fi
-    echo ""
-    printf "%b" "${BLUE}Press ENTER to confirm, or ESC/q to cancel:${NC} "
+    printf "%b" "${BLUE}Continue? Press Enter to proceed, or q/ESC to cancel:${NC} "
     local confirm_key=""
     IFS= read -r -s -n1 confirm_key || confirm_key=""
     if [[ "$confirm_key" == $'\e' ]]; then
@@ -120,7 +120,7 @@ batch_uninstall_applications() {
     esac
 
     if [[ "$cancel" == true ]]; then
-        log_info "Uninstallation cancelled by user"
+        log_info "Uninstallation cancelled"
         # Clean up sudo keepalive if it was started
         if [[ -n "${sudo_keepalive_pid:-}" ]]; then
             kill "$sudo_keepalive_pid" 2>/dev/null || true

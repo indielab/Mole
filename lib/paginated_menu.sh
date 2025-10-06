@@ -20,7 +20,7 @@ paginated_multi_select() {
     fi
 
     local total_items=${#items[@]}
-    local items_per_page=10
+    local items_per_page=15
     local total_pages=$(( (total_items + items_per_page - 1) / items_per_page ))
     local current_page=0
     local cursor_pos=0

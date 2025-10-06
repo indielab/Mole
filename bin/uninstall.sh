@@ -529,21 +529,22 @@ main() {
         return 0
     fi
 
-    # Restore cursor for normal interaction after selection
+    # Restore cursor and show a concise summary before confirmation
     show_cursor
     clear
-    echo "You selected ${#selected_apps[@]} application(s) for uninstallation:"
+    printf '\n'
+    local selection_count=${#selected_apps[@]}
+    echo -e "${PURPLE}🗑️  Selected ${selection_count} app(s)${NC}"
 
-    if [[ ${#selected_apps[@]} -gt 0 ]]; then
+    if [[ $selection_count -gt 0 ]]; then
         for selected_app in "${selected_apps[@]}"; do
             IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
             echo "  • $app_name ($size)"
         done
     else
-        echo "  No applications to uninstall."
+        echo -e "${GRAY}No apps chosen.${NC}"
     fi
 
-    echo ""
     # Execute batch uninstallation, confirmation handled in batch_uninstall_applications
     batch_uninstall_applications
 

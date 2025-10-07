@@ -27,6 +27,15 @@ readonly LOG_MAX_SIZE_DEFAULT=1048576  # 1MB
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 
+# Log file maintenance (must be defined before logging functions)
+rotate_log() {
+    local max_size="${MOLE_MAX_LOG_SIZE:-$LOG_MAX_SIZE_DEFAULT}"
+    if [[ -f "$LOG_FILE" ]] && [[ $(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0) -gt "$max_size" ]]; then
+        mv "$LOG_FILE" "${LOG_FILE}.old" 2>/dev/null || true
+        touch "$LOG_FILE" 2>/dev/null || true
+    fi
+}
+
 # Enhanced logging functions with file logging support
 log_info() {
     rotate_log
@@ -56,15 +65,6 @@ log_header() {
     rotate_log
     echo -e "\n${PURPLE}▶ $1${NC}"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] SECTION: $1" >> "$LOG_FILE" 2>/dev/null || true
-}
-
-# Log file maintenance
-rotate_log() {
-    local max_size="${MOLE_MAX_LOG_SIZE:-$LOG_MAX_SIZE_DEFAULT}"
-    if [[ -f "$LOG_FILE" ]] && [[ $(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0) -gt "$max_size" ]]; then
-        mv "$LOG_FILE" "${LOG_FILE}.old" 2>/dev/null || true
-        touch "$LOG_FILE" 2>/dev/null || true
-    fi
 }
 
 # System detection

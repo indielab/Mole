@@ -398,16 +398,43 @@ uninstall_mole() {
         log_success "Removed mo alias from $INSTALL_DIR"
     fi
 
+    # SAFETY CHECK: Verify config directory is safe to remove
+    # Only allow removal of mole-specific directories
+    local is_safe=0
+
+    # Safe patterns: must end with 'mole' or be in user's home .config
+    if [[ "$CONFIG_DIR" == "$HOME/.config/mole" ]] ||
+       [[ "$CONFIG_DIR" == "$HOME"/.*/mole ]] ||
+       [[ "$CONFIG_DIR" == */mole ]]; then
+        is_safe=1
+    fi
+
+    # Additional safety: never delete system critical paths
+    case "$CONFIG_DIR" in
+        /|/usr|/usr/local|/usr/local/bin|/usr/local/lib|/usr/local/share|\
+        /Library|/System|/bin|/sbin|/etc|/var|/opt|"$HOME"|"$HOME/Library")
+            is_safe=0
+            ;;
+    esac
+
     # Ask before removing config directory
     if [[ -d "$CONFIG_DIR" ]]; then
-        echo ""
-        read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            rm -rf "$CONFIG_DIR"
-            log_success "Removed configuration directory"
+        if [[ $is_safe -eq 0 ]]; then
+            log_warning "Config directory $CONFIG_DIR is not safe to auto-remove"
+            log_warning "Skipping automatic removal for safety"
+            echo ""
+            echo "Please manually review and remove mole-specific files from:"
+            echo "  $CONFIG_DIR"
         else
-            log_info "Configuration directory preserved"
+            echo ""
+            read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                rm -rf "$CONFIG_DIR"
+                log_success "Removed configuration directory"
+            else
+                log_info "Configuration directory preserved"
+            fi
         fi
     fi
 

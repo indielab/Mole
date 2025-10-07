@@ -332,12 +332,15 @@ remove_mole() {
         done
     fi
 
-    # Clean up configuration and cache (both methods)
-    if [[ -d "$HOME/.config/mole" ]]; then
-        rm -rf "$HOME/.config/mole" 2>/dev/null && log_success "Removed configuration"
-    fi
+    # Clean up cache first (logs to config)
     if [[ -d "$HOME/.cache/mole" ]]; then
         rm -rf "$HOME/.cache/mole" 2>/dev/null && log_success "Removed cache"
+    fi
+
+    # Clean up configuration last (contains logs)
+    if [[ -d "$HOME/.config/mole" ]]; then
+        log_success "Removed configuration"
+        rm -rf "$HOME/.config/mole" 2>/dev/null
     fi
 
     echo ""

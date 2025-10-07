@@ -402,18 +402,19 @@ uninstall_mole() {
     # Only allow removal of mole-specific directories
     local is_safe=0
 
-    # Safe patterns: must end with 'mole' or be in user's home .config
-    if [[ "$CONFIG_DIR" == "$HOME/.config/mole" ]] ||
-       [[ "$CONFIG_DIR" == "$HOME"/.*/mole ]] ||
-       [[ "$CONFIG_DIR" == */mole ]]; then
-        is_safe=1
-    fi
-
-    # Additional safety: never delete system critical paths
+    # Additional safety: never delete system critical paths (check first)
     case "$CONFIG_DIR" in
         /|/usr|/usr/local|/usr/local/bin|/usr/local/lib|/usr/local/share|\
-        /Library|/System|/bin|/sbin|/etc|/var|/opt|"$HOME"|"$HOME/Library")
+        /Library|/System|/bin|/sbin|/etc|/var|/opt|"$HOME"|"$HOME/Library"|\
+        /usr/local/lib/*|/usr/local/share/*|/Library/*|/System/*)
             is_safe=0
+            ;;
+        *)
+            # Safe patterns: must be in user's home and end with 'mole'
+            if [[ "$CONFIG_DIR" == "$HOME/.config/mole" ]] ||
+               [[ "$CONFIG_DIR" == "$HOME"/.*/mole ]]; then
+                is_safe=1
+            fi
             ;;
     esac
 

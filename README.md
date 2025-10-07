@@ -148,10 +148,10 @@ Total: 156.8GB
 
 ## Support
 
-- ⭐️ **Star this repo** if Mole helped you recover disk space
-- 💬 **Share with friends** who need to clean their Macs
-- 🐛 **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
-- 🐱 I have two cats, <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like
+- **Star this repo** if Mole helped you recover disk space
+- **Share with friends** who need to clean their Macs
+- **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
+- I have two cats, <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like
 
 ## License
 

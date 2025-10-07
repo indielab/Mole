@@ -1040,23 +1040,28 @@ perform_cleanup() {
     echo "  ${GREEN}✓${NC} Found $states_found orphaned saved states"
 
     # Clean orphaned containers
+    # NOTE: Container cleanup is DISABLED by default due to naming mismatch issues
+    # Some apps create containers with names that don't strictly match their Bundle ID,
+    # especially when system extensions are registered. This can cause false positives.
+    # To avoid deleting data from installed apps, we skip container cleanup.
     echo -n "  ${BLUE}◎${NC} Scanning orphaned containers..."
     local containers_found=0
     if ls ~/Library/Containers/com.* >/dev/null 2>&1; then
+        # Count potential orphaned containers but don't delete them
         for container_dir in ~/Library/Containers/com.* ~/Library/Containers/org.* ~/Library/Containers/net.* ~/Library/Containers/io.*; do
             [[ -d "$container_dir" ]] || continue
             local bundle_id=$(basename "$container_dir")
             if is_orphaned "$bundle_id" "$container_dir"; then
                 local size_kb=$(du -sk "$container_dir" 2>/dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
-                    safe_clean "$container_dir" "Orphaned container: $bundle_id"
+                    # DISABLED: safe_clean "$container_dir" "Orphaned container: $bundle_id"
                     ((containers_found++))
                     ((total_orphaned_kb += size_kb))
                 fi
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $containers_found orphaned containers"
+    echo "  ${BLUE}○${NC} Skipped $containers_found potential orphaned containers"
 
     # Clean orphaned WebKit data
     echo -n "  ${BLUE}◎${NC} Scanning orphaned WebKit data..."

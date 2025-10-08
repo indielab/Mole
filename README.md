@@ -18,19 +18,18 @@
 
 ## Features
 
-- **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
-- **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
-- **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
-- **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
-- **Touch ID Ready** - Defaults to password prompts, works with Touch ID when sudo is configured
+- **Deep System Cleanup** - Removes way more junk than CleanMyMac/Lemon, cleans hidden caches, logs, and temp files
+- **Thorough Uninstall** - Cleans 22+ locations vs 1 for standard uninstall
+- **Interactive Disk Analyzer** - Navigate folders with arrow keys, find and delete large files quickly
+- **Fast & Lightweight** - Terminal-based with arrow-key navigation, pagination, and Touch ID support
 
 ## Quick Start
 
 **Tips:**
 
-- On mission-critical Macs, wait for Mole to mature, safety first
+- If your Mac is mission-critical, consider waiting for Mole to mature further - safety first
 - 如果这台 Mac 对你非常重要，建议等 Mole 更成熟时来使用，安全第一
-- I'm not very tech-savvy？Check [小白使用指南](./GUIDE.md)
+- Not tech-savvy? Check out the [小白使用指南](./GUIDE.md)
 
 **Install:**
 
@@ -61,7 +60,7 @@ mo --version            # Show installed version
 
 > If the command is not found, run `mo update` once to upgrade to the latest version.
 >
-> Recommended start with `mo clean --dry-run` to preview, `mo clean --whitelist` to protect caches
+> Recommended: Start with `mo clean --dry-run` to preview what will be deleted, use `mo clean --whitelist` to protect important caches
 
 ## Features in Detail
 
@@ -144,10 +143,10 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Is Mole safe?** – Mole focuses on cleaning caches and logs, without touching app settings, user documents, or system files. You can run `mo clean --dry-run` to preview what will be removed before actually cleaning.  
-2. **How often should I clean?** – About once a month, or whenever you notice disk space running low.  
-3. **Can I protect specific caches?** – Yes. Run `mo clean --whitelist` to interactively choose which caches to keep. Some common ones like Playwright browsers and HuggingFace models are already protected by default.  
-4. **Does Mole support Touch ID?** – Mole elevates through `sudo`, so expect a password prompt unless your `sudo` already supports Touch ID.
+1. **Is Mole safe?** – Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
+2. **How often should I clean?** – Once a month, or when disk space is running low.
+3. **Can I protect specific caches?** – Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
+4. **Does Mole support Touch ID?** – Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
 
 ## Support
 

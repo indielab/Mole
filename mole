@@ -356,16 +356,12 @@ show_main_menu() {
     local selected="${1:-1}"
     local full_draw="${2:-true}"
 
-    if [[ "$full_draw" == "true" ]]; then
-        clear_screen
-        echo ""
-        show_brand_banner
-        show_update_notification
-        echo ""
-        printf '\033[s'
-    else
-        printf '\033[u\033[0J'
-    fi
+    # Full redraw each time (prevents ghost menu items)
+    clear_screen
+    echo ""
+    show_brand_banner
+    show_update_notification
+    echo ""
 
     show_menu_option 1 "Clean Mac - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
     show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
@@ -409,6 +405,9 @@ interactive_main_menu() {
         if [[ "$first_draw" == "true" ]]; then
             first_draw=false
         fi
+
+        # Drain any pending input to prevent touchpad scroll issues
+        drain_pending_input
 
         local key=$(read_key)
         [[ $? -ne 0 ]] && continue

@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Fix locale issues (avoid Perl warnings on non-English systems)
+export LC_ALL=C
+export LANG=C
+
 # Get script directory for sourcing libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"

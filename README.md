@@ -18,8 +18,8 @@
 
 ## Features
 
-- **Deep System Cleanup** - Removes way more junk than CleanMyMac/Lemon, cleans hidden caches, logs, and temp files
-- **Thorough Uninstall** - Cleans 22+ locations vs 1 for standard uninstall
+- **Deep System Cleanup** - Cleans way more junk than CleanMyMac/Lemon - caches, logs, temp files
+- **Thorough Uninstall** - Scans 22+ locations to remove app leftovers, not just the .app file
 - **Interactive Disk Analyzer** - Navigate folders with arrow keys, find and delete large files quickly
 - **Fast & Lightweight** - Terminal-based with arrow-key navigation, pagination, and Touch ID support
 

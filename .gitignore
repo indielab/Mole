@@ -40,3 +40,4 @@ temp/
 # Claude Code
 .claude/
 CLAUDE.md
+copilot-instructions.md

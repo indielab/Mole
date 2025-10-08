@@ -42,15 +42,15 @@ collect_files_to_be_cleaned() {
     local clean_sh="$SCRIPT_DIR/../bin/clean.sh"
     local -a items=()
 
-    echo -e "${BLUE}◎${NC} Scanning cache files..."
+    echo -e "${BLUE}|${NC} Scanning cache files..."
     echo ""
 
     # Run clean.sh in dry-run mode
-    local temp_output=$(mktemp)
+    local temp_output=$(create_temp_file)
     echo "" | bash "$clean_sh" --dry-run 2>&1 > "$temp_output" || true
 
     # Strip ANSI color codes for parsing
-    local temp_plain=$(mktemp)
+    local temp_plain=$(create_temp_file)
     sed $'s/\033\[[0-9;]*m//g' "$temp_output" > "$temp_plain"
 
     # Parse output: "  → Description (size, dry)"
@@ -83,7 +83,7 @@ collect_files_to_be_cleaned() {
         fi
     done < "$temp_plain"
 
-    rm -f "$temp_output" "$temp_plain"
+    # Temp files will be auto-cleaned by cleanup_temp_files
 
     # Return early if no items found
     if [[ ${#items[@]} -eq 0 ]]; then

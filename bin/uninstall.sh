@@ -122,8 +122,9 @@ scan_applications() {
         fi
     fi
 
-    local temp_file=$(mktemp)
+    local temp_file=$(mktemp_file)
 
+    echo "" >&2  # Add space before scanning output without breaking stdout return
     # Pre-cache current epoch to avoid repeated calls
     local current_epoch=$(date "+%s")
 
@@ -320,13 +321,19 @@ scan_applications() {
     fi
 
     # Sort by last used (oldest first) and cache the result
-    sort -t'|' -k1,1n "$temp_file" > "${temp_file}.sorted"
+    sort -t'|' -k1,1n "$temp_file" > "${temp_file}.sorted" || { rm -f "$temp_file"; return 1; }
     rm -f "$temp_file"
 
     # Update cache with app count metadata
     cp "${temp_file}.sorted" "$cache_file" 2>/dev/null || true
     echo "$current_app_count" > "$cache_meta" 2>/dev/null || true
-    echo "${temp_file}.sorted"
+    
+    # Verify sorted file exists before returning
+    if [[ -f "${temp_file}.sorted" ]]; then
+        echo "${temp_file}.sorted"
+    else
+        return 1
+    fi
 }
 
 # Load applications into arrays
@@ -379,7 +386,6 @@ uninstall_applications() {
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
 
         echo ""
-        log_info "Processing: $app_name"
 
         # Check if app is running
         if pgrep -f "$app_name" >/dev/null 2>&1; then
@@ -475,7 +481,7 @@ uninstall_applications() {
 
             log_success "$app_name uninstalled successfully"
         else
-            log_info "Skipped $app_name"
+            echo -e "  ${BLUE}❂${NC} Skipped $app_name"
         fi
     done
 
@@ -518,6 +524,7 @@ main() {
     local apps_file=$(scan_applications)
 
     if [[ ! -f "$apps_file" ]]; then
+        echo ""
         log_error "Failed to scan applications"
         return 1
     fi
@@ -537,20 +544,26 @@ main() {
     # Restore cursor and show a concise summary before confirmation
     show_cursor
     clear
-    printf '\n'
     local selection_count=${#selected_apps[@]}
-    echo -e "${PURPLE}🗑️  Selected ${selection_count} app(s)${NC}"
-
-    if [[ $selection_count -gt 0 ]]; then
-        for selected_app in "${selected_apps[@]}"; do
-            IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
-            echo "  • $app_name ($size)"
-        done
-    else
-        echo -e "${GRAY}No apps chosen.${NC}"
+    if [[ $selection_count -eq 0 ]]; then
+        echo "No apps selected"; rm -f "$apps_file"; return 0
     fi
+    # Compact one-line summary (list up to 3 names, aggregate rest)
+    local names=()
+    local idx=0
+    for selected_app in "${selected_apps[@]}"; do
+        IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
+        if (( idx < 3 )); then
+            names+=("${app_name}(${size})")
+        fi
+        ((idx++))
+    done
+    local extra=$((selection_count-3))
+    local list="${names[*]}"
+    [[ $extra -gt 0 ]] && list+=" +${extra}"
+    echo "◎ ${selection_count} apps: ${list}"
 
-    # Execute batch uninstallation, confirmation handled in batch_uninstall_applications
+    # Execute batch uninstallation (handles confirmation)
     batch_uninstall_applications
 
     # Cleanup

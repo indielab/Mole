@@ -1,6 +1,5 @@
 #!/bin/bash
 # Mole Installation Script
-# Install Mole system cleanup tool to your system
 
 set -euo pipefail
 
@@ -10,7 +9,7 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
- 
+
 # Simple spinner
 _SPINNER_PID=""
 start_line_spinner() {

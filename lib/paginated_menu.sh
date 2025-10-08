@@ -50,8 +50,8 @@ paginated_multi_select() {
 
     restore_terminal() {
         show_cursor
-        if [[ -n "$original_stty" ]]; then
-            stty "$original_stty" 2>/dev/null || stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
+        if [[ -n "${original_stty-}" ]]; then
+            stty "${original_stty}" 2>/dev/null || stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
         else
             stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
         fi

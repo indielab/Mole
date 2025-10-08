@@ -63,13 +63,15 @@ batch_uninstall_applications() {
         if sudo -n true 2>/dev/null; then
             echo "◎ Admin access confirmed for: ${sudo_apps[*]}"
         else
-            echo -n "◎ Admin required for: ${sudo_apps[*]}. "
-            if ! sudo -v; then
+            echo "◎ Admin required for: ${sudo_apps[*]}"
+            echo ""
+            if ! request_sudo_access "Uninstalling system apps requires admin access"; then
                 echo ""
                 log_error "Admin access denied"
                 return 1
             fi
-            echo "✓ Granted"
+            echo ""
+            echo "✓ Admin access granted"
         fi
         echo "◎ Gathering targets..."
         (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
@@ -145,7 +147,7 @@ batch_uninstall_applications() {
             printf "  ${GREEN}OK${NC}   %-20s%s\n" "$app_name" $([[ $files_removed -gt 0 ]] && echo "+$files_removed" )
         else
             ((failed_count++))
-            failed_items+=("$app_name:$reason") 
+            failed_items+=("$app_name:$reason")
         fi
     done
 
@@ -165,17 +167,17 @@ batch_uninstall_applications() {
     echo ""
     echo "$bar"
     if [[ $failed_count -gt 0 ]]; then
-        echo -e "🚀 Removed: ${GREEN}$success_count${NC} | Failed: ${RED}$failed_count${NC} | Freed: ${GREEN}$freed_display${NC}"
+        echo -e "Removed: ${GREEN}$success_count${NC} | Failed: ${RED}$failed_count${NC} | Freed: ${GREEN}$freed_display${NC}"
         if [[ $failed_count -eq 1 ]]; then
             local first="${failed_items[0]}"
             local name=${first%%:*}
             local reason=${first#*:}
-            echo "😉 ${name} $(map_uninstall_reason "$reason")"
+            echo "${name} $(map_uninstall_reason "$reason")"
         else
-            local joined="${failed_items[*]}"; echo "😉 Failures: $joined"
+            local joined="${failed_items[*]}"; echo "Failures: $joined"
         fi
     else
-        echo -e "🚀 Removed: ${GREEN}$success_count${NC} | Failed: ${RED}$failed_count${NC} | Freed: ${GREEN}$freed_display${NC}"
+        echo -e "Removed: ${GREEN}$success_count${NC} | Failed: ${RED}$failed_count${NC} | Freed: ${GREEN}$freed_display${NC}"
     fi
     echo "$bar"
 

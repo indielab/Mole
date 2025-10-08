@@ -327,7 +327,7 @@ scan_applications() {
     # Update cache with app count metadata
     cp "${temp_file}.sorted" "$cache_file" 2>/dev/null || true
     echo "$current_app_count" > "$cache_meta" 2>/dev/null || true
-    
+
     # Verify sorted file exists before returning
     if [[ -f "${temp_file}.sorted" ]]; then
         echo "${temp_file}.sorted"
@@ -501,7 +501,7 @@ uninstall_applications() {
         log_success "Freed $freed_display of disk space"
     fi
 
-    echo "📊 Applications uninstalled: $files_cleaned"
+    echo "Applications uninstalled: $files_cleaned"
     ((total_size_cleaned += total_size_freed))
 }
 

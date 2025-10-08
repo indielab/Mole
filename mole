@@ -2,9 +2,9 @@
 # Mole - Main Entry Point
 # A comprehensive macOS maintenance tool
 #
-# 🧹 Clean - Remove junk files and optimize system
-# 🗑️  Uninstall - Remove applications completely
-# 📊 Analyze - Interactive disk space explorer
+# Clean - Remove junk files and optimize system
+# Uninstall - Remove applications completely
+# Analyze - Interactive disk space explorer
 #
 # Usage:
 #   ./mole                         # Interactive main menu
@@ -44,7 +44,7 @@ check_for_updates() {
             grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/')
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-            echo -e "${YELLOW}📢 New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
+            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
         else
             echo -n > "$msg_cache"
         fi
@@ -213,7 +213,7 @@ update_mole() {
 remove_mole() {
     clear
     echo ""
-    echo -e "${YELLOW}⚠️  Remove Mole${NC}"
+    echo -e "${YELLOW}Remove Mole${NC}"
     echo ""
 
     # Detect all installations
@@ -292,7 +292,6 @@ remove_mole() {
     fi
 
     echo ""
-    log_info "Removing Mole..."
 
     # Remove Homebrew installation
     if [[ "$is_homebrew" == "true" ]]; then
@@ -341,7 +340,7 @@ remove_mole() {
     fi
 
     echo ""
-    echo -e "${GREEN}✨ Mole has been removed successfully${NC}"
+    echo -e "${GREEN}Mole has been removed successfully${NC}"
     echo ""
     echo "Thank you for using Mole!"
 

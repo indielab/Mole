@@ -142,24 +142,24 @@ Total: 156.8GB
 
 ## FAQ
 
-**Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
+- **Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
 
-**How often should I clean?** Once a month, or when disk space is running low.
+- **How often should I clean?** Once a month, or when disk space is running low.
 
-**Can I protect specific caches?** Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
+- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
 
-**Touch ID support?** Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
+- **Touch ID support?** Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
 
-**Enable Touch ID for sudo:**
+- **Enable Touch ID for sudo:**
 
-```bash
-sudo nano /etc/pam.d/sudo
+  ```bash
+  sudo nano /etc/pam.d/sudo
 
-# Add this line below the comments at the top:
-auth sufficient pam_tid.so
+  # Add this line below the comments at the top:
+  auth sufficient pam_tid.so
 
-# Save: Ctrl+O, then exit: Ctrl+X
-```
+  # Save: Ctrl+O, then exit: Ctrl+X
+  ```
 
 ## Support
 

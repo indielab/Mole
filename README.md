@@ -29,7 +29,6 @@
 
 - If your Mac is mission-critical, consider waiting for Mole to mature further - safety first
 - 如果这台 Mac 对你非常重要，建议等 Mole 更成熟时来使用，安全第一
-- Not tech-savvy? Check out the [小白使用指南](./GUIDE.md)
 
 **Install:**
 
@@ -143,10 +142,24 @@ Total: 156.8GB
 
 ## FAQ
 
-1. **Is Mole safe?** – Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
-2. **How often should I clean?** – Once a month, or when disk space is running low.
-3. **Can I protect specific caches?** – Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
-4. **Does Mole support Touch ID?** – Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
+**Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
+
+**How often should I clean?** Once a month, or when disk space is running low.
+
+**Can I protect specific caches?** Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
+
+**Touch ID support?** Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
+
+**Enable Touch ID for sudo:**
+
+```bash
+sudo nano /etc/pam.d/sudo
+
+# Add this line below the comments at the top:
+auth sufficient pam_tid.so
+
+# Save: Ctrl+O, then exit: Ctrl+X
+```
 
 ## Support
 

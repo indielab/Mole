@@ -22,6 +22,7 @@
 - **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
 - **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
 - **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
+- **Touch ID Ready** - Defaults to password prompts, works with Touch ID when sudo is configured
 
 ## Quick Start
 
@@ -146,6 +147,7 @@ Total: 156.8GB
 1. **Is Mole safe?** – Mole focuses on cleaning caches and logs, without touching app settings, user documents, or system files. You can run `mo clean --dry-run` to preview what will be removed before actually cleaning.  
 2. **How often should I clean?** – About once a month, or whenever you notice disk space running low.  
 3. **Can I protect specific caches?** – Yes. Run `mo clean --whitelist` to interactively choose which caches to keep. Some common ones like Playwright browsers and HuggingFace models are already protected by default.  
+4. **Does Mole support Touch ID?** – Mole elevates through `sudo`, so expect a password prompt unless your `sudo` already supports Touch ID.
 
 ## Support
 

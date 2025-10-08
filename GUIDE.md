@@ -1,7 +1,5 @@
 # Mole 小白使用指南
 
-> 不懂技术也能用的 Mac 清理工具教程
-
 ## 第一步：打开终端
 
 终端是 Mac 自带的一个工具，用来输入命令操作电脑。
@@ -18,8 +16,6 @@
 2. 点左侧的应用程序
 3. 找到实用工具文件夹
 4. 双击终端
-
-> 小提示：别担心，接下来的操作都很简单
 
 ---
 
@@ -39,9 +35,6 @@ curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash
 brew install tw93/tap/mole
 ```
 
-> 不知道 Homebrew 是什么就用方法一。只选一种方法装，别两种都用。
->
-> 安装时可能要验证权限，输密码时不显示字符是正常的。
 
 ---
 
@@ -50,6 +43,7 @@ brew install tw93/tap/mole
 终端输入 `mo` 回车。找不到命令就试 `mole`。
 
 **操作方式：**
+
 - `↑` `↓` 选菜单
 - `空格` 选中/取消
 - `回车` 确认
@@ -146,7 +140,8 @@ mo --help
 **支持 Touch ID 吗？** Mole 用 `sudo` 请求权限，如果你给 `sudo` 启用了 Touch ID 就能用。
 
 **如何启用 Touch ID？**
-1. `sudo nano /etc/pam.d/sudo`
+
+1. 终端输入 `sudo nano /etc/pam.d/sudo`
 2. 在顶部注释下加 `auth sufficient pam_tid.so`
 3. `Ctrl+O` 回车，`Ctrl+X` 退出
 

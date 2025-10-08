@@ -255,7 +255,7 @@ get_description_for_pattern() {
 manage_whitelist() {
     clear
     echo ""
-    echo -e "${PURPLE}📋 Whitelist Manager${NC}"
+    echo -e "${PURPLE}Whitelist Manager${NC}"
     echo ""
 
     # Load user-defined whitelist

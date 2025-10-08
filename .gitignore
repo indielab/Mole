@@ -23,6 +23,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+*.dmg
 
 # Cache
 .cache/

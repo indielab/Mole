@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Mole</h1>
-  <p><em>🐹 Dig deep like a mole to clean your Mac.</em></p>
+  <p><em>Dig deep like a mole to clean your Mac.</em></p>
 </div>
 
 <p align="center">
@@ -18,10 +18,10 @@
 
 ## Features
 
-- 🐦 **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
-- 📦 **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
-- 📊 **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
-- ⚡️ **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
+- **Deep System Cleanup** - Remove hidden caches, logs, and temp files in one sweep
+- **Thorough Uninstall** - 22+ locations cleaned vs 1 standard, beats CleanMyMac/Lemon
+- **Interactive Disk Analyzer** - Navigate folders like a file manager, find and delete large files instantly
+- **Fast & Lightweight** - Terminal-based, zero bloat, arrow-key navigation with pagination
 
 ## Quick Start
 
@@ -86,8 +86,8 @@ $ mo clean
   ✓ Spotify cache (3.1GB)
 
 ====================================================================
-🎉 CLEANUP COMPLETE!
-💾 Space freed: 95.50GB | Free space now: 223.5GB
+CLEANUP COMPLETE!
+Space freed: 95.50GB | Free space now: 223.5GB
 ====================================================================
 ```
 
@@ -96,13 +96,13 @@ $ mo clean
 ```bash
 $ mo uninstall
 
-🗑️  Select Apps to Remove
+Select Apps to Remove
 ═══════════════════════════
 ▶ ☑ Adobe Creative Cloud      (12.4G) | Old
   ☐ WeChat                    (2.1G) | Recent
   ☐ Final Cut Pro             (3.8G) | Recent
 
-🗑️  Uninstalling: Adobe Creative Cloud
+Uninstalling: Adobe Creative Cloud
   ✓ Removed application              # /Applications/
   ✓ Cleaned 52 related files         # ~/Library/ across 12 locations
     - Support files & caches         # Application Support, Caches
@@ -112,8 +112,8 @@ $ mo uninstall
     - System files with sudo         # /Library/, Launch daemons
 
 ====================================================================
-🎉 UNINSTALLATION COMPLETE!
-💾 Space freed: 12.8GB
+UNINSTALLATION COMPLETE!
+Space freed: 12.8GB
 ====================================================================
 ```
 
@@ -122,7 +122,7 @@ $ mo uninstall
 ```bash
 $ mo analyze
 
-📊 Analyzing: /Users/You
+Analyzing: /Users/You
 ═══════════════════════════════════════════════════════
 Total: 156.8GB
 
@@ -132,7 +132,7 @@ Total: 156.8GB
 ├─ 📁 Downloads                                      32.6GB
 │  ├─ 📄 Xcode-14.3.1.dmg                            12.3GB
 │  ├─ 📄 backup_2023.zip                             8.6GB
-│  └─ 📦 old_projects.tar.gz                         5.2GB
+│  └─ 📄 old_projects.tar.gz                         5.2GB
 ├─ 📁 Movies                                         28.9GB
 │  ├─ 📄 vacation_2023.mov                           15.4GB
 │  └─ 📄 screencast_raw.mp4                          8.8GB

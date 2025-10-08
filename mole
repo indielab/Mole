@@ -2,9 +2,9 @@
 # Mole - Main Entry Point
 # A comprehensive macOS maintenance tool
 #
-# 🧹 Clean - Remove junk files and optimize system
-# 🗑️  Uninstall - Remove applications completely
-# 📊 Analyze - Interactive disk space explorer
+# Clean - Remove junk files and optimize system
+# Uninstall - Remove applications completely
+# Analyze - Interactive disk space explorer
 #
 # Usage:
 #   ./mole                         # Interactive main menu
@@ -44,7 +44,7 @@ check_for_updates() {
             grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/')
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-            echo -e "${YELLOW}📢 New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
+            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
         else
             echo -n > "$msg_cache"
         fi
@@ -148,11 +148,11 @@ update_mole() {
     fi
 
     # Download and run installer with progress
-    echo -e "${BLUE}◎${NC} Downloading latest version..."
+    echo -e "${BLUE}|${NC} Downloading latest version..."
 
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
     local tmp_installer
-    tmp_installer="$(mktemp)" || { log_error "Update failed"; exit 1; }
+    tmp_installer="$(mktemp_file)" || { log_error "Update failed"; exit 1; }
 
     # Download installer with progress
     if command -v curl >/dev/null 2>&1; then
@@ -181,7 +181,7 @@ update_mole() {
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
-    echo -e "${BLUE}◎${NC} Installing update..."
+    echo -e "${BLUE}|${NC} Installing update..."
 
     # Run installer with visible output (but capture for error handling)
     local install_output
@@ -213,7 +213,7 @@ update_mole() {
 remove_mole() {
     clear
     echo ""
-    echo -e "${YELLOW}⚠️  Remove Mole${NC}"
+    echo -e "${YELLOW}Remove Mole${NC}"
     echo ""
 
     # Detect all installations
@@ -286,16 +286,12 @@ remove_mole() {
     echo ""
 
     # Confirm removal
-    read -p "Are you sure you want to remove Mole? (y/N): " -n 1 -r
-    echo ""
-
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    read -p "Are you sure you want to remove Mole? (y/N): " -n 1 -r; echo ""; if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Cancelled."
         exit 0
     fi
 
     echo ""
-    log_info "Removing Mole..."
 
     # Remove Homebrew installation
     if [[ "$is_homebrew" == "true" ]]; then
@@ -344,7 +340,7 @@ remove_mole() {
     fi
 
     echo ""
-    echo -e "${GREEN}✨ Mole has been removed successfully${NC}"
+    echo -e "${GREEN}Mole has been removed successfully${NC}"
     echo ""
     echo "Thank you for using Mole!"
 
@@ -356,16 +352,12 @@ show_main_menu() {
     local selected="${1:-1}"
     local full_draw="${2:-true}"
 
-    if [[ "$full_draw" == "true" ]]; then
-        clear_screen
-        echo ""
-        show_brand_banner
-        show_update_notification
-        echo ""
-        printf '\033[s'
-    else
-        printf '\033[u\033[0J'
-    fi
+    # Full redraw each time (prevents ghost menu items)
+    clear_screen
+    echo ""
+    show_brand_banner
+    show_update_notification
+    echo ""
 
     show_menu_option 1 "Clean Mac - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
     show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
@@ -409,6 +401,9 @@ interactive_main_menu() {
         if [[ "$first_draw" == "true" ]]; then
             first_draw=false
         fi
+
+        # Drain any pending input to prevent touchpad scroll issues
+        drain_pending_input
 
         local key=$(read_key)
         [[ $? -ne 0 ]] && continue

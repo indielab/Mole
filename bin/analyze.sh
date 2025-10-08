@@ -23,6 +23,14 @@ readonly MIN_LARGE_FILE_SIZE="1000000000"    # 1GB
 readonly MIN_MEDIUM_FILE_SIZE="100000000"     # 100MB
 readonly MIN_SMALL_FILE_SIZE="10000000"       # 10MB
 
+# Emoji badges for list displays only
+readonly BADGE_DIR="🍞"
+readonly BADGE_FILE="📔"
+readonly BADGE_MEDIA="🌁"
+readonly BADGE_BUNDLE="🥜"
+readonly BADGE_LOG="📝"
+readonly BADGE_APP="🐣"
+
 # Global state
 declare -a SCAN_RESULTS=()
 declare -a DIR_RESULTS=()
@@ -63,13 +71,14 @@ scan_large_files() {
     fi
 
     # Scan files > 1GB
-    mdfind -onlyin "$target_path" "kMDItemFSSize > $MIN_LARGE_FILE_SIZE" 2>/dev/null | \
-        while IFS= read -r file; do
-            if [[ -f "$file" ]]; then
-                local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
-                echo "$size|$file"
-            fi
-        done | sort -t'|' -k1 -rn > "$output_file"
+    local file=""
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            echo "$size|$file"
+        fi
+    done < <(mdfind -onlyin "$target_path" "kMDItemFSSize > $MIN_LARGE_FILE_SIZE" 2>/dev/null) | \
+        sort -t'|' -k1 -rn > "$output_file"
 }
 
 # Scan medium files (100MB - 1GB)
@@ -81,14 +90,15 @@ scan_medium_files() {
         return 1
     fi
 
-    mdfind -onlyin "$target_path" \
-        "kMDItemFSSize > $MIN_MEDIUM_FILE_SIZE && kMDItemFSSize < $MIN_LARGE_FILE_SIZE" 2>/dev/null | \
-        while IFS= read -r file; do
-            if [[ -f "$file" ]]; then
-                local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
-                echo "$size|$file"
-            fi
-        done | sort -t'|' -k1 -rn > "$output_file"
+    local file=""
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            echo "$size|$file"
+        fi
+    done < <(mdfind -onlyin "$target_path" \
+        "kMDItemFSSize > $MIN_MEDIUM_FILE_SIZE && kMDItemFSSize < $MIN_LARGE_FILE_SIZE" 2>/dev/null) | \
+        sort -t'|' -k1 -rn > "$output_file"
 }
 
 # Scan top-level directories with du (optimized with parallel)
@@ -357,7 +367,7 @@ display_large_files_compact() {
         return
     fi
 
-    log_header "📊 Top Large Files"
+    log_header "Top Large Files"
     echo ""
 
     local count=0
@@ -379,8 +389,10 @@ display_large_files_compact() {
         local filename=$(basename "$path")
         local dirname=$(basename "$(dirname "$path")")
 
-        printf "  ${GREEN}%-8s${NC} 📄 %-40s ${GRAY}%s${NC}\n" \
-            "$human_size" "${filename:0:40}" "$dirname"
+        local info=$(get_file_info "$path")
+        local badge="${info%|*}"
+        printf "  ${GREEN}%-8s${NC} %s %-40s ${GRAY}%s${NC}\n" \
+            "$human_size" "$badge" "${filename:0:40}" "$dirname"
 
         ((count++))
     done < "$temp_large"
@@ -396,14 +408,14 @@ display_large_files() {
     local temp_large="$TEMP_PREFIX.large"
 
     if [[ ! -f "$temp_large" ]] || [[ ! -s "$temp_large" ]]; then
-        log_header "📊 Large Files (>1GB)"
+        log_header "Large Files (>1GB)"
         echo ""
         echo "  ${GRAY}No files larger than 1GB found${NC}"
         echo ""
         return
     fi
 
-    log_header "📊 Large Files (>1GB)"
+    log_header "Large Files (>1GB)"
     echo ""
 
     local count=0
@@ -424,8 +436,10 @@ display_large_files() {
         local filename=$(basename "$path")
         local dirname=$(dirname "$path" | sed "s|^$HOME|~|")
 
+        local info=$(get_file_info "$path")
+        local badge="${info%|*}"
         printf "  %s [${GREEN}%s${NC}] %7s\n" "$bar" "$human_size" ""
-        printf "    📄 %s\n" "$filename"
+        printf "    %s %s\n" "$badge" "$filename"
         printf "    ${GRAY}%s${NC}\n\n" "$dirname"
 
         ((count++))
@@ -447,7 +461,7 @@ display_directories_compact() {
         return
     fi
 
-    log_header "📁 Top Directories"
+    log_header "Top Directories"
     echo ""
 
     local count=0
@@ -485,8 +499,8 @@ display_directories_compact() {
             bar="${bar}$(printf "%${empty}s" "" | tr ' ' '░')"
         fi
 
-        printf "  ${BLUE}%-8s${NC} %s ${GRAY}%3s%%${NC} 📁 %s\n" \
-            "$human_size" "$bar" "$percentage" "$dirname"
+        printf "  ${BLUE}%-8s${NC} %s ${GRAY}%3s%%${NC} %s %s\n" \
+            "$human_size" "$bar" "$percentage" "$BADGE_DIR" "$dirname"
 
         ((count++))
     done < "$temp_dirs"
@@ -501,7 +515,7 @@ display_directories() {
         return
     fi
 
-    log_header "📁 Top Directories"
+    log_header "Top Directories"
     echo ""
 
     local count=0
@@ -531,7 +545,7 @@ display_directories() {
         local dirname=$(basename "$path")
 
         printf "  %s [${BLUE}%s${NC}] %5s%%\n" "$bar" "$human_size" "$percentage"
-        printf "    📁 %s\n\n" "$display_path"
+        printf "    %s %s\n\n" "$BADGE_DIR" "$display_path"
 
         ((count++))
     done < "$temp_dirs"
@@ -545,7 +559,7 @@ display_hotspots() {
         return
     fi
 
-    log_header "🔥 Hotspot Directories (High File Concentration)"
+    log_header "High-concentration Hotspot Directories"
     echo ""
 
     local count=0
@@ -557,7 +571,7 @@ display_hotspots() {
         local human_size=$(bytes_to_human "$size")
         local display_path=$(echo "$path" | sed "s|^$HOME|~|")
 
-        printf "  📍 %s\n" "$display_path"
+        printf "  %s\n" "$display_path"
         printf "     ${GREEN}%s${NC} in ${YELLOW}%d${NC} large files\n\n" \
             "$human_size" "$file_count"
 
@@ -635,9 +649,9 @@ display_cleanup_suggestions_compact() {
     fi
 
     if [[ $suggestions_count -gt 0 ]]; then
-        log_header "💡 Quick Insights"
+        log_header "Quick Insights"
         echo ""
-        echo "  ${YELLOW}✨ $top_suggestion${NC}"
+        echo "  ${YELLOW}$top_suggestion${NC}"
         if [[ $suggestions_count -gt 1 ]]; then
             echo "  ${GRAY}... and $((suggestions_count - 1)) more insights${NC}"
         fi
@@ -659,7 +673,7 @@ display_cleanup_suggestions_compact() {
 
 # Display smart cleanup suggestions (full version)
 display_cleanup_suggestions() {
-    log_header "💡 Smart Cleanup Suggestions"
+    log_header "Smart Cleanup Suggestions"
     echo ""
 
     local suggestions=()
@@ -669,7 +683,7 @@ display_cleanup_suggestions() {
         local cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
         if [[ $cache_size -gt 1048576 ]]; then  # > 1GB
             local human=$(bytes_to_human $((cache_size * 1024)))
-            suggestions+=("  🗑️  Clear application caches: $human")
+            suggestions+=("  Clear application caches: $human")
         fi
     fi
 
@@ -677,7 +691,7 @@ display_cleanup_suggestions() {
     if [[ -d "$HOME/Downloads" ]]; then
         local old_files=$(find "$HOME/Downloads" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
         if [[ $old_files -gt 0 ]]; then
-            suggestions+=("  📥 Clean old downloads: $old_files files older than 90 days")
+            suggestions+=("  Clean old downloads: $old_files files older than 90 days")
         fi
     fi
 
@@ -686,7 +700,7 @@ display_cleanup_suggestions() {
         local dmg_count=$(mdfind -onlyin "$HOME" \
             "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2>/dev/null | wc -l | tr -d ' ')
         if [[ $dmg_count -gt 0 ]]; then
-            suggestions+=("  💿 Remove disk images: $dmg_count DMG files >500MB")
+            suggestions+=("  Remove disk images: $dmg_count DMG files >500MB")
         fi
     fi
 
@@ -695,7 +709,7 @@ display_cleanup_suggestions() {
         local xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
         if [[ $xcode_size -gt 10485760 ]]; then  # > 10GB
             local human=$(bytes_to_human $((xcode_size * 1024)))
-            suggestions+=("  🔨 Clear Xcode cache: $human")
+            suggestions+=("  Clear Xcode cache: $human")
         fi
     fi
 
@@ -716,7 +730,7 @@ display_cleanup_suggestions() {
             sort | uniq -d | wc -l | tr -d ' ' > "$temp_dup" 2>/dev/null || echo "0" > "$temp_dup"
         local dup_count=$(cat "$temp_dup" 2>/dev/null || echo "0")
         if [[ $dup_count -gt 5 ]]; then
-            suggestions+=("  📋 Possible duplicates: $dup_count size matches in large files (>10MB)")
+            suggestions+=("  ♻️ Possible duplicates: $dup_count size matches in large files (>10MB)")
         fi
     fi
 
@@ -724,7 +738,7 @@ display_cleanup_suggestions() {
     if [[ ${#suggestions[@]} -gt 0 ]]; then
         printf '%s\n' "${suggestions[@]}"
         echo ""
-        echo "  ${YELLOW}Tip:${NC} Run 'mole clean' to perform cleanup operations"
+        echo "  Tip: Run 'mole clean' to perform cleanup operations"
     else
         echo "  ${GREEN}✓${NC} No obvious cleanup opportunities found"
     fi
@@ -756,7 +770,7 @@ display_disk_summary() {
         done < "$temp_dirs"
     fi
 
-    log_header "💾 Disk Situation"
+    log_header "Disk Situation"
 
     local target_display=$(echo "$CURRENT_PATH" | sed "s|^$HOME|~|")
     echo "  ${BLUE}Scanning:${NC} $target_display | ${BLUE}Free:${NC} $(get_free_space)"
@@ -774,22 +788,28 @@ display_disk_summary() {
 get_file_info() {
     local path="$1"
     local ext="${path##*.}"
-    local icon=""
-    local type=""
+    local badge="$BADGE_FILE"
+    local type="File"
 
     case "$ext" in
-        dmg|iso|pkg) icon="📦" ; type="Installer" ;;
-        mov|mp4|avi|mkv|webm) icon="🎬" ; type="Video" ;;
-        zip|tar|gz|rar|7z) icon="🗜️" ; type="Archive" ;;
-        pdf) icon="📄" ; type="Document" ;;
-        jpg|jpeg|png|gif|heic) icon="🖼️" ; type="Image" ;;
-        key|ppt|pptx) icon="📊" ; type="Slides" ;;
-        log) icon="📝" ; type="Log" ;;
-        app) icon="⚙️" ; type="App" ;;
-        *) icon="📄" ; type="File" ;;
+        dmg|iso|pkg|zip|tar|gz|rar|7z)
+            badge="$BADGE_BUNDLE" ; type="Bundle"
+            ;;
+        mov|mp4|avi|mkv|webm|jpg|jpeg|png|gif|heic)
+            badge="$BADGE_MEDIA" ; type="Media"
+            ;;
+        pdf|key|ppt|pptx)
+            type="Document"
+            ;;
+        log)
+            badge="$BADGE_LOG" ; type="Log"
+            ;;
+        app)
+            badge="$BADGE_APP" ; type="App"
+            ;;
     esac
 
-    echo "$icon|$type"
+    echo "$badge|$type"
 }
 
 # Get file age in human readable format
@@ -828,7 +848,7 @@ display_large_files_table() {
         return
     fi
 
-    log_header "🎯 What's Taking Up Space"
+    log_header "What's Taking Up Space"
 
     # Table header
     printf "  %-4s  %-10s  %-8s  %s\n" "TYPE" "SIZE" "AGE" "FILE"
@@ -845,9 +865,9 @@ display_large_files_table() {
         local ext="${filename##*.}"
         local age=$(get_file_age "$path")
 
-        # Get file info
+        # Get file info and badge
         local info=$(get_file_info "$path")
-        local icon="${info%|*}"
+        local badge="${info%|*}"
 
         # Truncate filename if too long
         if [[ ${#filename} -gt 50 ]]; then
@@ -864,7 +884,7 @@ display_large_files_table() {
         esac
 
         printf "  %b%-4s  %-10s  %-8s  %s${NC}\n" \
-            "$color" "$icon" "$human_size" "$age" "$filename"
+            "$color" "$badge" "$human_size" "$age" "$filename"
 
         ((count++))
     done < "$temp_large"
@@ -948,7 +968,7 @@ display_unified_directories() {
 
 # Display context-aware recommendations
 display_recommendations() {
-    echo "  ${YELLOW}💡 Quick Actions:${NC}"
+    echo "  ${YELLOW}Quick Actions:${NC}"
 
     if [[ "$CURRENT_PATH" == "$HOME/Downloads"* ]]; then
         echo "    → Delete ${RED}[Can Delete]${NC} items (installers/DMG)"
@@ -971,7 +991,7 @@ display_space_chart() {
         return
     fi
 
-    log_header "📊 Space Distribution"
+    log_header "Space Distribution"
     echo ""
 
     # Calculate total
@@ -1012,7 +1032,7 @@ display_space_chart() {
 
 # Display recent large files (added in last 30 days)
 display_recent_large_files() {
-    log_header "🆕 Recent Large Files (Last 30 Days)"
+    log_header "Recent Large Files (Last 30 Days)"
     echo ""
 
     if ! command -v mdfind &>/dev/null; then
@@ -1047,7 +1067,10 @@ display_recent_large_files() {
         local dirname=$(dirname "$path" | sed "s|^$HOME|~|")
         local days_ago=$(( ($(date +%s) - mtime) / 86400 ))
 
-        printf "  📄 %s ${GRAY}(%s)${NC}\n" "$filename" "$human_size"
+        local info=$(get_file_info "$path")
+        local badge="${info%|*}"
+
+        printf "  %s %s ${GRAY}(%s)${NC}\n" "$badge" "$filename" "$human_size"
         printf "     ${GRAY}%s - %d days ago${NC}\n\n" "$dirname" "$days_ago"
 
         ((count++))
@@ -1154,9 +1177,9 @@ count_directories() {
 display_interactive_menu() {
     clear_screen
 
-    log_header "🔍 Disk Space Analyzer"
+    log_header "Disk Space Analyzer"
     echo ""
-    echo "📂 Current: ${BLUE}$(echo "$CURRENT_PATH" | sed "s|^$HOME|~|")${NC}"
+    echo "Current: ${BLUE}$(echo "$CURRENT_PATH" | sed "s|^$HOME|~|")${NC}"
     echo ""
 
     # Show navigation hints
@@ -1166,7 +1189,7 @@ display_interactive_menu() {
     # Display results based on view mode
     case "$VIEW_MODE" in
         "navigate")
-            log_header "📁 Select Directory"
+            log_header "Select Directory"
             echo ""
             display_directory_list "$CURSOR_POS"
             ;;
@@ -1189,7 +1212,7 @@ display_interactive_menu() {
 display_file_types() {
     local temp_types="$TEMP_PREFIX.types"
 
-    log_header "📊 File Types Analysis"
+    log_header "File Types Analysis"
     echo ""
 
     if ! command -v mdfind &>/dev/null; then
@@ -1222,7 +1245,14 @@ display_file_types() {
 
             if [[ $total_size -gt 0 ]]; then
                 local human_size=$(bytes_to_human "$total_size")
-                printf "  📦 %-12s %8s (%d files)\n" "$type_name:" "$human_size" "$count"
+                local badge="$BADGE_FILE"
+                case "$type_name" in
+                    "Videos"|"Images") badge="$BADGE_MEDIA" ;;
+                    "Archives") badge="$BADGE_BUNDLE" ;;
+                    "Documents") badge="$BADGE_FILE" ;;
+                    "Audio") badge="🎵" ;;
+                esac
+                printf "  %s %-12s %8s (%d files)\n" "$badge" "$type_name:" "$human_size" "$count"
             fi
         fi
     done
@@ -1260,7 +1290,7 @@ scan_directory_contents_fast() {
     if [[ "$show_progress" == "true" ]]; then
         printf "\033[?25l\033[H\033[J" >&2
         echo "" >&2
-        printf "  ${BLUE}📊 | Scanning...${NC}\r" >&2
+        printf "  ${BLUE} | Scanning...${NC}\r" >&2
     fi
 
     # Ultra-fast file scanning - batch stat for maximum speed
@@ -1329,7 +1359,7 @@ scan_directory_contents_fast() {
         (( spin_len == 0 )) && spinner=('|' '/' '-' '\\') && spin_len=${#spinner[@]}
 
         while ( kill -0 "$dir_pid" 2>/dev/null || kill -0 "$file_pid" 2>/dev/null ); do
-            printf "\r  ${BLUE}📊 ${spinner[$((i % spin_len))]} Scanning... (%ds)${NC}" "$elapsed" >&2
+            printf "\r  ${BLUE}Scanning${NC} ${spinner[$((i % spin_len))]} (%ds)" "$elapsed" >&2
             ((i++))
             sleep 0.1  # Faster animation (100ms per frame)
             ((tick++))
@@ -1345,7 +1375,7 @@ scan_directory_contents_fast() {
                 kill -9 "$file_pid" 2>/dev/null || true
                 wait "$dir_pid" 2>/dev/null || true
                 wait "$file_pid" 2>/dev/null || true
-                printf "\r  ${YELLOW}⚠️  Large directory - showing estimated sizes${NC}\n" >&2
+                printf "\r  ${YELLOW}Large directory - showing estimated sizes${NC}\n" >&2
                 sleep 0.3
                 break
             fi
@@ -1430,18 +1460,18 @@ show_volumes_overview() {
     # Collect most useful locations (quick display, no size calculation)
     {
         # Priority order for display (prioritized by typical usefulness)
-        [[ -d "$HOME" ]] && echo "1000|$HOME|🏠 Home Directory"
-        [[ -d "$HOME/Downloads" ]] && echo "900|$HOME/Downloads|📥 Downloads"
-        [[ -d "/Applications" ]] && echo "800|/Applications|📦 Applications"
-        [[ -d "$HOME/Library" ]] && echo "700|$HOME/Library|📚 User Library"
-        [[ -d "/Library" ]] && echo "600|/Library|📚 System Library"
+        [[ -d "$HOME" ]] && echo "1000|$HOME|Home Directory"
+        [[ -d "$HOME/Downloads" ]] && echo "900|$HOME/Downloads|Downloads"
+        [[ -d "/Applications" ]] && echo "800|/Applications|Applications"
+        [[ -d "$HOME/Library" ]] && echo "700|$HOME/Library|User Library"
+        [[ -d "/Library" ]] && echo "600|/Library|System Library"
 
         # External volumes (if any)
         if [[ -d "/Volumes" ]]; then
             local vol_priority=500
             find /Volumes -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r vol; do
                 local vol_name=$(basename "$vol")
-                echo "$((vol_priority))|$vol|🔌 $vol_name"
+                echo "$((vol_priority))|$vol|Volume: $vol_name"
                 ((vol_priority--))
             done
         fi
@@ -1474,7 +1504,7 @@ show_volumes_overview() {
         output+="\033[?25l"  # Hide cursor
         output+="\033[H\033[J"
         output+=$'\n'
-        output+="\033[0;35m💾 Select a location to explore\033[0m"$'\n'
+        output+="\033[0;35mSelect a location to explore\033[0m"$'\n'
         output+=$'\n'
 
         local idx=0
@@ -1707,7 +1737,7 @@ interactive_drill_down() {
         output+="\033[?25l"  # Hide cursor
         output+="\033[H\033[J"  # Clear screen
         output+=$'\n'
-        output+="\033[0;35m📊 Disk space explorer > $(echo "$current_path" | sed "s|^$HOME|~|")\033[0m"$'\n'
+        output+="\033[0;35mDisk space explorer > $(echo "$current_path" | sed "s|^$HOME|~|")\033[0m"$'\n'
         output+=$'\n'
 
         local max_show=15  # Show 15 items per page
@@ -1742,37 +1772,39 @@ interactive_drill_down() {
                 human_size=$(bytes_to_human "$size")
             fi
 
-            # Get icon and color
-            local icon="" color="${NC}"
+            # Determine label and color hints
+            local badge="$BADGE_FILE" color="${NC}"
             if [[ "$type" == "dir" ]]; then
-                icon="📁" color="${BLUE}"
+                badge="$BADGE_DIR" color="${BLUE}"
                 if [[ $size -gt 10737418240 ]]; then color="${RED}"
                 elif [[ $size -gt 1073741824 ]]; then color="${YELLOW}"
                 fi
             else
                 local ext="${name##*.}"
+                local info=$(get_file_info "$path")
+                badge="${info%|*}"
                 case "$ext" in
-                    dmg|iso|pkg) icon="📦" ; color="${RED}" ;;
-                    mov|mp4|avi|mkv|webm) icon="🎬" ; color="${YELLOW}" ;;
-                    zip|tar|gz|rar|7z) icon="🗜️" ; color="${YELLOW}" ;;
-                    pdf) icon="📄" ;;
-                    jpg|jpeg|png|gif|heic) icon="🖼️" ;;
-                    key|ppt|pptx) icon="📊" ;;
-                    log) icon="📝" ; color="${GRAY}" ;;
-                    *) icon="📄" ;;
+                    dmg|iso|pkg|zip|tar|gz|rar|7z)
+                        color="${YELLOW}"
+                        ;;
+                    mov|mp4|avi|mkv|webm|jpg|jpeg|png|gif|heic)
+                        color="${YELLOW}"
+                        ;;
+                    log)
+                        color="${GRAY}"
+                        ;;
                 esac
             fi
 
             # Truncate name
             if [[ ${#name} -gt 50 ]]; then name="${name:0:47}..."; fi
 
-            # Build line with better spacing
-            # Icon (emoji) + 2 spaces + Right-aligned size + 4 spaces + filename
+            # Build line with emoji badge, size, and name
             local line
             if [[ $idx -eq $cursor ]]; then
-                line=$(printf "  ${GREEN}▶${NC} ${color}%s  %10s    %s${NC}" "$icon" "$human_size" "$name")
+                line=$(printf "  ${GREEN}▶${NC} %s%s${NC} %10s    %s${NC}" "$color" "$badge" "$human_size" "$name")
             else
-                line=$(printf "    ${color}%s  %10s    %s${NC}" "$icon" "$human_size" "$name")
+                line=$(printf "    %s%s${NC} %10s    %s${NC}" "$color" "$badge" "$human_size" "$name")
             fi
             output+="$line"$'\n'
 
@@ -1852,7 +1884,7 @@ interactive_drill_down() {
                                 # Clear screen and show loading message
                                 printf "\033[H\033[J"
                                 echo ""
-                                echo "  ${BLUE}📄 Opening: $filename${NC}"
+                                echo "  ${BLUE}Opening file:${NC} $filename"
                                 echo ""
 
                                 # Try less first (best for text viewing)
@@ -1884,7 +1916,7 @@ interactive_drill_down() {
                                 # Show message without flashing
                                 printf "\033[H\033[J"
                                 echo ""
-                                echo "  ${BLUE}📦 Opening: $filename${NC}"
+                                echo "  ${BLUE}Opening file:${NC} $filename"
                                 echo ""
                                 echo "  ${GRAY}Launching default application...${NC}"
 
@@ -1905,7 +1937,7 @@ interactive_drill_down() {
                         if [[ "$open_success" != "true" ]]; then
                             printf "\033[H\033[J"
                             echo ""
-                            echo "  ${YELLOW}⚠️  Could not open file${NC}"
+                            echo "  ${YELLOW}Warning:${NC} Could not open file"
                             echo ""
                             echo "  ${GRAY}File: $selected_path${NC}"
                             echo "  ${GRAY}Press any key to return...${NC}"
@@ -1960,26 +1992,20 @@ interactive_drill_down() {
                     echo ""
 
                     if [[ "$type" == "dir" ]]; then
-                        echo "  ${RED}Delete folder? ${YELLOW}⚠️  This action cannot be undone!${NC}"
+                        echo "  ${RED}Delete folder? ${YELLOW}Warning:${NC} This action cannot be undone!"
                     else
-                        echo "  ${RED}Delete file? ${YELLOW}⚠️  This action cannot be undone!${NC}"
+                        echo "  ${RED}Delete file? ${YELLOW}Warning:${NC} This action cannot be undone!"
                     fi
 
                     echo ""
 
                     # Show icon based on type
                     if [[ "$type" == "dir" ]]; then
-                        echo "  📁 ${YELLOW}$selected_name${NC}"
+                        echo "  ${BADGE_DIR} ${YELLOW}$selected_name${NC}"
                     else
-                        local ext="${selected_name##*.}"
-                        local icon="📄"
-                        case "$ext" in
-                            dmg|iso|pkg) icon="📦" ;;
-                            mov|mp4|avi|mkv|webm) icon="🎬" ;;
-                            zip|tar|gz|rar|7z) icon="🗜️" ;;
-                            jpg|jpeg|png|gif|heic) icon="🖼️" ;;
-                        esac
-                        echo "  $icon ${YELLOW}$selected_name${NC}"
+                        local info=$(get_file_info "$selected_path")
+                        local badge="${info%|*}"
+                        echo "  $badge ${YELLOW}$selected_name${NC}"
                     fi
 
                     echo "  ${GRAY}Size: $human_size${NC}"
@@ -1987,7 +2013,7 @@ interactive_drill_down() {
 
                     if [[ "$needs_sudo" == "true" ]]; then
                         echo ""
-                        echo "  ${YELLOW}🔐 Requires admin privileges${NC}"
+                        echo "  ${YELLOW}Warning:${NC} Requires admin privileges"
                     fi
 
                     echo ""
@@ -1998,10 +2024,23 @@ interactive_drill_down() {
                     confirm=$(read_key 2>/dev/null || echo "QUIT")
 
                     if [[ "$confirm" == "ENTER" ]]; then
+                        # Request sudo if needed before deletion
+                        if [[ "$needs_sudo" == "true" ]]; then
+                            printf "\033[H\033[J"
+                            echo ""
+                            echo ""
+                            if ! request_sudo_access "Admin access required to delete this item"; then
+                                echo ""
+                                echo "  ${RED}✗ Admin access denied${NC}"
+                                sleep 1.5
+                                continue
+                            fi
+                        fi
+
                         # Show deleting message
                         printf "\033[H\033[J"
                         echo ""
-                        echo "  ${BLUE}🗑️  Deleting...${NC}"
+                        echo "  ${BLUE}Deleting...${NC}"
                         echo ""
 
                         # Try to delete with sudo if needed

@@ -92,7 +92,7 @@ resolve_source_dir() {
 
     # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
     local tmp
-    tmp="$(mktemp_dir)"
+    tmp="$(mktemp -d)"
     # Expand tmp now so trap doesn't depend on local scope
     trap "rm -rf '$tmp'" EXIT
 

@@ -20,6 +20,13 @@ readonly RED="${ESC}[0;31m"
 readonly GRAY="${ESC}[0;90m"
 readonly NC="${ESC}[0m"
 
+# Spinner character helpers (ASCII by default, overridable via env)
+mo_spinner_chars() {
+    local chars="${MO_SPINNER_CHARS:-|/-\\}"
+    [[ -z "$chars" ]] && chars='|/-\\'
+    printf "%s" "$chars"
+}
+
 # Logging configuration
 readonly LOG_FILE="${HOME}/.config/mole/mole.log"
 readonly LOG_MAX_SIZE_DEFAULT=1048576  # 1MB
@@ -51,7 +58,7 @@ log_success() {
 
 log_warning() {
     rotate_log
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}$1${NC}"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -247,6 +254,48 @@ check_sudo() {
     return 0
 }
 
+# Check if Touch ID is configured for sudo
+check_touchid_support() {
+    if [[ -f /etc/pam.d/sudo ]]; then
+        grep -q "pam_tid.so" /etc/pam.d/sudo 2>/dev/null
+        return $?
+    fi
+    return 1
+}
+
+# Request sudo access with Touch ID support
+# Usage: request_sudo_access "prompt message" [optional: force_password]
+request_sudo_access() {
+    local prompt_msg="${1:-Admin access required}"
+    local force_password="${2:-false}"
+
+    # Check if already has sudo access
+    if sudo -n true 2>/dev/null; then
+        return 0
+    fi
+
+    # If Touch ID is supported and not forced to use password
+    if [[ "$force_password" != "true" ]] && check_touchid_support; then
+        echo -e "${BLUE}${prompt_msg}${NC} ${GRAY}(Touch ID or password)${NC}"
+        if sudo -v 2>/dev/null; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        # Traditional password method
+        echo -e "${BLUE}${prompt_msg}${NC}"
+        echo -ne "${BLUE}   Password> ${NC}"
+        read -s password
+        echo ""
+        if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
 request_sudo() {
     echo "This operation requires administrator privileges."
     echo -n "Please enter your password: "
@@ -264,11 +313,11 @@ request_sudo() {
 update_via_homebrew() {
     local version="${1:-unknown}"
 
-    echo -e "${BLUE}◎${NC} Updating Homebrew..."
+    echo -e "${BLUE}|${NC} Updating Homebrew..."
     # Filter out common noise but show important info
     brew update 2>&1 | grep -Ev "^(==>|Already up-to-date)" || true
 
-    echo -e "${BLUE}◎${NC} Upgrading Mole..."
+    echo -e "${BLUE}|${NC} Upgrading Mole..."
     local upgrade_output
     upgrade_output=$(brew upgrade mole 2>&1) || true
 
@@ -306,6 +355,388 @@ load_config() {
 
 # Initialize configuration on sourcing
 load_config
+
+# ============================================================================
+# Spinner and Progress Indicators
+# ============================================================================
+
+# Global spinner process IDs
+SPINNER_PID=""
+INLINE_SPINNER_PID=""
+
+# Start a full-line spinner with message
+start_spinner() {
+    local message="$1"
+
+    if [[ ! -t 1 ]]; then
+        echo -n "  ${BLUE}|${NC} $message"
+        return
+    fi
+
+    echo -n "  ${BLUE}|${NC} $message"
+    (
+        local delay=0.5
+        while true; do
+            printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}|${NC} $message.  "
+            sleep $delay
+            printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}|${NC} $message.. "
+            sleep $delay
+            printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}|${NC} $message..."
+            sleep $delay
+            printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}|${NC} $message    "
+            sleep $delay
+        done
+    ) &
+    SPINNER_PID=$!
+}
+
+# Start an inline spinner (rotating character)
+start_inline_spinner() {
+    stop_inline_spinner 2>/dev/null || true
+    local message="$1"
+
+    if [[ -t 1 ]]; then
+        (
+            local chars
+            chars="$(mo_spinner_chars)"
+            local i=0
+            while true; do
+                local c="${chars:$((i % ${#chars})):1}"
+                printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}%s${NC} %s" "$c" "$message"
+                ((i++))
+                sleep 0.12
+            done
+        ) &
+        INLINE_SPINNER_PID=$!
+    else
+        echo -n "  ${BLUE}|${NC} $message"
+    fi
+}
+
+# Stop inline spinner
+stop_inline_spinner() {
+    if [[ -n "$INLINE_SPINNER_PID" ]]; then
+        kill "$INLINE_SPINNER_PID" 2>/dev/null || true
+        wait "$INLINE_SPINNER_PID" 2>/dev/null || true
+        INLINE_SPINNER_PID=""
+        [[ -t 1 ]] && printf "\r"
+    fi
+}
+
+# Stop spinner with optional result message
+stop_spinner() {
+    local result_message="${1:-Done}"
+
+    stop_inline_spinner
+
+    if [[ -n "$SPINNER_PID" ]]; then
+        kill "$SPINNER_PID" 2>/dev/null || true
+        wait "$SPINNER_PID" 2>/dev/null || true
+        SPINNER_PID=""
+    fi
+
+    if [[ -n "$result_message" ]]; then
+        if [[ -t 1 ]]; then
+            printf "\r${MOLE_SPINNER_PREFIX:-}${GREEN}✓${NC} %s\n" "$result_message"
+        else
+            echo " ✓ $result_message"
+        fi
+    fi
+}
+
+# ============================================================================
+# User Interaction - Confirmation Dialogs
+# ============================================================================
+
+
+# ============================================================================
+# Temporary File Management
+# ============================================================================
+
+# Global temp file tracking
+declare -a MOLE_TEMP_FILES=()
+declare -a MOLE_TEMP_DIRS=()
+
+# Create tracked temporary file
+# Returns: temp file path
+create_temp_file() {
+    local temp
+    temp=$(mktemp) || return 1
+    MOLE_TEMP_FILES+=("$temp")
+    echo "$temp"
+}
+
+# Create tracked temporary directory
+# Returns: temp directory path
+create_temp_dir() {
+    local temp
+    temp=$(mktemp -d) || return 1
+    MOLE_TEMP_DIRS+=("$temp")
+    echo "$temp"
+}
+
+# Create temp file with prefix (for analyze.sh compatibility)
+# Args: $1 - prefix/suffix string
+# Returns: temp file path
+create_temp_file_named() {
+    local suffix="${1:-}"
+    local temp
+    temp=$(mktemp "/tmp/mole_${suffix}_XXXXXX") || return 1
+    MOLE_TEMP_FILES+=("$temp")
+    echo "$temp"
+}
+
+# Cleanup all tracked temp files
+cleanup_temp_files() {
+    local file
+    if [[ ${#MOLE_TEMP_FILES[@]} -gt 0 ]]; then
+        for file in "${MOLE_TEMP_FILES[@]}"; do
+            [[ -f "$file" ]] && rm -f "$file" 2>/dev/null || true
+        done
+    fi
+
+    if [[ ${#MOLE_TEMP_DIRS[@]} -gt 0 ]]; then
+        for file in "${MOLE_TEMP_DIRS[@]}"; do
+            [[ -d "$file" ]] && rm -rf "$file" 2>/dev/null || true
+        done
+    fi
+
+    MOLE_TEMP_FILES=()
+    MOLE_TEMP_DIRS=()
+}
+
+# Auto-cleanup on script exit (call this in main scripts)
+register_temp_cleanup() {
+    trap cleanup_temp_files EXIT INT TERM
+}
+
+# ============================================================================
+# Parallel Processing Framework
+# ============================================================================
+
+# Execute commands in parallel with job control
+# Args: $1 - max parallel jobs
+#       $2 - worker function name
+#       $3+ - items to process
+parallel_execute() {
+    local max_jobs="${1:-12}"
+    local worker_func="$2"
+    shift 2
+    local -a items=("$@")
+
+    if [[ ${#items[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    local -a pids=()
+    for item in "${items[@]}"; do
+        # Execute worker function in background
+        "$worker_func" "$item" &
+        pids+=($!)
+
+        # Wait for a slot if we've hit max parallel jobs
+        if (( ${#pids[@]} >= max_jobs )); then
+            wait "${pids[0]}" 2>/dev/null || true
+            pids=("${pids[@]:1}")
+        fi
+    done
+
+# Wait for remaining background jobs
+    if (( ${#pids[@]} > 0 )); then
+        for pid in "${pids[@]}"; do
+            wait "$pid" 2>/dev/null || true
+        done
+    fi
+}
+
+# ============================================================================
+# Lightweight spinner helper wrappers
+# ============================================================================
+# Usage: with_spinner "Message" cmd arg...
+# Set MOLE_SPINNER_PREFIX="  " for indented spinner (e.g., in clean context)
+with_spinner() {
+    local msg="$1"; shift || true
+    if [[ -t 1 ]]; then
+        start_inline_spinner "$msg"
+    fi
+    "$@" >/dev/null 2>&1 || return $?
+    if [[ -t 1 ]]; then
+        stop_inline_spinner
+    fi
+}
+
+# ============================================================================
+# Cache/tool cleanup abstraction
+# ============================================================================
+# clean_tool_cache "Label" command...
+clean_tool_cache() {
+    local label="$1"; shift || true
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "  ${YELLOW}→${NC} $label (would clean)"
+        return 0
+    fi
+    MOLE_SPINNER_PREFIX="  " with_spinner "$label" "$@"
+    echo -e "  ${GREEN}✓${NC} $label"
+}
+
+# ============================================================================
+# Confirmation prompt abstraction (Enter=confirm ESC/q=cancel)
+# confirm_prompt "Message" -> 0 yes, 1 no
+confirm_prompt() {
+    local message="$1"
+    echo -n "$message (Enter=OK / ESC q=Cancel): "
+    IFS= read -r -s -n1 _key || _key=""
+    case "$_key" in
+        $'\e'|q|Q) echo ""; return 1 ;;
+        ""|$'\n'|$'\r'|y|Y) echo ""; return 0 ;;
+        *) echo ""; return 1 ;;
+    esac
+}
+
+
+# Get optimal parallel job count based on CPU cores
+
+# =========================================================================
+# Size helpers
+# =========================================================================
+bytes_to_human_kb() { bytes_to_human "$(( ${1:-0} * 1024 ))"; }
+print_space_stat() {
+    local freed_kb="$1"; shift || true
+    local current_free
+    current_free=$(get_free_space)
+    local human
+    human=$(bytes_to_human_kb "$freed_kb")
+    echo "Space freed: ${GREEN}${human}${NC} | Free space now: $current_free"
+}
+
+# =========================================================================
+# mktemp unification wrappers (register access)
+# =========================================================================
+register_temp_file() { MOLE_TEMP_FILES+=("$1"); }
+register_temp_dir()  { MOLE_TEMP_DIRS+=("$1"); }
+
+mktemp_file() { local f; f=$(mktemp) || return 1; register_temp_file "$f"; echo "$f"; }
+mktemp_dir()  { local d; d=$(mktemp -d) || return 1; register_temp_dir "$d"; echo "$d"; }
+
+# =========================================================================
+# Uninstall helper abstractions
+# =========================================================================
+force_kill_app() {
+    # Args: app_name; tries graceful then force kill; returns 0 if stopped, 1 otherwise
+    local app="$1"
+    if pgrep -f "$app" >/dev/null 2>&1; then
+        pkill -f "$app" 2>/dev/null || true
+        sleep 1
+    fi
+    if pgrep -f "$app" >/dev/null 2>&1; then
+        pkill -9 -f "$app" 2>/dev/null || true
+        sleep 1
+    fi
+    pgrep -f "$app" >/dev/null 2>&1 && return 1 || return 0
+}
+
+map_uninstall_reason() {
+    # Args: reason_token
+    case "$1" in
+        still*running*) echo "was not removed; it remains running and resisted termination." ;;
+        remove*failed*) echo "was not removed due to a removal failure (permissions or protection)." ;;
+        permission*) echo "was not removed due to insufficient permissions." ;;
+        *) echo "was not removed; $1." ;;
+    esac
+}
+
+batch_safe_clean() {
+    # Usage: batch_safe_clean "Label" path1 path2 ...
+    local label="$1"; shift || true
+    local -a paths=("$@")
+    if [[ ${#paths[@]} -eq 0 ]]; then return 0; fi
+    safe_clean "${paths[@]}" "$label"
+}
+
+# Get optimal parallel job count based on CPU cores
+get_optimal_parallel_jobs() {
+    local operation_type="${1:-default}"
+    local cpu_cores
+    cpu_cores=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    case "$operation_type" in
+        scan|io)
+            echo $((cpu_cores * 2))
+            ;;
+        compute)
+            echo "$cpu_cores"
+            ;;
+        *)
+            echo $((cpu_cores + 2))
+            ;;
+    esac
+}
+
+# ============================================================================
+# Sudo Keepalive Management
+# ============================================================================
+
+# Start sudo keepalive process
+# Returns: PID of the keepalive process
+start_sudo_keepalive() {
+    (
+        local retry_count=0
+        while true; do
+            if ! sudo -n true 2>/dev/null; then
+                ((retry_count++))
+                if [[ $retry_count -ge 3 ]]; then
+                    exit 1
+                fi
+                sleep 5
+                continue
+            fi
+            retry_count=0
+            sleep 30
+            kill -0 "$$" 2>/dev/null || exit
+        done
+    ) 2>/dev/null &
+    echo $!
+}
+
+# Stop sudo keepalive process
+# Args: $1 - PID of the keepalive process
+stop_sudo_keepalive() {
+    local pid="${1:-}"
+    if [[ -n "$pid" ]]; then
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+    fi
+}
+
+# ============================================================================
+# Section Management
+# ============================================================================
+
+# Section tracking variables
+TRACK_SECTION=0
+SECTION_ACTIVITY=0
+
+# Start a new section
+start_section() {
+    TRACK_SECTION=1
+    SECTION_ACTIVITY=0
+    echo ""
+    echo -e "${PURPLE}▶ $1${NC}"
+}
+
+# End a section (show "Nothing to tidy" if no activity)
+end_section() {
+    if [[ $TRACK_SECTION -eq 1 && $SECTION_ACTIVITY -eq 0 ]]; then
+        echo -e "  ${BLUE}○${NC} Nothing to tidy"
+    fi
+    TRACK_SECTION=0
+}
+
+# Mark activity in current section
+note_activity() {
+    if [[ $TRACK_SECTION -eq 1 ]]; then
+        SECTION_ACTIVITY=1
+    fi
+}
 
 # ============================================================================
 # App Management Functions
@@ -649,9 +1080,10 @@ readonly PRESERVED_BUNDLE_PATTERNS=("${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROT
 should_preserve_bundle() {
     local bundle_id="$1"
     for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }
@@ -660,9 +1092,10 @@ should_preserve_bundle() {
 should_protect_from_uninstall() {
     local bundle_id="$1"
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }
@@ -672,9 +1105,10 @@ should_protect_data() {
     local bundle_id="$1"
     # Protect both system critical and data protected bundles during cleanup
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }

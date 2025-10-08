@@ -77,18 +77,54 @@ note_activity() {
 }
 
 # Cleanup background processes
+CLEANUP_DONE=false
 cleanup() {
-    if [[ -n "$SUDO_KEEPALIVE_PID" ]]; then
-        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-        SUDO_KEEPALIVE_PID=""
+    local signal="${1:-EXIT}"
+    local exit_code="${2:-$?}"
+
+    # Prevent multiple executions
+    if [[ "$CLEANUP_DONE" == "true" ]]; then
+        return 0
     fi
+    CLEANUP_DONE=true
+
+    # Stop all spinners and clear the line
     if [[ -n "$SPINNER_PID" ]]; then
         kill "$SPINNER_PID" 2>/dev/null || true
+        wait "$SPINNER_PID" 2>/dev/null || true
         SPINNER_PID=""
+    fi
+
+    if [[ -n "$INLINE_SPINNER_PID" ]]; then
+        kill "$INLINE_SPINNER_PID" 2>/dev/null || true
+        wait "$INLINE_SPINNER_PID" 2>/dev/null || true
+        INLINE_SPINNER_PID=""
+    fi
+
+    # Clear any spinner output
+    if [[ -t 1 ]]; then
+        printf "\r\033[K"
+    fi
+
+    # Stop sudo keepalive
+    if [[ -n "$SUDO_KEEPALIVE_PID" ]]; then
+        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        SUDO_KEEPALIVE_PID=""
+    fi
+
+    show_cursor
+
+    # If interrupted, show message
+    if [[ "$signal" == "INT" ]] || [[ $exit_code -eq 130 ]]; then
+        printf "\r\033[K"
+        echo -e "${YELLOW}Interrupted by user${NC}"
     fi
 }
 
-trap cleanup EXIT INT TERM
+trap 'cleanup EXIT $?' EXIT
+trap 'cleanup INT 130; exit 130' INT
+trap 'cleanup TERM 143; exit 143' TERM
 
 # Loading animation functions
 SPINNER_PID=""
@@ -285,7 +321,7 @@ safe_clean() {
 start_cleanup() {
     clear
     printf '\n'
-    echo -e "${PURPLE}🧹 Clean Your Mac${NC}"
+    echo -e "${PURPLE}Clean Your Mac${NC}"
     if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
         printf '\n'
         echo -e "${YELLOW}Tip:${NC} Safety first—run 'mo clean --dry-run'. Important Macs should stop."
@@ -293,46 +329,65 @@ start_cleanup() {
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo ""
-        echo -e "${YELLOW}🧪 Dry Run mode:${NC} showing what would be removed (no deletions)."
+        echo -e "${YELLOW}Dry Run mode:${NC} showing what would be removed (no deletions)."
         echo ""
         SYSTEM_CLEAN=false
         return
     fi
 
     if [[ -t 0 ]]; then
-        echo -ne "${BLUE}System cleanup? Password to include (Enter skips)${NC}\n${BLUE}> ${NC}"; read -s password; echo ""
+        echo ""
+        echo -ne "${BLUE}System cleanup? ${GRAY}Enter to continue, any key to skip${NC} "
 
-        if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
-            SYSTEM_CLEAN=true
-            # Start sudo keepalive with error handling
-            (
-                local retry_count=0
-                while true; do
-                    if ! sudo -n true 2>/dev/null; then
-                        ((retry_count++))
-                        if [[ $retry_count -ge 3 ]]; then
-                            exit 1
+        # Use IFS= and read without -n to allow Ctrl+C to work properly
+        IFS= read -r -s -n 1 choice
+        local read_status=$?
+        echo ""
+
+        # If read was interrupted (Ctrl+C), exit cleanly
+        if [[ $read_status -ne 0 ]]; then
+            exit 130
+        fi
+
+        # Enter or y = yes, do system cleanup
+        if [[ -z "$choice" ]] || [[ "$choice" == $'\n' ]] || [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo ""
+            if request_sudo_access "System cleanup requires admin access"; then
+                SYSTEM_CLEAN=true
+                echo -e "${GREEN}✓ Admin access granted${NC}"
+                # Start sudo keepalive with error handling
+                (
+                    local retry_count=0
+                    while true; do
+                        if ! sudo -n true 2>/dev/null; then
+                            ((retry_count++))
+                            if [[ $retry_count -ge 3 ]]; then
+                                exit 1
+                            fi
+                            sleep 5
+                            continue
                         fi
-                        sleep 5
-                        continue
-                    fi
-                    retry_count=0
-                    sleep 30
-                    kill -0 "$$" 2>/dev/null || exit
-                done
-            ) 2>/dev/null &
-            SUDO_KEEPALIVE_PID=$!
-        else
-            SYSTEM_CLEAN=false
-            if [[ -n "$password" ]]; then
+                        retry_count=0
+                        sleep 30
+                        kill -0 "$$" 2>/dev/null || exit
+                    done
+                ) 2>/dev/null &
+                SUDO_KEEPALIVE_PID=$!
+            else
+                SYSTEM_CLEAN=false
                 echo ""
-                echo -e "${YELLOW}⚠️  Invalid password, continuing with user-level cleanup${NC}"
+                echo -e "${YELLOW}Authentication failed, continuing with user-level cleanup${NC}"
             fi
+        else
+            # Any other key = no system cleanup
+            SYSTEM_CLEAN=false
+            echo ""
+            echo -e "Skipped system cleanup, user-level only"
         fi
     else
         SYSTEM_CLEAN=false
         echo ""
-        echo -e "${BLUE}ℹ${NC}  Running in non-interactive mode"
+        echo -e " Running in non-interactive mode"
         echo "   • System-level cleanup skipped (requires interaction)"
         echo "   • User-level cleanup will proceed automatically"
         echo ""
@@ -341,7 +396,7 @@ start_cleanup() {
 
 perform_cleanup() {
     echo ""
-    echo "🍎 $(detect_architecture) | 💾 Free space: $(get_free_space)"
+    echo "$(detect_architecture) | Free space: $(get_free_space)"
 
     # Get initial space
     space_before=$(df / | tail -1 | awk '{print $4}')
@@ -1248,8 +1303,8 @@ perform_cleanup() {
         if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then
             backup_human=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
             note_activity
-            echo -e "  ${BLUE}💾${NC} Found ${GREEN}${backup_human}${NC} iOS backups"
-            echo -e "  ${YELLOW}💡${NC} You can delete them manually: ${backup_dir}"
+            echo -e "  Found ${GREEN}${backup_human}${NC} iOS backups"
+            echo -e "  You can delete them manually: ${backup_dir}"
         fi
     fi
     end_section
@@ -1261,41 +1316,41 @@ perform_cleanup() {
     echo ""
     echo "===================================================================="
     if [[ "$DRY_RUN" == "true" ]]; then
-        echo "🧪 DRY RUN COMPLETE!"
+        echo "DRY RUN COMPLETE!"
     else
-        echo "🎉 CLEANUP COMPLETE!"
+        echo "CLEANUP COMPLETE!"
     fi
 
     if [[ $total_size_cleaned -gt 0 ]]; then
         local freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo "💾 Potential reclaimable space: ${GREEN}${freed_gb}GB${NC} (no changes made) | Free space now: $(get_free_space)"
+            echo "Potential reclaimable space: ${GREEN}${freed_gb}GB${NC} (no changes made) | Free space now: $(get_free_space)"
         else
-            echo "💾 Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
+            echo "Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
         fi
 
         if [[ "$DRY_RUN" != "true" ]]; then
             if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
                 local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
                 if [[ $movies -gt 0 ]]; then
-                    echo "🎬 That's like ~$movies 4K movies worth of space!"
+                    echo "That's like ~$movies 4K movies worth of space!"
                 fi
             fi
         fi
     else
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo "💾 No significant reclaimable space detected (already clean) | Free space: $(get_free_space)"
+            echo "No significant reclaimable space detected (already clean) | Free space: $(get_free_space)"
         else
-            echo "💾 No significant space was freed (system was already clean) | Free space: $(get_free_space)"
+            echo "No significant space was freed (system was already clean) | Free space: $(get_free_space)"
         fi
     fi
 
     if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-        printf "📊 Files cleaned: %s | Categories processed: %s\n" "$files_cleaned" "$total_items"
+        printf "Files cleaned: %s | Categories processed: %s\n" "$files_cleaned" "$total_items"
     elif [[ $files_cleaned -gt 0 ]]; then
-        printf "📊 Files cleaned: %s\n" "$files_cleaned"
+        printf "Files cleaned: %s\n" "$files_cleaned"
     elif [[ $total_items -gt 0 ]]; then
-        printf "🗂️ Categories processed: %s\n" "$total_items"
+        printf "Categories processed: %s\n" "$total_items"
     fi
     printf "====================================================================\n"
 }

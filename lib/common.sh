@@ -649,9 +649,10 @@ readonly PRESERVED_BUNDLE_PATTERNS=("${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROT
 should_preserve_bundle() {
     local bundle_id="$1"
     for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }
@@ -660,9 +661,10 @@ should_preserve_bundle() {
 should_protect_from_uninstall() {
     local bundle_id="$1"
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }
@@ -672,9 +674,10 @@ should_protect_data() {
     local bundle_id="$1"
     # Protect both system critical and data protected bundles during cleanup
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}"; do
-        if [[ "$bundle_id" == $pattern ]]; then
-            return 0
-        fi
+        # Use case for safer glob matching
+        case "$bundle_id" in
+            $pattern) return 0 ;;
+        esac
     done
     return 1
 }

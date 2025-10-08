@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Fix locale issues (avoid Perl warnings on non-English systems)
+export LC_ALL=C
+export LANG=C
+
 # Get script directory and source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
@@ -12,18 +16,47 @@ source "$SCRIPT_DIR/../lib/common.sh"
 SYSTEM_CLEAN=false
 DRY_RUN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
+
+# Constants
+readonly MAX_PARALLEL_JOBS=15        # Maximum parallel background jobs
+readonly TEMP_FILE_AGE_DAYS=7        # Age threshold for temp file cleanup
+readonly ORPHAN_AGE_DAYS=60          # Age threshold for orphaned data
+readonly SIZE_1GB_KB=1048576         # 1GB in kilobytes
+readonly SIZE_1MB_KB=1024            # 1MB in kilobytes
 # Default whitelist patterns to avoid removing critical caches (can be extended by user)
 WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
 )
+WHITELIST_WARNINGS=()
+
 # Load user-defined whitelist
 if [[ -f "$HOME/.config/mole/whitelist" ]]; then
     while IFS= read -r line; do
+        # Trim whitespace
         line="${line#${line%%[![:space:]]*}}"
         line="${line%${line##*[![:space:]]}}"
+
+        # Skip empty lines and comments
         [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+        # Expand tilde to home directory
         [[ "$line" == ~* ]] && line="${line/#~/$HOME}"
+
+        # Validate path format (allow safe characters only)
+        if [[ ! "$line" =~ ^[a-zA-Z0-9/_.\*~\ @-]+$ ]]; then
+            WHITELIST_WARNINGS+=("Invalid chars: $line")
+            continue
+        fi
+
+        # Prevent absolute path to critical system directories
+        case "$line" in
+            /System/*|/bin/*|/sbin/*|/usr/bin/*|/usr/sbin/*)
+                WHITELIST_WARNINGS+=("System path: $line")
+                continue
+                ;;
+        esac
+
         WHITELIST_PATTERNS+=("$line")
     done < "$HOME/.config/mole/whitelist"
 fi
@@ -161,15 +194,20 @@ safe_clean() {
 
         # Parallel processing (bash 3.2 compatible)
         local -a pids=()
+        local idx=0
         for path in "${existing_paths[@]}"; do
             (
                 local size=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
                 local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
-                echo "$size $count" > "$temp_dir/$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)"
+                # Use index + PID for unique filename
+                local tmp_file="$temp_dir/result_${idx}.$$"
+                echo "$size $count" > "$tmp_file"
+                mv "$tmp_file" "$temp_dir/result_${idx}" 2>/dev/null || true
             ) &
             pids+=($!)
+            ((idx++))
 
-            if (( ${#pids[@]} >= 15 )); then
+            if (( ${#pids[@]} >= MAX_PARALLEL_JOBS )); then
                 wait "${pids[0]}" 2>/dev/null || true
                 pids=("${pids[@]:1}")
             fi
@@ -179,10 +217,12 @@ safe_clean() {
             wait "$pid" 2>/dev/null || true
         done
 
+        # Read results using same index
+        idx=0
         for path in "${existing_paths[@]}"; do
-            local hash=$(echo -n "$path" | shasum -a 256 | cut -d' ' -f1)
-            if [[ -f "$temp_dir/$hash" ]]; then
-                read -r size count < "$temp_dir/$hash"
+            local result_file="$temp_dir/result_${idx}"
+            if [[ -f "$result_file" ]]; then
+                read -r size count < "$result_file" 2>/dev/null || true
                 if [[ "$count" -gt 0 && "$size" -gt 0 ]]; then
                     if [[ "$DRY_RUN" != "true" ]]; then
                         rm -rf "$path" 2>/dev/null || true
@@ -192,6 +232,7 @@ safe_clean() {
                     removed_any=1
                 fi
             fi
+            ((idx++))
         done
 
         rm -rf "$temp_dir"
@@ -219,9 +260,9 @@ safe_clean() {
 
     if [[ $removed_any -eq 1 ]]; then
         local size_human
-        if [[ $total_size_bytes -gt 1048576 ]]; then  # > 1GB
+        if [[ $total_size_bytes -gt $SIZE_1GB_KB ]]; then  # > 1GB
             size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fGB", $1/1024/1024}')
-        elif [[ $total_size_bytes -gt 1024 ]]; then  # > 1MB
+        elif [[ $total_size_bytes -gt $SIZE_1MB_KB ]]; then  # > 1MB
             size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fMB", $1/1024}')
         else
             size_human="${total_size_bytes}KB"
@@ -328,14 +369,34 @@ perform_cleanup() {
         sudo find /Library/Caches -name "*.cache" -delete 2>/dev/null || true
         sudo find /Library/Caches -name "*.tmp" -delete 2>/dev/null || true
         sudo find /Library/Caches -type f -name "*.log" -delete 2>/dev/null || true
-        sudo rm -rf /tmp/* 2>/dev/null && log_success "System temp files" || true
-        sudo rm -rf /var/tmp/* 2>/dev/null && log_success "System var temp" || true
+
+        # Clean old temp files only (avoid breaking running processes)
+        local tmp_cleaned=0
+        local tmp_count=$(sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$tmp_count" -gt 0 ]]; then
+            sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2>/dev/null || true
+            tmp_cleaned=1
+        fi
+        local var_tmp_count=$(sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$var_tmp_count" -gt 0 ]]; then
+            sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2>/dev/null || true
+            tmp_cleaned=1
+        fi
+        [[ $tmp_cleaned -eq 1 ]] && log_success "Old system temp files (${TEMP_FILE_AGE_DAYS}+ days)"
+
         sudo rm -rf /Library/Updates/* 2>/dev/null || true
         log_success "System library caches and updates"
 
         end_section
     fi
 
+    # Show whitelist warnings if any
+    if [[ ${#WHITELIST_WARNINGS[@]} -gt 0 ]]; then
+        echo ""
+        for warning in "${WHITELIST_WARNINGS[@]}"; do
+            echo -e "  ${YELLOW}☼${NC} Whitelist: $warning"
+        done
+    fi
 
     # ===== 2. User essentials =====
     start_section "System essentials"
@@ -343,11 +404,22 @@ perform_cleanup() {
     safe_clean ~/Library/Logs/* "User app logs"
     safe_clean ~/.Trash/* "Trash"
 
-    # Empty the trash on all mounted volumes
+    # Empty trash on mounted volumes (skip network/readonly volumes)
     if [[ -d "/Volumes" ]]; then
         for volume in /Volumes/*; do
-            if [[ -d "$volume" && -d "$volume/.Trashes" ]]; then
-                find "$volume/.Trashes" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2>/dev/null || true
+            [[ -d "$volume" && -d "$volume/.Trashes" && -w "$volume" ]] || continue
+
+            # Skip network volumes
+            local fs_type=$(df -T "$volume" 2>/dev/null | tail -1 | awk '{print $2}')
+            case "$fs_type" in
+                nfs|smbfs|afpfs|cifs|webdav) continue ;;
+            esac
+
+            # Verify volume is mounted
+            if mount | grep -q "on $volume "; then
+                if [[ "$DRY_RUN" != "true" ]]; then
+                    find "$volume/.Trashes" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2>/dev/null || true
+                fi
             fi
         done
     fi
@@ -449,10 +521,14 @@ perform_cleanup() {
     start_section "Developer tools"
     # Node.js ecosystem
     if command -v npm >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning npm cache...\r"
-        npm cache clean --force >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} npm cache cleaned"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning npm cache...\r"
+            npm cache clean --force >/dev/null 2>&1 || true
+            [[ -t 1 ]] && echo -ne "\r\033[K"
+            echo -e "  ${GREEN}✓${NC} npm cache cleaned"
+        else
+            echo -e "  ${YELLOW}→${NC} npm cache (would clean)"
+        fi
         note_activity
     fi
 
@@ -463,10 +539,14 @@ perform_cleanup() {
 
     # Python ecosystem
     if command -v pip3 >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning pip cache...\r"
-        pip3 cache purge >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} pip cache cleaned"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning pip cache...\r"
+            pip3 cache purge >/dev/null 2>&1 || true
+            [[ -t 1 ]] && echo -ne "\r\033[K"
+            echo -e "  ${GREEN}✓${NC} pip cache cleaned"
+        else
+            echo -e "  ${YELLOW}→${NC} pip cache (would clean)"
+        fi
         note_activity
     fi
 
@@ -476,11 +556,15 @@ perform_cleanup() {
 
     # Go ecosystem
     if command -v go >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Go cache...\r"
-        go clean -modcache >/dev/null 2>&1 || true
-        go clean -cache >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Go cache cleaned"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Go cache...\r"
+            go clean -modcache >/dev/null 2>&1 || true
+            go clean -cache >/dev/null 2>&1 || true
+            [[ -t 1 ]] && echo -ne "\r\033[K"
+            echo -e "  ${GREEN}✓${NC} Go cache cleaned"
+        else
+            echo -e "  ${YELLOW}→${NC} Go cache (would clean)"
+        fi
         note_activity
     fi
 
@@ -492,10 +576,14 @@ perform_cleanup() {
 
     # Docker (only clean build cache, preserve images and volumes)
     if command -v docker >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Docker build cache...\r"
-        docker builder prune -af >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Docker build cache cleaned"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Docker build cache...\r"
+            docker builder prune -af >/dev/null 2>&1 || true
+            [[ -t 1 ]] && echo -ne "\r\033[K"
+            echo -e "  ${GREEN}✓${NC} Docker build cache cleaned"
+        else
+            echo -e "  ${YELLOW}→${NC} Docker build cache (would clean)"
+        fi
         note_activity
     fi
 
@@ -513,10 +601,14 @@ perform_cleanup() {
     safe_clean /opt/homebrew/var/homebrew/locks/* "Homebrew lock files (M series)"
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
     if command -v brew >/dev/null 2>&1; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Homebrew...\r"
-        brew cleanup >/dev/null 2>&1 || true
-        [[ -t 1 ]] && echo -ne "\r\033[K"
-        echo -e "  ${GREEN}✓${NC} Homebrew cache cleaned"
+        if [[ "$DRY_RUN" != "true" ]]; then
+            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Homebrew...\r"
+            brew cleanup >/dev/null 2>&1 || true
+            [[ -t 1 ]] && echo -ne "\r\033[K"
+            echo -e "  ${GREEN}✓${NC} Homebrew cache cleaned"
+        else
+            echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup)"
+        fi
         note_activity
     fi
 
@@ -870,7 +962,7 @@ perform_cleanup() {
     # Safeguards: retains unusual locations in use, recent apps, and critical/licensed data
     start_section "Orphaned app data cleanup"
 
-    local -r ORPHAN_AGE_THRESHOLD=60
+    local -r ORPHAN_AGE_THRESHOLD=$ORPHAN_AGE_DAYS
 
     # Build a comprehensive list of installed application bundle identifiers
     echo -n "  ${BLUE}◎${NC} Scanning installed applications..."
@@ -886,17 +978,25 @@ perform_cleanup() {
         "/System/Library/CoreServices/Applications"
         "/Library/Application Support"
         "$HOME/Library/Application Support"
+        "/Users/Shared/Applications"
+        "/Applications/Utilities"
     )
 
     # Add Homebrew paths if they exist
     [[ -d "/opt/homebrew/Caskroom" ]] && search_paths+=("/opt/homebrew/Caskroom")
     [[ -d "/usr/local/Caskroom" ]] && search_paths+=("/usr/local/Caskroom")
     [[ -d "/opt/homebrew/Cellar" ]] && search_paths+=("/opt/homebrew/Cellar")
+    [[ -d "/usr/local/Cellar" ]] && search_paths+=("/usr/local/Cellar")
 
     # Add common developer paths
     [[ -d "$HOME/Developer" ]] && search_paths+=("$HOME/Developer")
     [[ -d "$HOME/Projects" ]] && search_paths+=("$HOME/Projects")
     [[ -d "$HOME/Downloads" ]] && search_paths+=("$HOME/Downloads")
+
+    # Add other common third-party install locations
+    [[ -d "/opt/apps" ]] && search_paths+=("/opt/apps")
+    [[ -d "/opt/local/Applications" ]] && search_paths+=("/opt/local/Applications")
+    [[ -d "/usr/local/apps" ]] && search_paths+=("/usr/local/apps")
 
     # Scan for .app bundles in all search paths (with depth limit for performance)
     for search_path in "${search_paths[@]}"; do
@@ -905,9 +1005,19 @@ perform_cleanup() {
                 [[ -f "$app/Contents/Info.plist" ]] || continue
                 bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
                 [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
-            done < <(find "$search_path" -type d -name "*.app" 2>/dev/null || true)
+            done < <(find "$search_path" -maxdepth 3 -type d -name "*.app" 2>/dev/null || true)
         fi
     done
+
+    # Use Spotlight as fallback to catch apps in unusual locations
+    # This significantly reduces false positives
+    if command -v mdfind >/dev/null 2>&1; then
+        while IFS= read -r app; do
+            [[ -f "$app/Contents/Info.plist" ]] || continue
+            bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
+            [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
+        done < <(mdfind "kMDItemKind == 'Application'" 2>/dev/null | grep "\.app$" || true)
+    fi
 
     # Get running applications (if an app is running, it's definitely not orphaned)
     local running_apps=$(osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2>/dev/null || echo "")
@@ -1206,9 +1316,12 @@ perform_cleanup() {
         echo "🗂️ Categories processed: $total_items"
     fi
 
-    if [[ "$SYSTEM_CLEAN" != "true" ]]; then
-        echo ""
-        echo -e "${BLUE}💡 For deeper cleanup, run with admin password next time${NC}"
+    # Show context-specific tips
+    echo ""
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${BLUE}💡 Tip: Use 'mo clean --whitelist' to protect important caches${NC}"
+    elif [[ "$SYSTEM_CLEAN" != "true" ]]; then
+        echo -e "${BLUE}💡 Tip: Run with admin password for deeper system cleanup${NC}"
     fi
 
     echo "===================================================================="

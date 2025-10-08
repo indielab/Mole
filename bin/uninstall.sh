@@ -8,6 +8,10 @@
 
 set -euo pipefail
 
+# Fix locale issues (avoid Perl warnings on non-English systems)
+export LC_ALL=C
+export LANG=C
+
 # Get script directory and source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
@@ -111,7 +115,8 @@ scan_applications() {
 
         # Cache is valid if: age < TTL AND app count matches
         if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
-            echo "Using cached app list (${cache_age}s old, $current_app_count apps) ✓" >&2
+            # Only show cache info in debug mode
+            [[ -n "${MOLE_DEBUG:-}" ]] && echo "Using cached app list (${cache_age}s old, $current_app_count apps) ✓" >&2
             echo "$cache_file"
             return 0
         fi
@@ -122,8 +127,8 @@ scan_applications() {
     # Pre-cache current epoch to avoid repeated calls
     local current_epoch=$(date "+%s")
 
-    # Spinner for scanning feedback
-    local spinner_chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    # Spinner for scanning feedback (simple ASCII for compatibility)
+    local spinner_chars="|/-\\"
     local spinner_idx=0
 
     # First pass: quickly collect all valid app paths and bundle IDs
@@ -289,8 +294,8 @@ scan_applications() {
         pids+=($!)
 
         # Update progress with spinner
-        local spinner_char="${spinner_chars:$((spinner_idx % 10)):1}"
-        echo -ne "\r🗑️  ${spinner_char} Scanning... $app_count/$total_apps" >&2
+        local spinner_char="${spinner_chars:$((spinner_idx % 4)):1}"
+        echo -ne "\r\033[K  ${spinner_char} Scanning applications... $app_count/$total_apps" >&2
         ((spinner_idx++))
 
         # Wait if we've hit max parallel limit
@@ -305,7 +310,7 @@ scan_applications() {
         wait "$pid" 2>/dev/null
     done
 
-    echo -e "\r🗑️  ✓ Found $app_count applications                    " >&2
+    echo -e "\r\033[K  ✓ Found $app_count applications" >&2
     echo "" >&2
 
     # Check if we found any applications

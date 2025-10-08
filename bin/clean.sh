@@ -189,8 +189,8 @@ safe_clean() {
 
     # Show progress indicator for potentially slow operations
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description with whitelist safety...\r"
-        local temp_dir=$(mktemp -d)
+        if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking items with whitelist safety..."; fi
+        local temp_dir=$(create_temp_dir)
 
         # Parallel processing (bash 3.2 compatible)
         local -a pids=()
@@ -235,10 +235,10 @@ safe_clean() {
             ((idx++))
         done
 
-        rm -rf "$temp_dir"
+        # Temp dir will be auto-cleaned by cleanup_temp_files
     else
         # Show progress for small batches too (simpler jobs)
-        [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Checking $description with whitelist safety...\r"
+        if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking items with whitelist safety..."; fi
 
         for path in "${existing_paths[@]}"; do
             local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
@@ -255,18 +255,12 @@ safe_clean() {
         done
     fi
 
-    # Clear progress indicator before showing result
-    [[ -t 1 ]] && echo -ne "\r\033[K"
+    # Clear progress / stop spinner before showing result
+    if [[ -t 1 ]]; then stop_inline_spinner; echo -ne "\r\033[K"; fi
 
     if [[ $removed_any -eq 1 ]]; then
-        local size_human
-        if [[ $total_size_bytes -gt $SIZE_1GB_KB ]]; then  # > 1GB
-            size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fGB", $1/1024/1024}')
-        elif [[ $total_size_bytes -gt $SIZE_1MB_KB ]]; then  # > 1MB
-            size_human=$(echo "$total_size_bytes" | awk '{printf "%.1fMB", $1/1024}')
-        else
-            size_human="${total_size_bytes}KB"
-        fi
+        # Convert KB to bytes for bytes_to_human()
+        local size_human=$(bytes_to_human "$((total_size_bytes * 1024))")
 
         local label="$description"
         if [[ ${#targets[@]} -gt 1 ]]; then
@@ -306,11 +300,7 @@ start_cleanup() {
     fi
 
     if [[ -t 0 ]]; then
-        printf '\n'
-        echo -e "${BLUE}System cleanup? Password to include (Enter skips)${NC}"
-        printf "${BLUE}> ${NC}"
-        read -s password
-        echo ""
+        echo -ne "${BLUE}System cleanup? Password to include (Enter skips)${NC}\n${BLUE}> ${NC}"; read -s password; echo ""
 
         if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
             SYSTEM_CLEAN=true
@@ -522,10 +512,7 @@ perform_cleanup() {
     # Node.js ecosystem
     if command -v npm >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning npm cache...\r"
-            npm cache clean --force >/dev/null 2>&1 || true
-            [[ -t 1 ]] && echo -ne "\r\033[K"
-            echo -e "  ${GREEN}✓${NC} npm cache cleaned"
+            clean_tool_cache "npm cache" npm cache clean --force
         else
             echo -e "  ${YELLOW}→${NC} npm cache (would clean)"
         fi
@@ -540,10 +527,7 @@ perform_cleanup() {
     # Python ecosystem
     if command -v pip3 >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning pip cache...\r"
-            pip3 cache purge >/dev/null 2>&1 || true
-            [[ -t 1 ]] && echo -ne "\r\033[K"
-            echo -e "  ${GREEN}✓${NC} pip cache cleaned"
+            clean_tool_cache "pip cache" pip3 cache purge
         else
             echo -e "  ${YELLOW}→${NC} pip cache (would clean)"
         fi
@@ -557,11 +541,7 @@ perform_cleanup() {
     # Go ecosystem
     if command -v go >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Go cache...\r"
-            go clean -modcache >/dev/null 2>&1 || true
-            go clean -cache >/dev/null 2>&1 || true
-            [[ -t 1 ]] && echo -ne "\r\033[K"
-            echo -e "  ${GREEN}✓${NC} Go cache cleaned"
+            clean_tool_cache "Go cache" bash -c 'go clean -modcache >/dev/null 2>&1 || true; go clean -cache >/dev/null 2>&1 || true'
         else
             echo -e "  ${YELLOW}→${NC} Go cache (would clean)"
         fi
@@ -577,10 +557,7 @@ perform_cleanup() {
     # Docker (only clean build cache, preserve images and volumes)
     if command -v docker >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Docker build cache...\r"
-            docker builder prune -af >/dev/null 2>&1 || true
-            [[ -t 1 ]] && echo -ne "\r\033[K"
-            echo -e "  ${GREEN}✓${NC} Docker build cache cleaned"
+            clean_tool_cache "Docker build cache" docker builder prune -af
         else
             echo -e "  ${YELLOW}→${NC} Docker build cache (would clean)"
         fi
@@ -602,10 +579,7 @@ perform_cleanup() {
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
     if command -v brew >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            [[ -t 1 ]] && echo -ne "  ${BLUE}◎${NC} Cleaning Homebrew...\r"
-            brew cleanup >/dev/null 2>&1 || true
-            [[ -t 1 ]] && echo -ne "\r\033[K"
-            echo -e "  ${GREEN}✓${NC} Homebrew cache cleaned"
+            clean_tool_cache "Homebrew cleanup" brew cleanup
         else
             echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup)"
         fi
@@ -965,10 +939,10 @@ perform_cleanup() {
     local -r ORPHAN_AGE_THRESHOLD=$ORPHAN_AGE_DAYS
 
     # Build a comprehensive list of installed application bundle identifiers
-    echo -n "  ${BLUE}◎${NC} Scanning installed applications..."
-    local installed_bundles=$(mktemp)
-    local running_bundles=$(mktemp)
-    local launch_agents=$(mktemp)
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning installed applications..." # ensure spinner function exists above
+    local installed_bundles=$(create_temp_file)
+    local running_bundles=$(create_temp_file)
+    local launch_agents=$(create_temp_file)
 
     # Scan multiple possible application locations to avoid false positives
     local -a search_paths=(
@@ -1035,7 +1009,8 @@ perform_cleanup() {
     mv "${installed_bundles}.final" "$installed_bundles"
 
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
-    echo "  ${GREEN}✓${NC} Found $app_count active/installed apps"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $app_count active/installed apps"
 
     # Track statistics
     local orphaned_count=0
@@ -1093,7 +1068,7 @@ perform_cleanup() {
     }
 
     # Clean orphaned caches
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned caches..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned caches..."
     local cache_found=0
     if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
         for cache_dir in ~/Library/Caches/com.* ~/Library/Caches/org.* ~/Library/Caches/net.* ~/Library/Caches/io.*; do
@@ -1109,10 +1084,11 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $cache_found orphaned caches"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $cache_found orphaned caches"
 
     # Clean orphaned logs
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned logs..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned logs..."
     local logs_found=0
     if ls ~/Library/Logs/com.* >/dev/null 2>&1; then
         for log_dir in ~/Library/Logs/com.* ~/Library/Logs/org.* ~/Library/Logs/net.* ~/Library/Logs/io.*; do
@@ -1128,10 +1104,11 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $logs_found orphaned log directories"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $logs_found orphaned log directories"
 
     # Clean orphaned saved states
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned saved states..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned saved states..."
     local states_found=0
     if ls ~/Library/Saved\ Application\ State/*.savedState >/dev/null 2>&1; then
         for state_dir in ~/Library/Saved\ Application\ State/*.savedState; do
@@ -1147,14 +1124,15 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $states_found orphaned saved states"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $states_found orphaned saved states"
 
     # Clean orphaned containers
     # NOTE: Container cleanup is DISABLED by default due to naming mismatch issues
     # Some apps create containers with names that don't strictly match their Bundle ID,
     # especially when system extensions are registered. This can cause false positives.
     # To avoid deleting data from installed apps, we skip container cleanup.
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned containers..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned containers..."
     local containers_found=0
     if ls ~/Library/Containers/com.* >/dev/null 2>&1; then
         # Count potential orphaned containers but don't delete them
@@ -1171,10 +1149,11 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${BLUE}○${NC} Skipped $containers_found potential orphaned containers"
+    stop_inline_spinner
+    echo -e "  ${BLUE}○${NC} Skipped $containers_found potential orphaned containers"
 
     # Clean orphaned WebKit data
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned WebKit data..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned WebKit data..."
     local webkit_found=0
     if ls ~/Library/WebKit/com.* >/dev/null 2>&1; then
         for webkit_dir in ~/Library/WebKit/com.* ~/Library/WebKit/org.* ~/Library/WebKit/net.* ~/Library/WebKit/io.*; do
@@ -1190,10 +1169,11 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $webkit_found orphaned WebKit data"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $webkit_found orphaned WebKit data"
 
     # Clean orphaned HTTP storages
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned HTTP storages..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned HTTP storages..."
     local http_found=0
     if ls ~/Library/HTTPStorages/com.* >/dev/null 2>&1; then
         for http_dir in ~/Library/HTTPStorages/com.* ~/Library/HTTPStorages/org.* ~/Library/HTTPStorages/net.* ~/Library/HTTPStorages/io.*; do
@@ -1209,10 +1189,11 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $http_found orphaned HTTP storages"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $http_found orphaned HTTP storages"
 
     # Clean orphaned cookies
-    echo -n "  ${BLUE}◎${NC} Scanning orphaned cookies..."
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned cookies..."
     local cookies_found=0
     if ls ~/Library/Cookies/*.binarycookies >/dev/null 2>&1; then
         for cookie_file in ~/Library/Cookies/*.binarycookies; do
@@ -1228,7 +1209,8 @@ perform_cleanup() {
             fi
         done
     fi
-    echo "  ${GREEN}✓${NC} Found $cookies_found orphaned cookie files"
+    stop_inline_spinner
+    echo -e "  ${GREEN}✓${NC} Found $cookies_found orphaned cookie files"
 
     # Calculate total
     orphaned_count=$((cache_found + logs_found + states_found + containers_found + webkit_found + http_found + cookies_found))
@@ -1309,40 +1291,15 @@ perform_cleanup() {
     fi
 
     if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-        echo "📊 Files cleaned: $files_cleaned | Categories processed: $total_items"
+        printf "📊 Files cleaned: %s | Categories processed: %s\n" "$files_cleaned" "$total_items"
     elif [[ $files_cleaned -gt 0 ]]; then
-        echo "📊 Files cleaned: $files_cleaned"
+        printf "📊 Files cleaned: %s\n" "$files_cleaned"
     elif [[ $total_items -gt 0 ]]; then
-        echo "🗂️ Categories processed: $total_items"
+        printf "🗂️ Categories processed: %s\n" "$total_items"
     fi
-
-    # Show context-specific tips
-    echo ""
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo -e "${BLUE}💡 Tip: Use 'mo clean --whitelist' to protect important caches${NC}"
-    elif [[ "$SYSTEM_CLEAN" != "true" ]]; then
-        echo -e "${BLUE}💡 Tip: Run with admin password for deeper system cleanup${NC}"
-    fi
-
-    echo "===================================================================="
+    printf "====================================================================\n"
 }
 
-# Cleanup function - restore cursor on exit
-cleanup() {
-    # Restore cursor
-    show_cursor
-    # Kill any background processes
-    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]]; then
-        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-    fi
-    if [[ -n "${SPINNER_PID:-}" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null || true
-    fi
-    exit "${1:-0}"
-}
-
-# Set trap for cleanup on exit
-trap cleanup EXIT INT TERM
 
 main() {
     # Parse args (only dry-run and help for minimal impact)
@@ -1372,8 +1329,8 @@ main() {
         esac
     done
 
-    hide_cursor
     start_cleanup
+    hide_cursor
     perform_cleanup
     show_cursor
 }

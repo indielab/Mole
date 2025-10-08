@@ -10,6 +10,18 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+ 
+# Simple spinner
+_SPINNER_PID=""
+start_line_spinner() {
+    local msg="$1"; [[ ! -t 1 ]] && { echo -e "${BLUE}|${NC} $msg"; return; }
+    local chars="${MO_SPINNER_CHARS:-|/-\\}"; [[ -z "$chars" ]] && chars='|/-\\'
+    local i=0
+    ( while true; do c="${chars:$((i % ${#chars})):1}"; printf "\r  ${BLUE}%s${NC} %s" "$c" "$msg"; ((i++)); sleep 0.12; done ) &
+    _SPINNER_PID=$!
+}
+stop_line_spinner() { if [[ -n "$_SPINNER_PID" ]]; then kill "$_SPINNER_PID" 2>/dev/null || true; wait "$_SPINNER_PID" 2>/dev/null || true; _SPINNER_PID=""; printf "\r"; fi; }
+
 
 # Verbosity (0 = quiet, 1 = verbose)
 VERBOSE=1
@@ -81,14 +93,14 @@ resolve_source_dir() {
 
     # 3) Fallback: fetch repository to a temp directory (works for curl | bash)
     local tmp
-    tmp="$(mktemp -d)"
+    tmp="$(mktemp_dir)"
     # Expand tmp now so trap doesn't depend on local scope
     trap "rm -rf '$tmp'" EXIT
 
-    echo -e "${BLUE}◎${NC} Fetching Mole source..."
+    start_line_spinner "Fetching Mole source..."
     if command -v curl >/dev/null 2>&1; then
-        # Download main branch tarball
         if curl -fsSL -o "$tmp/mole.tar.gz" "https://github.com/tw93/mole/archive/refs/heads/main.tar.gz"; then
+            stop_line_spinner
             tar -xzf "$tmp/mole.tar.gz" -C "$tmp"
             # Extracted folder name: mole-main
             if [[ -d "$tmp/mole-main" ]]; then
@@ -97,14 +109,17 @@ resolve_source_dir() {
             fi
         fi
     fi
+    stop_line_spinner
 
-    # 4) Fallback to git if available
+    start_line_spinner "Cloning Mole source..."
     if command -v git >/dev/null 2>&1; then
         if git clone --depth=1 https://github.com/tw93/mole.git "$tmp/mole" >/dev/null 2>&1; then
+            stop_line_spinner
             SOURCE_DIR="$tmp/mole"
             return 0
         fi
     fi
+    stop_line_spinner
 
     log_error "Failed to fetch source files. Ensure curl or git is available."
     exit 1
@@ -223,9 +238,7 @@ install_files() {
 
     # Copy main executable when destination differs
     if [[ -f "$SOURCE_DIR/mole" ]]; then
-        if [[ "$source_dir_abs" == "$install_dir_abs" ]]; then
-            log_info "Mole binary already present in $INSTALL_DIR"
-        else
+        if [[ "$source_dir_abs" != "$install_dir_abs" ]]; then
             if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && [[ ! -w "$INSTALL_DIR" ]]; then
                 sudo cp "$SOURCE_DIR/mole" "$INSTALL_DIR/mole"
                 sudo chmod +x "$INSTALL_DIR/mole"
@@ -428,9 +441,7 @@ uninstall_mole() {
             echo "  $CONFIG_DIR"
         else
             echo ""
-            read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r; echo ""; if [[ $REPLY =~ ^[Yy]$ ]]; then
                 rm -rf "$CONFIG_DIR"
                 log_success "Removed configuration directory"
             else
@@ -476,10 +487,10 @@ perform_update() {
             update_via_homebrew "$VERSION"
         else
             # Fallback: inline implementation
-            echo -e "${BLUE}◎${NC} Updating Homebrew..."
+            echo -e "${BLUE}|${NC} Updating Homebrew..."
             brew update 2>&1 | grep -Ev "^(==>|Already up-to-date)" || true
 
-            echo -e "${BLUE}◎${NC} Upgrading Mole..."
+            echo -e "${BLUE}|${NC} Upgrading Mole..."
             local upgrade_output
             upgrade_output=$(brew upgrade mole 2>&1) || true
 

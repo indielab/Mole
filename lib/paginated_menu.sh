@@ -42,11 +42,25 @@ paginated_multi_select() {
         done
     fi
 
+    # Preserve original TTY settings so we can restore them reliably
+    local original_stty=""
+    if [[ -t 0 ]] && command -v stty >/dev/null 2>&1; then
+        original_stty=$(stty -g 2>/dev/null || echo "")
+    fi
+
+    restore_terminal() {
+        show_cursor
+        if [[ -n "$original_stty" ]]; then
+            stty "$original_stty" 2>/dev/null || stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
+        else
+            stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
+        fi
+        leave_alt_screen
+    }
+
     # Cleanup function
     cleanup() {
-        show_cursor
-        stty echo icanon 2>/dev/null || true
-        leave_alt_screen
+        restore_terminal
     }
 
     # Interrupt handler
@@ -220,15 +234,13 @@ EOF
                 
                 # Remove the trap to avoid cleanup on normal exit
                 trap - EXIT INT TERM
-                
+
                 # Store result in global variable
                 MOLE_SELECTION_RESULT="$final_result"
-                
+
                 # Manually cleanup terminal before returning
-                show_cursor
-                stty echo icanon 2>/dev/null || true
-                leave_alt_screen
-                
+                restore_terminal
+
                 return 0
                 ;;
         esac

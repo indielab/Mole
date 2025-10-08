@@ -40,6 +40,7 @@ declare VIEW_MODE="overview"  # overview, detail, files
 # Cleanup on exit
 cleanup() {
     show_cursor
+    # Cleanup temp files using glob pattern (analyze uses many temp files)
     rm -f "$TEMP_PREFIX"* 2>/dev/null || true
     if [[ -n "$SCAN_PID" ]] && kill -0 "$SCAN_PID" 2>/dev/null; then
         kill "$SCAN_PID" 2>/dev/null || true
@@ -252,7 +253,8 @@ perform_scan() {
     SCAN_PID=$!
 
     # Show spinner with progress while scanning
-    local spinner_chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    local spinner_chars
+    spinner_chars="$(mo_spinner_chars)"
     local i=0
     local elapsed=0
     hide_cursor
@@ -1245,15 +1247,11 @@ scan_directory_contents_fast() {
     local max_items="${3:-16}"
     local show_progress="${4:-true}"
 
-    # Auto-detect optimal parallel jobs - more aggressive
-    local num_jobs=12
-    if command -v sysctl &>/dev/null; then
-        local cpu_cores=$(sysctl -n hw.ncpu 2>/dev/null || echo 12)
-        # Use more parallel jobs for better I/O utilization
-        num_jobs=$((cpu_cores * 2))
-        [[ $num_jobs -gt 24 ]] && num_jobs=24
-        [[ $num_jobs -lt 12 ]] && num_jobs=12
-    fi
+    # Auto-detect optimal parallel jobs using common function
+    local num_jobs=$(get_optimal_parallel_jobs "io")
+    # Cap at reasonable limits for I/O operations
+    [[ $num_jobs -gt 24 ]] && num_jobs=24
+    [[ $num_jobs -lt 12 ]] && num_jobs=12
 
     local temp_dirs="$output_file.dirs"
     local temp_files="$output_file.files"
@@ -1262,7 +1260,7 @@ scan_directory_contents_fast() {
     if [[ "$show_progress" == "true" ]]; then
         printf "\033[?25l\033[H\033[J" >&2
         echo "" >&2
-        printf "  ${BLUE}📊 ⠋ Scanning...${NC}\r" >&2
+        printf "  ${BLUE}📊 | Scanning...${NC}\r" >&2
     fi
 
     # Ultra-fast file scanning - batch stat for maximum speed
@@ -1311,14 +1309,27 @@ scan_directory_contents_fast() {
 
     # Show progress while waiting
     if [[ "$show_progress" == "true" ]]; then
-        local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+        local -a spinner=()
+        if [[ -n "${MO_SPINNER_CHARS_ARRAY:-}" ]]; then
+            read -r -a spinner <<< "${MO_SPINNER_CHARS_ARRAY}"
+        else
+            local spinner_chars
+            spinner_chars="$(mo_spinner_chars)"
+            local chars_len=${#spinner_chars}
+            for ((idx=0; idx<chars_len; idx++)); do
+                spinner+=("${spinner_chars:idx:1}")
+            done
+        fi
+        [[ ${#spinner[@]} -eq 0 ]] && spinner=('|' '/' '-' '\\')
         local i=0
         local max_wait=30  # Reduced to 30 seconds (fast fail)
         local elapsed=0
         local tick=0
+        local spin_len=${#spinner[@]}
+        (( spin_len == 0 )) && spinner=('|' '/' '-' '\\') && spin_len=${#spinner[@]}
 
         while ( kill -0 "$dir_pid" 2>/dev/null || kill -0 "$file_pid" 2>/dev/null ); do
-            printf "\r  ${BLUE}📊 ${spinner[$((i % 10))]} Scanning... (%ds)${NC}" "$elapsed" >&2
+            printf "\r  ${BLUE}📊 ${spinner[$((i % spin_len))]} Scanning... (%ds)${NC}" "$elapsed" >&2
             ((i++))
             sleep 0.1  # Faster animation (100ms per frame)
             ((tick++))

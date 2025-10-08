@@ -57,7 +57,7 @@ mo --help               # Show help
 mo --version            # Show installed version
 ```
 
-> If the command is not found, run `mo update` once to upgrade to the latest version.
+> If the command is not found, run `mole update` once to upgrade to the latest version.
 >
 > Recommended: Start with `mo clean --dry-run` to preview what will be deleted, use `mo clean --whitelist` to protect important caches
 

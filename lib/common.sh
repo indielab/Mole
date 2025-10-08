@@ -58,7 +58,7 @@ log_success() {
 
 log_warning() {
     rotate_log
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}$1${NC}"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -252,6 +252,48 @@ check_sudo() {
         return 1
     fi
     return 0
+}
+
+# Check if Touch ID is configured for sudo
+check_touchid_support() {
+    if [[ -f /etc/pam.d/sudo ]]; then
+        grep -q "pam_tid.so" /etc/pam.d/sudo 2>/dev/null
+        return $?
+    fi
+    return 1
+}
+
+# Request sudo access with Touch ID support
+# Usage: request_sudo_access "prompt message" [optional: force_password]
+request_sudo_access() {
+    local prompt_msg="${1:-Admin access required}"
+    local force_password="${2:-false}"
+
+    # Check if already has sudo access
+    if sudo -n true 2>/dev/null; then
+        return 0
+    fi
+
+    # If Touch ID is supported and not forced to use password
+    if [[ "$force_password" != "true" ]] && check_touchid_support; then
+        echo -e "${BLUE}${prompt_msg}${NC} ${GRAY}(Touch ID or password)${NC}"
+        if sudo -v 2>/dev/null; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        # Traditional password method
+        echo -e "${BLUE}${prompt_msg}${NC}"
+        echo -ne "${BLUE}   Password> ${NC}"
+        read -s password
+        echo ""
+        if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
+            return 0
+        else
+            return 1
+        fi
+    fi
 }
 
 request_sudo() {
@@ -564,7 +606,7 @@ print_space_stat() {
     current_free=$(get_free_space)
     local human
     human=$(bytes_to_human_kb "$freed_kb")
-    echo "💾 Space freed: ${GREEN}${human}${NC} | Free space now: $current_free"
+    echo "Space freed: ${GREEN}${human}${NC} | Free space now: $current_free"
 }
 
 # =========================================================================

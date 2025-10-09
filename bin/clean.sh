@@ -1336,7 +1336,7 @@ perform_cleanup() {
             fi
 
             echo ""
-            echo "To protect specific cache files from deletion, run: mole clean --whitelist"
+            echo "To protect specific cache files from deletion, run: mo clean --whitelist"
         else
             echo "Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
 

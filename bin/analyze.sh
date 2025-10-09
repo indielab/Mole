@@ -1220,17 +1220,38 @@ display_file_types() {
         return
     fi
 
-    # Analyze common file types
-    local -A type_map=(
-        ["Videos"]="kMDItemContentType == 'public.movie' || kMDItemContentType == 'public.video'"
-        ["Images"]="kMDItemContentType == 'public.image'"
-        ["Archives"]="kMDItemContentType == 'public.archive' || kMDItemContentType == 'public.zip-archive'"
-        ["Documents"]="kMDItemContentType == 'com.adobe.pdf' || kMDItemContentType == 'public.text'"
-        ["Audio"]="kMDItemContentType == 'public.audio'"
-    )
-
-    for type_name in "${!type_map[@]}"; do
-        local query="${type_map[$type_name]}"
+    # Analyze common file types (bash 3.2 compatible - no associative arrays)
+    local -a type_names=("Videos" "Images" "Archives" "Documents" "Audio")
+    
+    local type_name
+    for type_name in "${type_names[@]}"; do
+        local query=""
+        local badge="$BADGE_FILE"
+        
+        # Map type name to query and badge
+        case "$type_name" in
+            "Videos")
+                query="kMDItemContentType == 'public.movie' || kMDItemContentType == 'public.video'"
+                badge="$BADGE_MEDIA"
+                ;;
+            "Images")
+                query="kMDItemContentType == 'public.image'"
+                badge="$BADGE_MEDIA"
+                ;;
+            "Archives")
+                query="kMDItemContentType == 'public.archive' || kMDItemContentType == 'public.zip-archive'"
+                badge="$BADGE_BUNDLE"
+                ;;
+            "Documents")
+                query="kMDItemContentType == 'com.adobe.pdf' || kMDItemContentType == 'public.text'"
+                badge="$BADGE_FILE"
+                ;;
+            "Audio")
+                query="kMDItemContentType == 'public.audio'"
+                badge="🎵"
+                ;;
+        esac
+        
         local files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2>/dev/null)
         local count=$(echo "$files" | grep -c . || echo "0")
         local total_size=0
@@ -1245,13 +1266,6 @@ display_file_types() {
 
             if [[ $total_size -gt 0 ]]; then
                 local human_size=$(bytes_to_human "$total_size")
-                local badge="$BADGE_FILE"
-                case "$type_name" in
-                    "Videos"|"Images") badge="$BADGE_MEDIA" ;;
-                    "Archives") badge="$BADGE_BUNDLE" ;;
-                    "Documents") badge="$BADGE_FILE" ;;
-                    "Audio") badge="🎵" ;;
-                esac
                 printf "  %s %-12s %8s (%d files)\n" "$badge" "$type_name:" "$human_size" "$count"
             fi
         fi

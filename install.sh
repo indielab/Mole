@@ -16,7 +16,7 @@ start_line_spinner() {
     local msg="$1"; [[ ! -t 1 ]] && { echo -e "${BLUE}|${NC} $msg"; return; }
     local chars="${MO_SPINNER_CHARS:-|/-\\}"; [[ -z "$chars" ]] && chars='|/-\\'
     local i=0
-    ( while true; do c="${chars:$((i % ${#chars})):1}"; printf "\r  ${BLUE}%s${NC} %s" "$c" "$msg"; ((i++)); sleep 0.12; done ) &
+    ( while true; do c="${chars:$((i % ${#chars})):1}"; printf "\r${BLUE}%s${NC} %s" "$c" "$msg"; ((i++)); sleep 0.12; done ) &
     _SPINNER_PID=$!
 }
 stop_line_spinner() { if [[ -n "$_SPINNER_PID" ]]; then kill "$_SPINNER_PID" 2>/dev/null || true; wait "$_SPINNER_PID" 2>/dev/null || true; _SPINNER_PID=""; printf "\r\033[K"; fi; }
@@ -33,10 +33,10 @@ readonly ICON_ERROR="✗"
 
 # Logging functions
 log_info() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}$1${NC}"; }
-log_success() { [[ ${VERBOSE} -eq 1 ]] && echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $1"; }
+log_success() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${GREEN}${ICON_SUCCESS}${NC} $1"; }
 log_warning() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${YELLOW}$1${NC}"; }
 log_error() { echo -e "${RED}${ICON_ERROR}${NC} $1"; }
-log_admin() { [[ ${VERBOSE} -eq 1 ]] && echo -e "  ${BLUE}${ICON_ADMIN}${NC} $1"; }
+log_admin() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}${ICON_ADMIN}${NC} $1"; }
 log_confirm() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}${ICON_CONFIRM}${NC} $1"; }
 
 # Default installation directory

@@ -44,7 +44,7 @@ check_for_updates() {
             grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/')
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
+            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n${YELLOW}   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
         else
             echo -n > "$msg_cache"
         fi

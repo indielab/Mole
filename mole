@@ -303,7 +303,7 @@ remove_mole() {
     fi
 
     # Check if anything to remove
-    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]} -eq 0 && ${#alias_installs[@]} -eq 0 ]]; then
+    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]:-0} -eq 0 && ${#alias_installs[@]:-0} -eq 0 ]]; then
         echo ""
         echo -e "${YELLOW}No Mole installation detected${NC}"
         exit 0
@@ -317,7 +317,7 @@ remove_mole() {
         echo "  - Mole via Homebrew"
     fi
 
-    for install in "${manual_installs[@]}" "${alias_installs[@]}"; do
+    for install in ${manual_installs[@]+"${manual_installs[@]}"} ${alias_installs[@]+"${alias_installs[@]}"}; do
         echo "  - $install"
     done
 
@@ -357,7 +357,7 @@ remove_mole() {
     fi
 
     # Remove manual installations
-    if [[ ${#manual_installs[@]} -gt 0 ]]; then
+    if [[ ${#manual_installs[@]:-0} -gt 0 ]]; then
         for install in "${manual_installs[@]}"; do
             if [[ -f "$install" ]]; then
                 if rm -f "$install" 2>/dev/null; then

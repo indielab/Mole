@@ -23,7 +23,7 @@ readonly TEMP_FILE_AGE_DAYS=7        # Age threshold for temp file cleanup
 readonly ORPHAN_AGE_DAYS=60          # Age threshold for orphaned data
 readonly SIZE_1GB_KB=1048576         # 1GB in kilobytes
 readonly SIZE_1MB_KB=1024            # 1MB in kilobytes
-# Default whitelist patterns to avoid removing critical caches (can be extended by user)
+# Core whitelist patterns - always protected
 WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
@@ -68,6 +68,7 @@ SECTION_ACTIVITY=0
 LAST_CLEAN_RESULT=0
 files_cleaned=0
 total_size_cleaned=0
+whitelist_skipped_count=0
 SUDO_KEEPALIVE_PID=""
 
 note_activity() {
@@ -204,19 +205,30 @@ safe_clean() {
     local removed_any=0
     local total_size_bytes=0
     local total_count=0
+    local skipped_count=0
 
     # Optimized parallel processing for better performance
     local -a existing_paths=()
     for path in "${targets[@]}"; do
         local skip=false
-        for w in "${WHITELIST_PATTERNS[@]}"; do
-            if [[ "$path" == $w ]]; then
-                skip=true; break
-            fi
-        done
+        if [[ ${#WHITELIST_PATTERNS[@]} -gt 0 ]]; then
+            for w in "${WHITELIST_PATTERNS[@]}"; do
+                # Match both exact path and glob pattern
+                if [[ "$path" == "$w" ]] || [[ "$path" == $w ]]; then
+                    skip=true
+                    ((skipped_count++))
+                    break
+                fi
+            done
+        fi
         [[ "$skip" == "true" ]] && continue
         [[ -e "$path" ]] && existing_paths+=("$path")
     done
+    
+    # Update global whitelist skip counter
+    if [[ $skipped_count -gt 0 ]]; then
+        ((whitelist_skipped_count += skipped_count))
+    fi
 
     if [[ ${#existing_paths[@]} -eq 0 ]]; then
         LAST_CLEAN_RESULT=0
@@ -322,14 +334,15 @@ start_cleanup() {
     clear
     printf '\n'
     echo -e "${PURPLE}Clean Your Mac${NC}"
+    
     if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
-        printf '\n'
+        echo ""
         echo -e "${YELLOW}Tip:${NC} Safety first—run 'mo clean --dry-run'. Important Macs should stop."
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo ""
-        echo -e "${YELLOW}Dry Run mode:${NC} showing what would be removed (no deletions)."
+        echo -e "${YELLOW}Dry Run Mode${NC} - Preview only, no deletions"
         echo ""
         SYSTEM_CLEAN=false
         return
@@ -337,7 +350,7 @@ start_cleanup() {
 
     if [[ -t 0 ]]; then
         echo ""
-        echo -ne "${BLUE}System cleanup? ${GRAY}Enter to continue, any key to skip${NC} "
+        echo -ne "${ICON_SETTINGS} ${BLUE}System cleanup?${NC} ${GRAY}Enter to continue, any key to skip${NC} "
 
         # Use IFS= and read without -n to allow Ctrl+C to work properly
         IFS= read -r -s -n 1 choice
@@ -351,10 +364,9 @@ start_cleanup() {
 
         # Enter or y = yes, do system cleanup
         if [[ -z "$choice" ]] || [[ "$choice" == $'\n' ]] || [[ "$choice" =~ ^[Yy]$ ]]; then
-            echo ""
             if request_sudo_access "System cleanup requires admin access"; then
                 SYSTEM_CLEAN=true
-                echo -e "${GREEN}✓ Admin access granted${NC}"
+                echo -e "${GREEN}✓${NC} Admin access granted"
                 # Start sudo keepalive with error handling
                 (
                     local retry_count=0
@@ -376,27 +388,35 @@ start_cleanup() {
             else
                 SYSTEM_CLEAN=false
                 echo ""
-                echo -e "${YELLOW}Authentication failed, continuing with user-level cleanup${NC}"
+                echo -e "${YELLOW}Authentication failed${NC}, continuing with user-level cleanup"
             fi
         else
             # Any other key = no system cleanup
             SYSTEM_CLEAN=false
-            echo ""
             echo -e "Skipped system cleanup, user-level only"
         fi
     else
         SYSTEM_CLEAN=false
         echo ""
-        echo -e " Running in non-interactive mode"
-        echo "   • System-level cleanup skipped (requires interaction)"
-        echo "   • User-level cleanup will proceed automatically"
+        echo "Running in non-interactive mode"
+        echo "  • System-level cleanup skipped (requires interaction)"
+        echo "  • User-level cleanup will proceed automatically"
         echo ""
     fi
 }
 
 perform_cleanup() {
     echo ""
-    echo "$(detect_architecture) | Free space: $(get_free_space)"
+    echo "${ICON_SYSTEM} $(detect_architecture) | Free space: $(get_free_space)"
+    
+    # Show whitelist info if patterns are active
+    local active_count=${#WHITELIST_PATTERNS[@]}
+    if [[ $active_count -gt 2 ]]; then
+        local custom_count=$((active_count - 2))
+        echo -e "${BLUE}✓${NC} Whitelist: $custom_count custom + 2 core patterns active"
+    elif [[ $active_count -eq 2 ]]; then
+        echo -e "${BLUE}✓${NC} Whitelist: 2 core patterns active"
+    fi
 
     # Get initial space
     space_before=$(df / | tail -1 | awk '{print $4}')
@@ -406,9 +426,9 @@ perform_cleanup() {
     files_cleaned=0
     total_size_cleaned=0
 
-    # ===== 1. System cleanup (if admin) - Do this first while sudo is fresh =====
+    # ===== 1. Deep system cleanup (if admin) - Do this first while sudo is fresh =====
     if [[ "$SYSTEM_CLEAN" == "true" ]]; then
-        start_section "System-level cleanup"
+        start_section "Deep system-level cleanup"
 
         # Clean system caches more safely
         sudo find /Library/Caches -name "*.cache" -delete 2>/dev/null || true
@@ -1273,8 +1293,7 @@ perform_cleanup() {
     # Summary
     if [[ $orphaned_count -gt 0 ]]; then
         local orphaned_mb=$(echo "$total_orphaned_kb" | awk '{printf "%.1f", $1/1024}')
-        echo ""
-        echo "  ${GREEN}☺︎${NC} ${GREEN}Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)${NC}"
+        echo "  ${BLUE}●${NC} Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)"
         note_activity
     else
         echo "  ${BLUE}○${NC} No old orphaned app data found"
@@ -1328,11 +1347,17 @@ perform_cleanup() {
 
             # Show file/category stats for dry run
             if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-                printf "Files to clean: %s | Categories: %s\n" "$files_cleaned" "$total_items"
+                printf "Files to clean: %s | Categories: %s" "$files_cleaned" "$total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             elif [[ $files_cleaned -gt 0 ]]; then
-                printf "Files to clean: %s\n" "$files_cleaned"
+                printf "Files to clean: %s" "$files_cleaned"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             elif [[ $total_items -gt 0 ]]; then
-                printf "Categories: %s\n" "$total_items"
+                printf "Categories: %s" "$total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             fi
 
             echo ""
@@ -1342,11 +1367,17 @@ perform_cleanup() {
 
             # Show file/category stats for actual cleanup
             if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-                printf "Files cleaned: %s | Categories: %s\n" "$files_cleaned" "$total_items"
+                printf "Files cleaned: %s | Categories: %s" "$files_cleaned" "$total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             elif [[ $files_cleaned -gt 0 ]]; then
-                printf "Files cleaned: %s\n" "$files_cleaned"
+                printf "Files cleaned: %s" "$files_cleaned"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             elif [[ $total_items -gt 0 ]]; then
-                printf "Categories: %s\n" "$total_items"
+                printf "Categories: %s" "$total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
+                printf "\n"
             fi
 
             if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then

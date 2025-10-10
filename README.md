@@ -57,7 +57,9 @@ mo --help               # Show help
 mo --version            # Show installed version
 ```
 
-> **Recommended:** Start with `mo clean --dry-run` to preview what will be deleted. Use `mo clean --whitelist` to protect important caches that are slow to re-download, like Gradle, npm, Homebrew, PyTorch models, Docker images. Interactive menu with 42 cache types, config saved to `~/.config/mole/whitelist`.
+> Start with `mo clean --dry-run` to preview what will be deleted.
+>
+> Use `mo clean --whitelist` to protect important caches that are slow to re-download.
 
 ## Features in Detail
 

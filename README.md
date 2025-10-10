@@ -57,9 +57,7 @@ mo --help               # Show help
 mo --version            # Show installed version
 ```
 
-> If the command is not found, run `mole update` once to upgrade to the latest version.
->
-> Recommended: Start with `mo clean --dry-run` to preview what will be deleted, use `mo clean --whitelist` to protect important caches
+> **Recommended:** Start with `mo clean --dry-run` to preview what will be deleted. Use `mo clean --whitelist` to protect important caches that are slow to re-download, like Gradle, npm, Homebrew, PyTorch models, Docker images. Interactive menu with 42 cache types, config saved to `~/.config/mole/whitelist`.
 
 ## Features in Detail
 
@@ -142,15 +140,13 @@ Total: 156.8GB
 
 ## FAQ
 
-- **Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Run `mo clean --dry-run` first to preview what will be removed.
+- **Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Start with `mo clean --dry-run` to preview what will be removed.
 
 - **How often should I clean?** Once a month, or when disk space is running low.
 
-- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to choose which caches to keep. Common ones like Playwright browsers and HuggingFace models are already protected.
+- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to select caches to protect.
 
 - **Touch ID support?** Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
-
-- **Enable Touch ID for sudo:**
 
   ```bash
   sudo nano /etc/pam.d/sudo

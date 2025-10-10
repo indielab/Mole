@@ -28,6 +28,8 @@ readonly ICON_ERROR="✗"        # Error
 readonly ICON_EMPTY="○"        # Empty state
 readonly ICON_LIST="-"         # List item
 readonly ICON_MENU="▸"         # Menu item
+readonly ICON_SYSTEM="☯︎"       # System/Architecture info
+readonly ICON_SETTINGS="⚙"     # Settings/Configuration
 
 # Spinner character helpers (ASCII by default, overridable via env)
 mo_spinner_chars() {

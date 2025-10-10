@@ -12,10 +12,112 @@ source "$SCRIPT_DIR/paginated_menu.sh"
 # Config file path
 WHITELIST_CONFIG="$HOME/.config/mole/whitelist"
 
+# Core whitelist patterns that are always protected
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
 )
+
+# Determine if a pattern matches one of the defaults
+is_default_pattern() {
+    local candidate="$1"
+    for default_pat in "${DEFAULT_WHITELIST_PATTERNS[@]}"; do
+        if patterns_equivalent "$candidate" "$default_pat"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Save whitelist patterns to config
+save_whitelist_patterns() {
+    local -a patterns
+    patterns=("$@")
+    local -a custom_patterns
+    custom_patterns=()
+    mkdir -p "$(dirname "$WHITELIST_CONFIG")"
+
+    cat > "$WHITELIST_CONFIG" << 'EOF'
+# Mole Whitelist - Protected paths won't be deleted
+# Default protections: Playwright browsers, HuggingFace models
+# You can add custom paths here
+EOF
+
+    if [[ ${#patterns[@]} -gt 0 ]]; then
+        for pattern in "${patterns[@]}"; do
+            if is_default_pattern "$pattern"; then
+                continue
+            fi
+            local duplicate="false"
+            if [[ ${#custom_patterns[@]} -gt 0 ]]; then
+                for existing in "${custom_patterns[@]}"; do
+                    if patterns_equivalent "$pattern" "$existing"; then
+                        duplicate="true"
+                        break
+                    fi
+                done
+            fi
+            [[ "$duplicate" == "true" ]] && continue
+            custom_patterns+=("$pattern")
+        done
+
+        if [[ ${#custom_patterns[@]} -gt 0 ]]; then
+            printf '\n' >> "$WHITELIST_CONFIG"
+            for pattern in "${custom_patterns[@]}"; do
+                echo "$pattern" >> "$WHITELIST_CONFIG"
+            done
+        fi
+    fi
+}
+
+# Get all cache items with their patterns
+get_all_cache_items() {
+    # Format: "display_name|pattern|category"
+    cat << 'EOF'
+Gradle build cache (Android Studio, Gradle projects)|$HOME/.gradle/caches/*|ide_cache
+Gradle daemon processes cache|$HOME/.gradle/daemon/*|ide_cache
+Xcode DerivedData (build outputs, indexes)|$HOME/Library/Developer/Xcode/DerivedData/*|ide_cache
+Xcode internal cache files|$HOME/Library/Caches/com.apple.dt.Xcode/*|ide_cache
+Xcode iOS device support symbols|$HOME/Library/Developer/Xcode/iOS DeviceSupport/*/Symbols/System/Library/Caches/*|ide_cache
+Maven local repository (Java dependencies)|$HOME/.m2/repository/*|ide_cache
+JetBrains IDEs cache (IntelliJ, PyCharm, WebStorm)|$HOME/Library/Caches/JetBrains/*|ide_cache
+Android Studio cache and indexes|$HOME/Library/Caches/Google/AndroidStudio*/*|ide_cache
+VS Code runtime cache|$HOME/Library/Application Support/Code/Cache/*|ide_cache
+VS Code extension and update cache|$HOME/Library/Application Support/Code/CachedData/*|ide_cache
+VS Code system cache (Cursor, VSCodium)|$HOME/Library/Caches/com.microsoft.VSCode/*|ide_cache
+Cursor editor cache|$HOME/Library/Caches/com.todesktop.230313mzl4w4u92/*|ide_cache
+Bazel build cache|$HOME/.cache/bazel/*|compiler_cache
+Go build cache and module cache|$HOME/Library/Caches/go-build/*|compiler_cache
+Rust Cargo registry cache|$HOME/.cargo/registry/cache/*|compiler_cache
+Rustup toolchain downloads|$HOME/.rustup/downloads/*|compiler_cache
+ccache compiler cache|$HOME/.ccache/*|compiler_cache
+sccache distributed compiler cache|$HOME/.cache/sccache/*|compiler_cache
+CocoaPods cache (iOS dependencies)|$HOME/Library/Caches/CocoaPods/*|package_manager
+npm package cache|$HOME/.npm/_cacache/*|package_manager
+pip Python package cache|$HOME/.cache/pip/*|package_manager
+Homebrew downloaded packages|$HOME/Library/Caches/Homebrew/*|package_manager
+Yarn package manager cache|$HOME/.cache/yarn/*|package_manager
+pnpm package store|$HOME/.pnpm-store/*|package_manager
+Composer PHP dependencies cache|$HOME/.composer/cache/*|package_manager
+RubyGems cache|$HOME/.gem/cache/*|package_manager
+Go module cache|$HOME/go/pkg/mod/cache/*|package_manager
+PyTorch model cache|$HOME/.cache/torch/*|ai_ml_cache
+TensorFlow model and dataset cache|$HOME/.cache/tensorflow/*|ai_ml_cache
+HuggingFace models and datasets|$HOME/.cache/huggingface/*|ai_ml_cache
+Playwright browser binaries|$HOME/Library/Caches/ms-playwright*|ai_ml_cache
+Selenium WebDriver binaries|$HOME/.cache/selenium/*|ai_ml_cache
+Ollama local AI models|$HOME/.ollama/models/*|ai_ml_cache
+Safari web browser cache|$HOME/Library/Caches/com.apple.Safari/*|browser_cache
+Chrome browser cache|$HOME/Library/Caches/Google/Chrome/*|browser_cache
+Firefox browser cache|$HOME/Library/Caches/Firefox/*|browser_cache
+Brave browser cache|$HOME/Library/Caches/BraveSoftware/Brave-Browser/*|browser_cache
+Docker Desktop image cache|$HOME/Library/Containers/com.docker.docker/Data/*|container_cache
+Podman container cache|$HOME/.local/share/containers/cache/*|container_cache
+Font cache|$HOME/Library/Caches/com.apple.FontRegistry/*|system_cache
+Spotlight metadata cache|$HOME/Library/Caches/com.apple.spotlight/*|system_cache
+CloudKit cache|$HOME/Library/Caches/CloudKit/*|system_cache
+EOF
+}
 
 patterns_equivalent() {
     local first="${1/#~/$HOME}"
@@ -26,136 +128,11 @@ patterns_equivalent() {
     return 1
 }
 
-is_default_pattern() {
-    local candidate="$1"
-    local default_pat
-    for default_pat in "${DEFAULT_WHITELIST_PATTERNS[@]}"; do
-        if patterns_equivalent "$candidate" "$default_pat"; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Run dry-run cleanup and collect what would be deleted
-collect_files_to_be_cleaned() {
-    local clean_sh="$SCRIPT_DIR/../bin/clean.sh"
-    local -a items=()
-
-    if [[ -t 1 ]]; then
-        start_inline_spinner "Scanning cache files..."
-    else
-        echo "Scanning cache files..."
-    fi
-
-    # Run clean.sh in dry-run mode
-    local temp_output=$(create_temp_file)
-    echo "" | bash "$clean_sh" --dry-run 2>&1 > "$temp_output" || true
-
-    if [[ -t 1 ]]; then
-        stop_inline_spinner
-    fi
-    echo ""
-
-    # Strip ANSI color codes for parsing
-    local temp_plain=$(create_temp_file)
-    sed $'s/\033\[[0-9;]*m//g' "$temp_output" > "$temp_plain"
-
-    # Parse output: "  → Description (size, dry)"
-    local pattern='^[[:space:]]*→[[:space:]]+([^(]+)(\([^)]+\))?[[:space:]]*\(([^,)]+),.*dry\)$'
-    while IFS= read -r line; do
-        if [[ "$line" =~ $pattern ]]; then
-            local description="${BASH_REMATCH[1]}"
-            local size="${BASH_REMATCH[3]}"
-
-            description="${description#${description%%[![:space:]]*}}"
-            description="${description%${description##*[![:space:]]}}"
-
-            [[ "$description" =~ ^Orphaned ]] && continue
-
-            # Find corresponding path from clean.sh
-            local path=""
-            while IFS= read -r src_line; do
-                # Match: safe_clean <path> "<description>"
-                # Path may contain escaped spaces (\ )
-                if [[ "$src_line" =~ safe_clean[[:space:]]+(.+)[[:space:]]+\"$description\" ]]; then
-                    path="${BASH_REMATCH[1]}"
-                    break
-                fi
-            done < "$clean_sh"
-
-            path="${path/#\~/$HOME}"
-            [[ -z "$path" || "$path" =~ \$ ]] && continue
-
-            items+=("$path|$description|$size")
-        fi
-    done < "$temp_plain"
-
-    # Temp files will be auto-cleaned by cleanup_temp_files
-
-    # Return early if no items found
-    if [[ ${#items[@]} -eq 0 ]]; then
-        AVAILABLE_CACHE_ITEMS=()
-        return
-    fi
-
-    # Remove duplicates
-    local -a unique_items=()
-    local -a seen_descriptions=()
-
-    for item in "${items[@]}"; do
-        IFS='|' read -r path desc size <<< "$item"
-        local is_duplicate=false
-        if [[ ${#seen_descriptions[@]} -gt 0 ]]; then
-            for seen in "${seen_descriptions[@]}"; do
-                [[ "$desc" == "$seen" ]] && is_duplicate=true && break
-            done
-        fi
-
-        if [[ "$is_duplicate" == "false" ]]; then
-            unique_items+=("$item")
-            seen_descriptions+=("$desc")
-        fi
-    done
-
-    # Sort by size (largest first)
-    local -a sorted_items=()
-    if [[ ${#unique_items[@]} -gt 0 ]]; then
-        while IFS= read -r item; do
-            sorted_items+=("$item")
-        done < <(
-            for item in "${unique_items[@]}"; do
-                IFS='|' read -r path desc size <<< "$item"
-                local size_kb=0
-                if [[ "$size" =~ ([0-9.]+)GB ]]; then
-                    size_kb=$(echo "${BASH_REMATCH[1]}" | awk '{printf "%d", $1 * 1024 * 1024}')
-                elif [[ "$size" =~ ([0-9.]+)MB ]]; then
-                    size_kb=$(echo "${BASH_REMATCH[1]}" | awk '{printf "%d", $1 * 1024}')
-                elif [[ "$size" =~ ([0-9.]+)KB ]]; then
-                    size_kb=$(echo "${BASH_REMATCH[1]}" | awk '{printf "%d", $1}')
-                fi
-                printf "%010d|%s\n" "$size_kb" "$item"
-            done | sort -rn | cut -d'|' -f2-
-        )
-    fi
-
-    # Safe assignment for empty array
-    if [[ ${#sorted_items[@]} -gt 0 ]]; then
-        AVAILABLE_CACHE_ITEMS=("${sorted_items[@]}")
-    else
-        AVAILABLE_CACHE_ITEMS=()
-    fi
-}
-
-declare -a AVAILABLE_CACHE_ITEMS=()
 
 load_whitelist() {
-    local -a patterns=()
+    local -a patterns=("${DEFAULT_WHITELIST_PATTERNS[@]}")
 
-    # Always include default patterns
-    patterns=("${DEFAULT_WHITELIST_PATTERNS[@]}")
-
-    # Add user-defined patterns from config file
+    # Load user-defined patterns from config file
     if [[ -f "$WHITELIST_CONFIG" ]]; then
         while IFS= read -r line; do
             line="${line#${line%%[![:space:]]*}}"
@@ -206,135 +183,44 @@ is_whitelisted() {
     return 1
 }
 
-format_whitelist_item() {
-    local description="$1" size="$2" is_protected="$3"
-    local desc_display="$description"
-    [[ ${#description} -gt 40 ]] && desc_display="${description:0:37}..."
-    local size_display=$(printf "%-15s" "$size")
-    local status=""
-    [[ "$is_protected" == "true" ]] && status=" ${GREEN}[Protected]${NC}"
-    printf "%-40s %s%s" "$desc_display" "$size_display" "$status"
-}
-
-# Get friendly description for a path pattern
-get_description_for_pattern() {
-    local pattern="$1"
-    local desc=""
-
-    # Hardcoded descriptions for common patterns
-    case "$pattern" in
-        *"ms-playwright"*)
-            echo "Playwright Browser"
-            return
-            ;;
-        *"huggingface"*)
-            echo "HuggingFace Model"
-            return
-            ;;
-    esac
-
-    # Try to match with safe_clean in clean.sh
-    # Use fuzzy matching by removing trailing /* or *
-    local pattern_base="${pattern%/\*}"
-    pattern_base="${pattern_base%\*}"
-
-    while IFS= read -r line; do
-        if [[ "$line" =~ safe_clean[[:space:]]+(.+)[[:space:]]+\"([^\"]+)\" ]]; then
-            local clean_path="${BASH_REMATCH[1]}"
-            local clean_desc="${BASH_REMATCH[2]}"
-            clean_path="${clean_path/#\~/$HOME}"
-
-            # Remove trailing /* or * for comparison
-            local clean_base="${clean_path%/\*}"
-            clean_base="${clean_base%\*}"
-
-            # Check if base paths match
-            if [[ "$pattern_base" == "$clean_base" || "$clean_path" == "$pattern" || "$pattern" == "$clean_path" ]]; then
-                echo "$clean_desc"
-                return
-            fi
-        fi
-    done < "$SCRIPT_DIR/../bin/clean.sh"
-
-    # If no match found, return short path
-    echo "${pattern/#$HOME/~}"
-}
 
 manage_whitelist() {
+    manage_whitelist_categories
+}
+
+manage_whitelist_categories() {
     clear
     echo ""
     echo -e "${PURPLE}Whitelist Manager${NC}"
     echo ""
+    echo -e "${GRAY}Select caches to protect from cleanup.${NC}"
+    echo ""
 
-    # Load user-defined whitelist
-    CURRENT_WHITELIST_PATTERNS=()
+    # Load currently enabled patterns from both sources
     load_whitelist
 
-    echo "Select the cache files that need to be protected"
-    echo -e "${GRAY}Protected items are pre-selected. You can also edit ${WHITELIST_CONFIG} directly.${NC}"
-    echo ""
-
-    collect_files_to_be_cleaned
-
-    # Add items from config that are not in the scan results
-    local -a all_items=()
-    if [[ ${#AVAILABLE_CACHE_ITEMS[@]} -gt 0 ]]; then
-        all_items=("${AVAILABLE_CACHE_ITEMS[@]}")
-    fi
-
-    # Add saved patterns that are not in scan results
-    if [[ ${#CURRENT_WHITELIST_PATTERNS[@]} -gt 0 ]]; then
-        for pattern in "${CURRENT_WHITELIST_PATTERNS[@]}"; do
-            local pattern_expanded="${pattern/#\~/$HOME}"
-            local found="false"
-
-            if [[ ${#all_items[@]} -gt 0 ]]; then
-                for item in "${all_items[@]}"; do
-                    IFS='|' read -r path _ _ <<< "$item"
-                    if patterns_equivalent "$path" "$pattern_expanded"; then
-                        found="true"
-                        break
-                    fi
-                done
-            fi
-
-            if [[ "$found" == "false" ]]; then
-                local desc=$(get_description_for_pattern "$pattern_expanded")
-                all_items+=("$pattern_expanded|$desc|0B")
-            fi
-        done
-    fi
-
-    if [[ ${#all_items[@]} -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} No cache files found - system is clean!"
-        echo ""
-        echo "Press any key to exit..."
-        read -n 1 -s
-        return 0
-    fi
-
-    # Update global array with all items
-    AVAILABLE_CACHE_ITEMS=("${all_items[@]}")
-
-    echo -e "${GREEN}✓${NC} Found ${#AVAILABLE_CACHE_ITEMS[@]} items"
-    echo ""
-
+    # Build cache items list
+    local -a cache_items=()
+    local -a cache_patterns=()
     local -a menu_options=()
     local -a preselected_indices=()
     local index=0
 
-    for item in "${AVAILABLE_CACHE_ITEMS[@]}"; do
-        IFS='|' read -r path description size <<< "$item"
-        local is_protected="false"
-        if is_whitelisted "$path"; then
-            is_protected="true"
+    while IFS='|' read -r display_name pattern category; do
+        # Expand $HOME in pattern
+        pattern="${pattern/\$HOME/$HOME}"
+
+        cache_items+=("$display_name")
+        cache_patterns+=("$pattern")
+        menu_options+=("$display_name")
+
+        # Check if this pattern is currently whitelisted
+        if is_whitelisted "$pattern"; then
             preselected_indices+=("$index")
         fi
-        menu_options+=("$(format_whitelist_item "$description" "$size" "$is_protected")")
-        ((index++))
-    done
 
-    echo -e "${GRAY}↑↓ Navigate | Space Toggle | Enter Save | Q Quit${NC}"
+        ((index++))
+    done < <(get_all_cache_items)
 
     if [[ ${#preselected_indices[@]} -gt 0 ]]; then
         local IFS=','
@@ -344,105 +230,39 @@ manage_whitelist() {
     fi
 
     MOLE_SELECTION_RESULT=""
-    paginated_multi_select "Select items to protect" "${menu_options[@]}"
+    paginated_multi_select "Select caches to protect" "${menu_options[@]}"
     unset MOLE_PRESELECTED_INDICES
     local exit_code=$?
 
     if [[ $exit_code -ne 0 ]]; then
         echo ""
-        echo -e "${YELLOW}Cancelled${NC} - No changes made"
+        echo -e "${YELLOW}Cancelled${NC}"
         return 1
     fi
 
-    local -a selected_indices=()
-    if [[ -n "$MOLE_SELECTION_RESULT" ]]; then
-        IFS=',' read -ra selected_indices <<< "$MOLE_SELECTION_RESULT"
-    fi
-
-    save_whitelist "${selected_indices[@]}"
-}
-
-save_whitelist() {
-    local -a selected_indices=("$@")
-    mkdir -p "$(dirname "$WHITELIST_CONFIG")"
-
+    # Convert selected indices to patterns
     local -a selected_patterns=()
-    local selected_default_count=0
-    local selected_custom_count=0
-
-    for idx in "${selected_indices[@]}"; do
-        if [[ $idx -ge 0 && $idx -lt ${#AVAILABLE_CACHE_ITEMS[@]} ]]; then
-            local item="${AVAILABLE_CACHE_ITEMS[$idx]}"
-            IFS='|' read -r path description size <<< "$item"
-            local portable_path="${path/#$HOME/~}"
-
-            local duplicate="false"
-            if [[ ${#selected_patterns[@]} -gt 0 ]]; then
-                for existing in "${selected_patterns[@]}"; do
-                    if patterns_equivalent "$portable_path" "$existing"; then
-                        duplicate="true"
-                        break
-                    fi
-                done
+    if [[ -n "$MOLE_SELECTION_RESULT" ]]; then
+        local -a selected_indices
+        IFS=',' read -ra selected_indices <<< "$MOLE_SELECTION_RESULT"
+        for idx in "${selected_indices[@]}"; do
+            if [[ $idx -ge 0 && $idx -lt ${#cache_patterns[@]} ]]; then
+                local pattern="${cache_patterns[$idx]}"
+                # Convert back to portable format with ~
+                pattern="${pattern/#$HOME/~}"
+                selected_patterns+=("$pattern")
             fi
-            [[ "$duplicate" == "true" ]] && continue
-
-            if is_default_pattern "$portable_path"; then
-                ((selected_default_count++))
-            else
-                ((selected_custom_count++))
-            fi
-
-            selected_patterns+=("$portable_path")
-        fi
-    done
-
-    cat > "$WHITELIST_CONFIG" << 'EOF'
-# Mole Whitelist - Protected paths won't be deleted
-# Default: Playwright browsers, HuggingFace models
-EOF
-
-    # Only save custom (non-default) patterns
-    local -a custom_patterns=()
-    for pattern in "${selected_patterns[@]}"; do
-        if ! is_default_pattern "$pattern"; then
-            custom_patterns+=("$pattern")
-        fi
-    done
-
-    if [[ ${#custom_patterns[@]} -gt 0 ]]; then
-        printf '\n' >> "$WHITELIST_CONFIG"
-        for pattern in "${custom_patterns[@]}"; do
-            echo "$pattern" >> "$WHITELIST_CONFIG"
         done
     fi
 
-    local total_count=${#selected_patterns[@]}
-    local -a summary_parts=()
-    if [[ $selected_default_count -gt 0 ]]; then
-        local default_label="default"
-        [[ $selected_default_count -ne 1 ]] && default_label+="s"
-        summary_parts+=("$selected_default_count $default_label")
-    fi
-    if [[ $selected_custom_count -gt 0 ]]; then
-        local custom_label="custom"
-        [[ $selected_custom_count -ne 1 ]] && custom_label+="s"
-        summary_parts+=("$selected_custom_count $custom_label")
-    fi
-
-    local summary=""
-    if [[ ${#summary_parts[@]} -gt 0 ]]; then
-        summary=" (${summary_parts[0]}"
-        for ((i = 1; i < ${#summary_parts[@]}; i++)); do
-            summary+=", ${summary_parts[$i]}"
-        done
-        summary+=")"
-    fi
+    # Save to whitelist config
+    save_whitelist_patterns "${selected_patterns[@]}"
 
     echo ""
-    echo -e "${GREEN}✓${NC} Protected $total_count items${summary}"
+    echo -e "${GREEN}✓${NC} Protected ${#selected_patterns[@]} cache(s)"
     echo -e "${GRAY}Config: ${WHITELIST_CONFIG}${NC}"
 }
+
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     manage_whitelist

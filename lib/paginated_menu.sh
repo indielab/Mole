@@ -75,6 +75,8 @@ paginated_multi_select() {
     # Setup terminal - preserve interrupt character
     stty -echo -icanon intr ^C 2>/dev/null || true
     enter_alt_screen
+    # Clear screen once on entry to alt screen
+    printf "\033[2J\033[H" >&2
     hide_cursor
 
     # Helper functions
@@ -94,7 +96,11 @@ paginated_multi_select() {
 
     # Draw the complete menu
     draw_menu() {
-        printf "\033[H\033[J" >&2  # Clear screen and move to top
+        # Move to home position without clearing (reduces flicker)
+        printf "\033[H" >&2
+        
+        # Clear each line as we go instead of clearing entire screen
+        local clear_line="\r\033[2K"
 
         # Header - compute underline length without external seq dependency
         local title_clean="${title//[^[:print:]]/}"
@@ -103,14 +109,15 @@ paginated_multi_select() {
         # Build underline robustly (no seq); printf width then translate spaces to '='
         local underline
         underline=$(printf '%*s' "$underline_len" '' | tr ' ' '=')
-        printf "${PURPLE}%s${NC}\n%s\n" "$title" "$underline" >&2
+        printf "${clear_line}${PURPLE}%s${NC}\n" "$title" >&2
+        printf "${clear_line}%s\n" "$underline" >&2
 
         # Status
         local selected_count=0
         for ((i = 0; i < total_items; i++)); do
             [[ ${selected[i]} == true ]] && ((selected_count++))
         done
-        printf "Page %d/%d │ Total: %d │ Selected: %d\n\n" \
+        printf "${clear_line}Page %d/%d │ Total: %d │ Selected: %d\n\n" \
             $((current_page + 1)) $total_pages $total_items $selected_count >&2
 
         # Items for current page
@@ -124,14 +131,18 @@ paginated_multi_select() {
             render_item $i $is_current
         done
 
-        # Fill empty slots
+        # Fill empty slots to clear previous content
         local items_shown=$((end_idx - start_idx + 1))
         for ((i = items_shown; i < items_per_page; i++)); do
-            print_line ""
+            printf "${clear_line}\n" >&2
         done
 
-        print_line ""
-        print_line "${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"
+        # Clear any remaining lines at bottom
+        printf "${clear_line}\n" >&2
+        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
+        
+        # Clear one more line to ensure no artifacts
+        printf "${clear_line}" >&2
     }
 
     # Show help screen

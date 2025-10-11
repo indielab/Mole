@@ -268,14 +268,38 @@ bytes_to_human() {
     fi
 
     if ((bytes >= 1073741824)); then  # >= 1GB
-        echo "$bytes" | awk '{printf "%.2fGB", $1/1073741824}'
-    elif ((bytes >= 1048576)); then  # >= 1MB
-        echo "$bytes" | awk '{printf "%.1fMB", $1/1048576}'
-    elif ((bytes >= 1024)); then     # >= 1KB
-        echo "$bytes" | awk '{printf "%.0fKB", $1/1024}'
-    else
-        echo "${bytes}B"
+        local divisor=1073741824
+        local whole=$((bytes / divisor))
+        local remainder=$((bytes % divisor))
+        local frac=$(( (remainder * 100 + divisor / 2) / divisor ))  # Two decimals, rounded
+        if ((frac >= 100)); then
+            frac=0
+            ((whole++))
+        fi
+        printf "%d.%02dGB\n" "$whole" "$frac"
+        return 0
     fi
+
+    if ((bytes >= 1048576)); then  # >= 1MB
+        local divisor=1048576
+        local whole=$((bytes / divisor))
+        local remainder=$((bytes % divisor))
+        local frac=$(( (remainder * 10 + divisor / 2) / divisor ))  # One decimal, rounded
+        if ((frac >= 10)); then
+            frac=0
+            ((whole++))
+        fi
+        printf "%d.%01dMB\n" "$whole" "$frac"
+        return 0
+    fi
+
+    if ((bytes >= 1024)); then     # >= 1KB
+        local rounded_kb=$(((bytes + 512) / 1024))  # Nearest integer KB
+        printf "%dKB\n" "$rounded_kb"
+        return 0
+    fi
+
+    printf "%dB\n" "$bytes"
 }
 
 # Calculate directory size in bytes
@@ -726,17 +750,130 @@ mktemp_dir()  { local d; d=$(mktemp -d) || return 1; register_temp_dir "$d"; ech
 # Uninstall helper abstractions
 # =========================================================================
 force_kill_app() {
-    # Args: app_name; tries graceful then force kill; returns 0 if stopped, 1 otherwise
-    local app="$1"
-    if pgrep -f "$app" >/dev/null 2>&1; then
-        pkill -f "$app" 2>/dev/null || true
+    # Args: app_name [app_path]; tries graceful then force kill; returns 0 if stopped, 1 otherwise
+    local app_name="$1"
+    local app_path="${2:-}"
+
+    # Use app path for precise matching if provided
+    local match_pattern="$app_name"
+    if [[ -n "$app_path" && -e "$app_path" ]]; then
+        # Use the app bundle path for more precise matching
+        match_pattern="$app_path"
+    fi
+
+    if pgrep -f "$match_pattern" >/dev/null 2>&1; then
+        pkill -f "$match_pattern" 2>/dev/null || true
         sleep 1
     fi
-    if pgrep -f "$app" >/dev/null 2>&1; then
-        pkill -9 -f "$app" 2>/dev/null || true
+    if pgrep -f "$match_pattern" >/dev/null 2>&1; then
+        pkill -9 -f "$match_pattern" 2>/dev/null || true
         sleep 1
     fi
-    pgrep -f "$app" >/dev/null 2>&1 && return 1 || return 0
+    pgrep -f "$match_pattern" >/dev/null 2>&1 && return 1 || return 0
+}
+
+# Remove application icons from the Dock (best effort)
+remove_apps_from_dock() {
+    if [[ $# -eq 0 ]]; then
+        return 0
+    fi
+
+    local plist="$HOME/Library/Preferences/com.apple.dock.plist"
+    [[ -f "$plist" ]] || return 0
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Execute Python helper to prune dock entries for the given app paths.
+    # Exit status 2 means entries were removed.
+    local target_count=$#
+
+    python3 - "$@" <<'PY'
+import os
+import plistlib
+import subprocess
+import sys
+import urllib.parse
+
+plist_path = os.path.expanduser('~/Library/Preferences/com.apple.dock.plist')
+if not os.path.exists(plist_path):
+    sys.exit(0)
+
+def normalise(path):
+    if not path:
+        return ''
+    return os.path.normpath(os.path.realpath(path.rstrip('/')))
+
+targets = {normalise(arg) for arg in sys.argv[1:] if arg}
+targets = {t for t in targets if t}
+if not targets:
+    sys.exit(0)
+
+with open(plist_path, 'rb') as fh:
+    try:
+        data = plistlib.load(fh)
+    except Exception:
+        sys.exit(0)
+
+apps = data.get('persistent-apps')
+if not isinstance(apps, list):
+    sys.exit(0)
+
+changed = False
+filtered = []
+for item in apps:
+    try:
+        url = item['tile-data']['file-data']['_CFURLString']
+    except (KeyError, TypeError):
+        filtered.append(item)
+        continue
+
+    if not isinstance(url, str):
+        filtered.append(item)
+        continue
+
+    parsed = urllib.parse.urlparse(url)
+    path = urllib.parse.unquote(parsed.path or '')
+    if not path:
+        filtered.append(item)
+        continue
+
+    candidate = normalise(path)
+    if any(candidate == t or candidate.startswith(t + os.sep) for t in targets):
+        changed = True
+        continue
+
+    filtered.append(item)
+
+if not changed:
+    sys.exit(0)
+
+data['persistent-apps'] = filtered
+with open(plist_path, 'wb') as fh:
+    try:
+        plistlib.dump(data, fh, fmt=plistlib.FMT_BINARY)
+    except Exception:
+        plistlib.dump(data, fh)
+
+# Restart Dock to apply changes (ignore errors)
+try:
+    subprocess.run(['killall', 'Dock'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+except Exception:
+    pass
+
+sys.exit(2)
+PY
+    local python_status=$?
+    if [[ $python_status -eq 2 ]]; then
+        if [[ $target_count -gt 1 ]]; then
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed app icons from Dock"
+        else
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed app icon from Dock"
+        fi
+        return 0
+    fi
+    return $python_status
 }
 
 map_uninstall_reason() {

@@ -12,6 +12,10 @@ paginated_multi_select() {
     local title="$1"
     shift
     local -a items=("$@")
+    local external_alt_screen=false
+    if [[ "${MOLE_MANAGED_ALT_SCREEN:-}" == "1" || "${MOLE_MANAGED_ALT_SCREEN:-}" == "true" ]]; then
+        external_alt_screen=true
+    fi
 
     # Validation
     if [[ ${#items[@]} -eq 0 ]]; then
@@ -55,11 +59,14 @@ paginated_multi_select() {
         else
             stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
         fi
-        leave_alt_screen
+        if [[ "${external_alt_screen:-false}" == false ]]; then
+            leave_alt_screen
+        fi
     }
 
     # Cleanup function
     cleanup() {
+        trap - EXIT INT TERM
         restore_terminal
     }
 
@@ -74,9 +81,13 @@ paginated_multi_select() {
 
     # Setup terminal - preserve interrupt character
     stty -echo -icanon intr ^C 2>/dev/null || true
-    enter_alt_screen
-    # Clear screen once on entry to alt screen
-    printf "\033[2J\033[H" >&2
+    if [[ $external_alt_screen == false ]]; then
+        enter_alt_screen
+        # Clear screen once on entry to alt screen
+        printf "\033[2J\033[H" >&2
+    else
+        printf "\033[H" >&2
+    fi
     hide_cursor
 
     # Helper functions
@@ -84,11 +95,11 @@ paginated_multi_select() {
 
     render_item() {
         local idx=$1 is_current=$2
-        local checkbox="☐"
-        [[ ${selected[idx]} == true ]] && checkbox="☑"
+        local checkbox="[ ]"
+        [[ ${selected[idx]} == true ]] && checkbox="[x]"
 
         if [[ $is_current == true ]]; then
-            printf "\r\033[2K\033[7m▶ %s %s\033[0m\n" "$checkbox" "${items[idx]}" >&2
+            printf "\r\033[2K${BLUE}> %s %s${NC}\n" "$checkbox" "${items[idx]}" >&2
         else
             printf "\r\033[2K  %s %s\n" "$checkbox" "${items[idx]}" >&2
         fi
@@ -168,7 +179,10 @@ EOF
         local key=$(read_key)
 
         case "$key" in
-            "QUIT") cleanup; return 1 ;;
+            "QUIT")
+                cleanup
+                return 1
+                ;;
             "UP")
                 if [[ $cursor_pos -gt 0 ]]; then
                     ((cursor_pos--))

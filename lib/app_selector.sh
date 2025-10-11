@@ -37,10 +37,8 @@ select_apps_for_uninstall() {
         menu_options+=("$(format_app_display "$display_name" "$size" "$last_used")")
     done
 
-    # Clear screen before menu (alternate screen preserves main screen)
-    clear_screen
-
     # Use paginated menu - result will be stored in MOLE_SELECTION_RESULT
+    # Note: paginated_multi_select enters alternate screen and handles clearing
     MOLE_SELECTION_RESULT=""
     paginated_multi_select "Select Apps to Remove" "${menu_options[@]}"
     local exit_code=$?

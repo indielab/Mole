@@ -363,7 +363,7 @@ start_cleanup() {
 
     if [[ -t 0 ]]; then
         echo ""
-        echo -ne "${ICON_SETTINGS} ${BLUE}System cleanup?${NC} ${GRAY}Enter to continue, any key to skip${NC} "
+        echo -ne "${BLUE}${ICON_SETTINGS}${NC} ${BLUE}System cleanup?${NC} ${GRAY}Enter to continue, any key to skip${NC} "
 
         # Use IFS= and read without -n to allow Ctrl+C to work properly
         IFS= read -r -s -n 1 choice
@@ -406,7 +406,7 @@ start_cleanup() {
         else
             # Any other key = no system cleanup
             SYSTEM_CLEAN=false
-            echo -e "Skipped system cleanup, user-level only"
+            echo -e "${BLUE}${ICON_EMPTY}${NC} Skipped system cleanup, user-level only"
         fi
     else
         SYSTEM_CLEAN=false
@@ -1346,68 +1346,80 @@ perform_cleanup() {
     space_freed_kb=$((space_after - space_before))
 
     echo ""
-    echo "===================================================================="
+
+    local summary_heading=""
+    local summary_status="success"
     if [[ "$DRY_RUN" == "true" ]]; then
-        echo "DRY RUN COMPLETE!"
+        summary_heading="Dry run complete"
     else
-        echo "CLEANUP COMPLETE!"
+        summary_heading="Cleanup complete"
     fi
 
+    local -a summary_details=()
+
     if [[ $total_size_cleaned -gt 0 ]]; then
-        local freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
+        local freed_gb
+        freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
+
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo "Potential reclaimable space: ${GREEN}${freed_gb}GB${NC} (no changes made) | Free space now: $(get_free_space)"
-
-            # Show file/category stats for dry run
-            if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-                printf "Files to clean: %s | Categories: %s" "$files_cleaned" "$total_items"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
-            elif [[ $files_cleaned -gt 0 ]]; then
-                printf "Files to clean: %s" "$files_cleaned"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
-            elif [[ $total_items -gt 0 ]]; then
-                printf "Categories: %s" "$total_items"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
-            fi
-
-            echo ""
-            echo "To protect specific cache files from deletion, run: mo clean --whitelist"
+            summary_details+=("Potential reclaimable space: ${GREEN}${freed_gb}GB${NC}")
+            summary_details+=("No changes were made in this mode.")
         else
-            echo "Space freed: ${GREEN}${freed_gb}GB${NC} | Free space now: $(get_free_space)"
+            summary_details+=("Space freed: ${GREEN}${freed_gb}GB${NC}")
+        fi
+        summary_details+=("Free space now: $(get_free_space)")
 
-            # Show file/category stats for actual cleanup
-            if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-                printf "Files cleaned: %s | Categories: %s" "$files_cleaned" "$total_items"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
-            elif [[ $files_cleaned -gt 0 ]]; then
-                printf "Files cleaned: %s" "$files_cleaned"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
-            elif [[ $total_items -gt 0 ]]; then
-                printf "Categories: %s" "$total_items"
-                [[ $whitelist_skipped_count -gt 0 ]] && printf " | Protected: %s" "$whitelist_skipped_count"
-                printf "\n"
+        if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
+            local stats
+            if [[ "$DRY_RUN" == "true" ]]; then
+                stats="Files to clean: $files_cleaned | Categories: $total_items"
+            else
+                stats="Files cleaned: $files_cleaned | Categories: $total_items"
             fi
+            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+            summary_details+=("$stats")
+        elif [[ $files_cleaned -gt 0 ]]; then
+            local stats
+            if [[ "$DRY_RUN" == "true" ]]; then
+                stats="Files to clean: $files_cleaned"
+            else
+                stats="Files cleaned: $files_cleaned"
+            fi
+            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+            summary_details+=("$stats")
+        elif [[ $total_items -gt 0 ]]; then
+            local stats
+            if [[ "$DRY_RUN" == "true" ]]; then
+                stats="Categories to review: $total_items"
+            else
+                stats="Categories: $total_items"
+            fi
+            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+            summary_details+=("$stats")
+        fi
 
+        if [[ "$DRY_RUN" == "true" ]]; then
+            summary_details+=("Protect specific caches anytime with: mo clean --whitelist")
+        else
             if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
-                local movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
+                local movies
+                movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
                 if [[ $movies -gt 0 ]]; then
-                    echo "That's like ~$movies 4K movies worth of space!"
+                    summary_details+=("Equivalent to ~$movies 4K movies of storage.")
                 fi
             fi
         fi
     else
+        summary_status="info"
         if [[ "$DRY_RUN" == "true" ]]; then
-            echo "No significant reclaimable space detected (already clean) | Free space: $(get_free_space)"
+            summary_details+=("No significant reclaimable space detected (system already clean).")
         else
-            echo "No significant space was freed (system was already clean) | Free space: $(get_free_space)"
+            summary_details+=("System was already clean; no additional space freed.")
         fi
+        summary_details+=("Free space now: $(get_free_space)")
     fi
-    printf "====================================================================\n"
+
+    print_summary_block "$summary_status" "$summary_heading" "${summary_details[@]}"
 }
 
 

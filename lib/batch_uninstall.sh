@@ -175,37 +175,47 @@ batch_uninstall_applications() {
     done
 
     # Summary
-    local freed_display=$(bytes_to_human "$((total_size_freed * 1024))")
-    local bar="================================================================================"
-    echo "$bar"
+    local freed_display
+    freed_display=$(bytes_to_human "$((total_size_freed * 1024))")
+
+    local summary_status="success"
+    local -a summary_details=()
+
     if [[ $success_count -gt 0 ]]; then
         local success_list="${success_items[*]}"
-        echo -e "Removed: ${GREEN}${success_list}${NC} | Freed: ${GREEN}${freed_display}${NC}"
+        summary_details+=("Removed: ${GREEN}${success_list}${NC}")
+        summary_details+=("Freed space: ${GREEN}${freed_display}${NC}")
     fi
+
     if [[ $failed_count -gt 0 ]]; then
+        summary_status="warn"
+
         local failed_names=()
-        local reason_summary=""
         for item in "${failed_items[@]}"; do
             local name=${item%%:*}
             failed_names+=("$name")
         done
         local failed_list="${failed_names[*]}"
 
-        # Determine primary reason
+        local reason_summary="could not be removed"
         if [[ $failed_count -eq 1 ]]; then
             local first_reason=${failed_items[0]#*:}
             case "$first_reason" in
-                still*running*) reason_summary="still running" ;;
+                still*running*) reason_summary="is still running" ;;
                 remove*failed*) reason_summary="could not be removed" ;;
                 permission*) reason_summary="permission denied" ;;
                 *) reason_summary="$first_reason" ;;
             esac
-            echo -e "Failed: ${RED}${failed_list}${NC} ${reason_summary}"
-        else
-            echo -e "Failed: ${RED}${failed_list}${NC} could not be removed"
         fi
+        summary_details+=("Failed: ${RED}${failed_list}${NC} ${reason_summary}")
     fi
-    echo "$bar"
+
+    if [[ $success_count -eq 0 && $failed_count -eq 0 ]]; then
+        summary_status="info"
+        summary_details+=("No applications were uninstalled.")
+    fi
+
+    print_summary_block "$summary_status" "Uninstall complete" "${summary_details[@]}"
 
     if [[ ${#dock_cleanup_paths[@]} -gt 0 ]]; then
         remove_apps_from_dock "${dock_cleanup_paths[@]}"

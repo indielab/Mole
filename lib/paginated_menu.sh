@@ -25,9 +25,8 @@ paginated_multi_select() {
 
     local total_items=${#items[@]}
     local items_per_page=15
-    local total_pages=$(( (total_items + items_per_page - 1) / items_per_page ))
-    local current_page=0
     local cursor_pos=0
+    local top_index=0
     local -a selected=()
 
     # Initialize selection array
@@ -113,30 +112,48 @@ paginated_multi_select() {
         # Clear each line as we go instead of clearing entire screen
         local clear_line="\r\033[2K"
 
-        # Header - compute underline length without external seq dependency
-        local title_clean="${title//[^[:print:]]/}"
-        local underline_len=${#title_clean}
-        [[ $underline_len -lt 10 ]] && underline_len=10
-        # Build underline robustly (no seq); printf width then translate spaces to '='
-        local underline
-        underline=$(printf '%*s' "$underline_len" '' | tr ' ' '=')
-        printf "${clear_line}${PURPLE}%s${NC}\n" "$title" >&2
-        printf "${clear_line}%s\n" "$underline" >&2
-
-        # Status
+        # Count selections for header display
         local selected_count=0
         for ((i = 0; i < total_items; i++)); do
             [[ ${selected[i]} == true ]] && ((selected_count++))
         done
-        printf "${clear_line}Page %d/%d │ Total: %d │ Selected: %d\n\n" \
-            $((current_page + 1)) $total_pages $total_items $selected_count >&2
 
-        # Items for current page
-        local start_idx=$((current_page * items_per_page))
-        local end_idx=$((start_idx + items_per_page - 1))
+        # Header
+        printf "${clear_line}${PURPLE}%s${NC}  ${GRAY}%d/%d selected${NC}\n" "${title}" "$selected_count" "$total_items" >&2
+
+        if [[ $total_items -eq 0 ]]; then
+            printf "${clear_line}${GRAY}No items available${NC}\n" >&2
+            printf "${clear_line}\n" >&2
+            printf "${clear_line}${GRAY}Q/ESC${NC} Quit\n" >&2
+            printf "${clear_line}" >&2
+            return
+        fi
+
+        if [[ $top_index -gt $((total_items - 1)) ]]; then
+            if [[ $total_items -gt $items_per_page ]]; then
+                top_index=$((total_items - items_per_page))
+            else
+                top_index=0
+            fi
+        fi
+
+        local visible_count=$((total_items - top_index))
+        [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
+        [[ $visible_count -le 0 ]] && visible_count=1
+        if [[ $cursor_pos -ge $visible_count ]]; then
+            cursor_pos=$((visible_count - 1))
+            [[ $cursor_pos -lt 0 ]] && cursor_pos=0
+        fi
+
+        printf "${clear_line}\n" >&2
+
+        # Items for current window
+        local start_idx=$top_index
+        local end_idx=$((top_index + items_per_page - 1))
         [[ $end_idx -ge $total_items ]] && end_idx=$((total_items - 1))
 
         for ((i = start_idx; i <= end_idx; i++)); do
+            [[ $i -lt 0 ]] && continue
             local is_current=false
             [[ $((i - start_idx)) -eq $cursor_pos ]] && is_current=true
             render_item $i $is_current
@@ -144,13 +161,14 @@ paginated_multi_select() {
 
         # Fill empty slots to clear previous content
         local items_shown=$((end_idx - start_idx + 1))
+        [[ $items_shown -lt 0 ]] && items_shown=0
         for ((i = items_shown; i < items_per_page; i++)); do
             printf "${clear_line}\n" >&2
         done
 
         # Clear any remaining lines at bottom
         printf "${clear_line}\n" >&2
-        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit  ${GRAY}|${NC}  ○ off ● on\n" >&2
+        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
         
         # Clear one more line to ensure no artifacts
         printf "${clear_line}" >&2
@@ -184,31 +202,38 @@ EOF
                 return 1
                 ;;
             "UP")
-                if [[ $cursor_pos -gt 0 ]]; then
+                if [[ $total_items -eq 0 ]]; then
+                    :
+                elif [[ $cursor_pos -gt 0 ]]; then
                     ((cursor_pos--))
-                elif [[ $current_page -gt 0 ]]; then
-                    ((current_page--))
-                    # Calculate cursor position for new page
-                    local start_idx=$((current_page * items_per_page))
-                    local items_on_page=$((total_items - start_idx))
-                    [[ $items_on_page -gt $items_per_page ]] && items_on_page=$items_per_page
-                    cursor_pos=$((items_on_page - 1))
+                elif [[ $top_index -gt 0 ]]; then
+                    ((top_index--))
                 fi
                 ;;
             "DOWN")
-                local start_idx=$((current_page * items_per_page))
-                local items_on_page=$((total_items - start_idx))
-                [[ $items_on_page -gt $items_per_page ]] && items_on_page=$items_per_page
+                if [[ $total_items -eq 0 ]]; then
+                    :
+                else
+                    local absolute_index=$((top_index + cursor_pos))
+                    if [[ $absolute_index -lt $((total_items - 1)) ]]; then
+                        local visible_count=$((total_items - top_index))
+                        [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
 
-                if [[ $cursor_pos -lt $((items_on_page - 1)) ]]; then
-                    ((cursor_pos++))
-                elif [[ $current_page -lt $((total_pages - 1)) ]]; then
-                    ((current_page++))
-                    cursor_pos=0
+                        if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
+                            ((cursor_pos++))
+                        elif [[ $((top_index + visible_count)) -lt $total_items ]]; then
+                            ((top_index++))
+                            visible_count=$((total_items - top_index))
+                            [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
+                            if [[ $cursor_pos -ge $visible_count ]]; then
+                                cursor_pos=$((visible_count - 1))
+                            fi
+                        fi
+                    fi
                 fi
                 ;;
             "SPACE")
-                local idx=$((current_page * items_per_page + cursor_pos))
+                local idx=$((top_index + cursor_pos))
                 if [[ $idx -lt $total_items ]]; then
                     if [[ ${selected[idx]} == true ]]; then
                         selected[idx]=false

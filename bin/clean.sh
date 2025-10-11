@@ -23,11 +23,12 @@ readonly TEMP_FILE_AGE_DAYS=7        # Age threshold for temp file cleanup
 readonly ORPHAN_AGE_DAYS=60          # Age threshold for orphaned data
 readonly SIZE_1GB_KB=1048576         # 1GB in kilobytes
 readonly SIZE_1MB_KB=1024            # 1MB in kilobytes
-# Core whitelist patterns - always protected
-WHITELIST_PATTERNS=(
+# Default whitelist patterns (preselected, user can disable)
+declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
 )
+declare -a WHITELIST_PATTERNS=()
 WHITELIST_WARNINGS=()
 
 # Load user-defined whitelist
@@ -57,8 +58,20 @@ if [[ -f "$HOME/.config/mole/whitelist" ]]; then
                 ;;
         esac
 
+        duplicate="false"
+        if [[ ${#WHITELIST_PATTERNS[@]} -gt 0 ]]; then
+            for existing in "${WHITELIST_PATTERNS[@]}"; do
+                if [[ "$line" == "$existing" ]]; then
+                    duplicate="true"
+                    break
+                fi
+            done
+        fi
+        [[ "$duplicate" == "true" ]] && continue
         WHITELIST_PATTERNS+=("$line")
     done < "$HOME/.config/mole/whitelist"
+else
+    WHITELIST_PATTERNS=("${DEFAULT_WHITELIST_PATTERNS[@]}")
 fi
 total_items=0
 

@@ -95,8 +95,8 @@ paginated_multi_select() {
 
     render_item() {
         local idx=$1 is_current=$2
-        local checkbox="[ ]"
-        [[ ${selected[idx]} == true ]] && checkbox="[x]"
+        local checkbox="○"
+        [[ ${selected[idx]} == true ]] && checkbox="●"
 
         if [[ $is_current == true ]]; then
             printf "\r\033[2K${BLUE}> %s %s${NC}\n" "$checkbox" "${items[idx]}" >&2
@@ -150,7 +150,7 @@ paginated_multi_select() {
 
         # Clear any remaining lines at bottom
         printf "${clear_line}\n" >&2
-        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
+        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit  ${GRAY}|${NC}  ○ off ● on\n" >&2
         
         # Clear one more line to ensure no artifacts
         printf "${clear_line}" >&2
@@ -229,20 +229,6 @@ EOF
                 ;;
             "HELP") show_help ;;
             "ENTER")
-                # Auto-select current item if nothing selected
-                local has_selection=false
-                for ((i = 0; i < total_items; i++)); do
-                    if [[ ${selected[i]} == true ]]; then
-                        has_selection=true
-                        break
-                    fi
-                done
-
-                if [[ $has_selection == false ]]; then
-                    local idx=$((current_page * items_per_page + cursor_pos))
-                    [[ $idx -lt $total_items ]] && selected[idx]=true
-                fi
-
                 # Store result in global variable instead of returning via stdout
                 local -a selected_indices=()
                 for ((i = 0; i < total_items; i++)); do

@@ -145,18 +145,15 @@ Total: 156.8GB
 
 - **Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Start with `mo clean --dry-run` to preview what will be removed.
 
-- **How often should I clean?** Once a month, or when disk space is running low.
-
-- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to select caches to protect.
+- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to manage protection rules. Mole ships with `$HOME/Library/Caches/ms-playwright*`, `$HOME/.cache/huggingface*`, and `$HOME/.m2/repository/*` whitelisted by default—review and adjust them before your first cleanup.
 
 - **Touch ID support?** Yes. Run `mo touchid` to enable Touch ID for sudo and avoid repeated password prompts. This is optional but recommended for better experience.
 
 ## Support
 
-- **Star this repo** if Mole helped you recover disk space
-- **Share with friends** who need to clean their Macs
-- **Report issues** via [GitHub Issues](https://github.com/tw93/mole/issues)
-- I have two cats, <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">feed them canned food</a> if you'd like
+- Like Mole? Star or share it with friends.
+- Want to help? Contribute or drop suggestions via issues.
+- Cat lovers can feed Tangyuan and Cola with <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">canned food</a>.
 
 ## License
 

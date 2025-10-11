@@ -12,45 +12,30 @@ source "$SCRIPT_DIR/paginated_menu.sh"
 # Config file path
 WHITELIST_CONFIG="$HOME/.config/mole/whitelist"
 
-# Core whitelist patterns that are always protected
+# Default whitelist patterns (preselected on first run)
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
 )
 
-# Determine if a pattern matches one of the defaults
-is_default_pattern() {
-    local candidate="$1"
-    for default_pat in "${DEFAULT_WHITELIST_PATTERNS[@]}"; do
-        if patterns_equivalent "$candidate" "$default_pat"; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 # Save whitelist patterns to config
 save_whitelist_patterns() {
     local -a patterns
     patterns=("$@")
-    local -a custom_patterns
-    custom_patterns=()
     mkdir -p "$(dirname "$WHITELIST_CONFIG")"
 
     cat > "$WHITELIST_CONFIG" << 'EOF'
 # Mole Whitelist - Protected paths won't be deleted
-# Default protections: Playwright browsers, HuggingFace models
-# You can add custom paths here
+# Default protections: Playwright browsers, HuggingFace models (can be disabled)
+# Add one pattern per line to keep items safe.
 EOF
 
     if [[ ${#patterns[@]} -gt 0 ]]; then
+        local -a unique_patterns=()
         for pattern in "${patterns[@]}"; do
-            if is_default_pattern "$pattern"; then
-                continue
-            fi
             local duplicate="false"
-            if [[ ${#custom_patterns[@]} -gt 0 ]]; then
-                for existing in "${custom_patterns[@]}"; do
+            if [[ ${#unique_patterns[@]} -gt 0 ]]; then
+                for existing in "${unique_patterns[@]}"; do
                     if patterns_equivalent "$pattern" "$existing"; then
                         duplicate="true"
                         break
@@ -58,12 +43,12 @@ EOF
                 done
             fi
             [[ "$duplicate" == "true" ]] && continue
-            custom_patterns+=("$pattern")
+            unique_patterns+=("$pattern")
         done
 
-        if [[ ${#custom_patterns[@]} -gt 0 ]]; then
+        if [[ ${#unique_patterns[@]} -gt 0 ]]; then
             printf '\n' >> "$WHITELIST_CONFIG"
-            for pattern in "${custom_patterns[@]}"; do
+            for pattern in "${unique_patterns[@]}"; do
                 echo "$pattern" >> "$WHITELIST_CONFIG"
             done
         fi
@@ -130,9 +115,8 @@ patterns_equivalent() {
 
 
 load_whitelist() {
-    local -a patterns=("${DEFAULT_WHITELIST_PATTERNS[@]}")
+    local -a patterns=()
 
-    # Load user-defined patterns from config file
     if [[ -f "$WHITELIST_CONFIG" ]]; then
         while IFS= read -r line; do
             line="${line#${line%%[![:space:]]*}}"
@@ -140,6 +124,8 @@ load_whitelist() {
             [[ -z "$line" || "$line" =~ ^# ]] && continue
             patterns+=("$line")
         done < "$WHITELIST_CONFIG"
+    else
+        patterns=("${DEFAULT_WHITELIST_PATTERNS[@]}")
     fi
 
     if [[ ${#patterns[@]} -gt 0 ]]; then
@@ -203,7 +189,6 @@ manage_whitelist_categories() {
     local -a cache_items=()
     local -a cache_patterns=()
     local -a menu_options=()
-    local -a preselected_indices=()
     local index=0
 
     while IFS='|' read -r display_name pattern category; do
@@ -214,15 +199,48 @@ manage_whitelist_categories() {
         cache_patterns+=("$pattern")
         menu_options+=("$display_name")
 
-        # Check if this pattern is currently whitelisted
-        if is_whitelisted "$pattern"; then
-            preselected_indices+=("$index")
-        fi
-
         ((index++))
     done < <(get_all_cache_items)
 
-    if [[ ${#preselected_indices[@]} -gt 0 ]]; then
+    # Prioritize already-selected items to appear first
+    local -a selected_cache_items=()
+    local -a selected_cache_patterns=()
+    local -a selected_menu_options=()
+    local -a remaining_cache_items=()
+    local -a remaining_cache_patterns=()
+    local -a remaining_menu_options=()
+
+    for ((i = 0; i < ${#cache_patterns[@]}; i++)); do
+        if is_whitelisted "${cache_patterns[i]}"; then
+            selected_cache_items+=("${cache_items[i]}")
+            selected_cache_patterns+=("${cache_patterns[i]}")
+            selected_menu_options+=("${menu_options[i]}")
+        else
+            remaining_cache_items+=("${cache_items[i]}")
+            remaining_cache_patterns+=("${cache_patterns[i]}")
+            remaining_menu_options+=("${menu_options[i]}")
+        fi
+    done
+
+    cache_items=()
+    cache_patterns=()
+    menu_options=()
+    if [[ ${#selected_cache_items[@]} -gt 0 ]]; then
+        cache_items=("${selected_cache_items[@]}")
+        cache_patterns=("${selected_cache_patterns[@]}")
+        menu_options=("${selected_menu_options[@]}")
+    fi
+    if [[ ${#remaining_cache_items[@]} -gt 0 ]]; then
+        cache_items+=("${remaining_cache_items[@]}")
+        cache_patterns+=("${remaining_cache_patterns[@]}")
+        menu_options+=("${remaining_menu_options[@]}")
+    fi
+
+    if [[ ${#selected_cache_patterns[@]} -gt 0 ]]; then
+        local -a preselected_indices=()
+        for ((i = 0; i < ${#selected_cache_patterns[@]}; i++)); do
+            preselected_indices+=("$i")
+        done
         local IFS=','
         MOLE_PRESELECTED_INDICES="${preselected_indices[*]}"
     else
@@ -255,8 +273,12 @@ manage_whitelist_categories() {
         done
     fi
 
-    # Save to whitelist config
-    save_whitelist_patterns "${selected_patterns[@]}"
+    # Save to whitelist config (bash 3.2 + set -u safe)
+    if [[ ${#selected_patterns[@]} -gt 0 ]]; then
+        save_whitelist_patterns "${selected_patterns[@]}"
+    else
+        save_whitelist_patterns
+    fi
 
     echo ""
     echo -e "${GREEN}✓${NC} Protected ${#selected_patterns[@]} cache(s)"

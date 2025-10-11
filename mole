@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.7.3"
+VERSION="1.7.4"
 MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Get latest version from remote repository
@@ -400,28 +400,53 @@ remove_mole() {
     exit 0
 }
 
-# Display main menu options
+# Display main menu options with minimal refresh to avoid flicker
 show_main_menu() {
     local selected="${1:-1}"
-    local full_draw="${2:-true}"
+    local _full_draw="${2:-true}"  # Kept for compatibility (unused)
+    local banner="${MAIN_MENU_BANNER:-}"
+    local update_message="${MAIN_MENU_UPDATE_MESSAGE:-}"
 
-    # Full redraw each time (prevents ghost menu items)
-    clear_screen
-    echo ""
-    show_brand_banner
-    show_update_notification
-    echo ""
+    # Fallback if globals missing (should not happen)
+    if [[ -z "$banner" ]]; then
+        banner="$(show_brand_banner)"
+        MAIN_MENU_BANNER="$banner"
+    fi
 
-    show_menu_option 1 "Clean Mac - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)"
-    show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)"
-    show_menu_option 3 "Analyze Disk - Interactive space explorer" "$([[ $selected -eq 3 ]] && echo true || echo false)"
-    show_menu_option 4 "Help & Information - Usage guide and tips" "$([[ $selected -eq 4 ]] && echo true || echo false)"
-    show_menu_option 5 "Exit - Close Mole" "$([[ $selected -eq 5 ]] && echo true || echo false)"
+    printf '\033[H'  # Move cursor to home
+
+    local line=""
+    # Leading spacer
+    printf '\r\033[2K\n'
+
+    # Brand banner
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        printf '\r\033[2K%s\n' "$line"
+    done <<< "$banner"
+
+    # Update notification block (if present)
+    if [[ -n "$update_message" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            printf '\r\033[2K%s\n' "$line"
+        done <<< "$update_message"
+    fi
+
+    # Spacer before menu options
+    printf '\r\033[2K\n'
+
+    printf '\r\033[2K%s\n' "$(show_menu_option 1 "Clean Mac - Remove junk files and optimize" "$([[ $selected -eq 1 ]] && echo true || echo false)")"
+    printf '\r\033[2K%s\n' "$(show_menu_option 2 "Uninstall Apps - Remove applications completely" "$([[ $selected -eq 2 ]] && echo true || echo false)")"
+    printf '\r\033[2K%s\n' "$(show_menu_option 3 "Analyze Disk - Interactive space explorer" "$([[ $selected -eq 3 ]] && echo true || echo false)")"
+    printf '\r\033[2K%s\n' "$(show_menu_option 4 "Help & Information - Usage guide and tips" "$([[ $selected -eq 4 ]] && echo true || echo false)")"
+    printf '\r\033[2K%s\n' "$(show_menu_option 5 "Exit - Close Mole" "$([[ $selected -eq 5 ]] && echo true || echo false)")"
 
     if [[ -t 0 ]]; then
-        echo ""
-        echo -e "  ${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Enter${NC} Select  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"
+        printf '\r\033[2K\n'
+        printf '\r\033[2K%s\n' "  ${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Enter${NC} Select  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"
     fi
+
+    # Clear any remaining content below without full screen wipe
+    printf '\033[J'
 }
 
 # Interactive main menu loop
@@ -439,6 +464,18 @@ interactive_main_menu() {
     fi
     local current_option=1
     local first_draw=true
+    local brand_banner=""
+    local msg_cache="$HOME/.cache/mole/update_message"
+    local update_message=""
+
+    brand_banner="$(show_brand_banner)"
+    MAIN_MENU_BANNER="$brand_banner"
+
+    if [[ -f "$msg_cache" && -s "$msg_cache" ]]; then
+        update_message="$(cat "$msg_cache" 2>/dev/null || echo "")"
+    fi
+    MAIN_MENU_UPDATE_MESSAGE="$update_message"
+
     cleanup_and_exit() {
         show_cursor
         echo ""

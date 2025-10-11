@@ -108,15 +108,14 @@ scan_applications() {
          find ~/Applications -name "*.app" -maxdepth 1 2>/dev/null) | wc -l | tr -d ' '
     )
 
-    # Check if cache is valid
+    # Check if cache is valid unless explicitly disabled
     if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
         local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
         local cached_app_count=$(cat "$cache_meta" 2>/dev/null || echo "0")
 
         # Cache is valid if: age < TTL AND app count matches
         if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
-            # Only show cache info in debug mode
-            [[ -n "${MOLE_DEBUG:-}" ]] && echo "Using cached app list (${cache_age}s old, $current_app_count apps) ✓" >&2
+            # Silent - cache hit, no need to show progress
             echo "$cache_file"
             return 0
         fi
@@ -124,7 +123,6 @@ scan_applications() {
 
     local temp_file=$(create_temp_file)
 
-    echo "" >&2  # Add space before scanning output without breaking stdout return
     # Pre-cache current epoch to avoid repeated calls
     local current_epoch=$(date "+%s")
 
@@ -219,6 +217,11 @@ scan_applications() {
     local total_apps=${#app_data_tuples[@]}
     local max_parallel=10  # Process 10 apps in parallel
     local pids=()
+    local inline_loading=false
+    if [[ "${MOLE_INLINE_LOADING:-}" == "1" || "${MOLE_INLINE_LOADING:-}" == "true" ]]; then
+        inline_loading=true
+        printf "\033[H" >&2  # Position cursor at top of screen
+    fi
 
     # Process app metadata extraction function
     process_app_metadata() {
@@ -296,7 +299,11 @@ scan_applications() {
 
         # Update progress with spinner
         local spinner_char="${spinner_chars:$((spinner_idx % 4)):1}"
-        echo -ne "\r\033[K  ${spinner_char} Scanning applications... $app_count/$total_apps" >&2
+        if [[ $inline_loading == true ]]; then
+            printf "\033[H\033[2K${spinner_char} Scanning applications... %d/%d" "$app_count" "$total_apps" >&2
+        else
+            echo -ne "\r\033[K${spinner_char} Scanning applications... $app_count/$total_apps" >&2
+        fi
         ((spinner_idx++))
 
         # Wait if we've hit max parallel limit
@@ -311,13 +318,20 @@ scan_applications() {
         wait "$pid" 2>/dev/null
     done
 
-    echo -e "\r\033[K  ✓ Found $app_count applications" >&2
-    echo "" >&2
-
     # Check if we found any applications
     if [[ ! -s "$temp_file" ]]; then
+        if [[ $inline_loading == true ]]; then
+            printf "\033[H\033[2K" >&2
+        else
+            echo -ne "\r\033[K" >&2
+        fi
+        echo "No applications found to uninstall" >&2
         rm -f "$temp_file"
         return 1
+    fi
+
+    if [[ $inline_loading == true ]]; then
+        printf "\033[H\033[2K" >&2
     fi
 
     # Sort by last used (oldest first) and cache the result
@@ -388,13 +402,13 @@ uninstall_applications() {
 
         echo ""
 
-        # Check if app is running
-        if pgrep -f "$app_name" >/dev/null 2>&1; then
+        # Check if app is running (use app path for precise matching)
+        if pgrep -f "$app_path" >/dev/null 2>&1; then
             echo -e "${YELLOW}⚠ $app_name is currently running${NC}"
             read -p "  Force quit $app_name? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                pkill -f "$app_name" 2>/dev/null || true
+                pkill -f "$app_path" 2>/dev/null || true
                 sleep 2
             else
                 echo -e "  ${BLUE}○${NC} Skipped $app_name"
@@ -509,6 +523,10 @@ uninstall_applications() {
 # Cleanup function - restore cursor and clean up
 cleanup() {
     # Restore cursor using common function
+    if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
+        leave_alt_screen
+        unset MOLE_ALT_SCREEN_ACTIVE
+    fi
     show_cursor
     exit "${1:-0}"
 }
@@ -518,28 +536,76 @@ trap cleanup EXIT INT TERM
 
 # Main function
 main() {
+    local use_inline_loading=false
+    if [[ -t 1 && -t 2 ]]; then
+        use_inline_loading=true
+    fi
+
     # Hide cursor during operation
     hide_cursor
 
+    if [[ $use_inline_loading == true ]]; then
+        enter_alt_screen
+        export MOLE_ALT_SCREEN_ACTIVE=1
+        export MOLE_INLINE_LOADING=1
+        export MOLE_MANAGED_ALT_SCREEN=1
+        printf "\033[2J\033[H" >&2
+    else
+        unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN MOLE_ALT_SCREEN_ACTIVE
+    fi
+
     # Scan applications
-    local apps_file=$(scan_applications)
+    local apps_file=""
+    if ! apps_file=$(scan_applications); then
+        if [[ $use_inline_loading == true ]]; then
+            printf "\033[2J\033[H" >&2
+            leave_alt_screen
+            unset MOLE_ALT_SCREEN_ACTIVE
+            unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
+        fi
+        return 1
+    fi
+
+    if [[ $use_inline_loading == true ]]; then
+        printf "\033[2J\033[H" >&2
+    fi
 
     if [[ ! -f "$apps_file" ]]; then
-        echo ""
-        log_error "Failed to scan applications"
+        # Error message already shown by scan_applications
+        if [[ $use_inline_loading == true ]]; then
+            leave_alt_screen
+            unset MOLE_ALT_SCREEN_ACTIVE
+            unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
+        fi
         return 1
     fi
 
     # Load applications
     if ! load_applications "$apps_file"; then
+        if [[ $use_inline_loading == true ]]; then
+            leave_alt_screen
+            unset MOLE_ALT_SCREEN_ACTIVE
+            unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
+        fi
         rm -f "$apps_file"
         return 1
     fi
 
     # Interactive selection using paginated menu
     if ! select_apps_for_uninstall; then
+        if [[ $use_inline_loading == true ]]; then
+            leave_alt_screen
+            unset MOLE_ALT_SCREEN_ACTIVE
+            unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
+        fi
         rm -f "$apps_file"
         return 0
+    fi
+
+    if [[ $use_inline_loading == true ]]; then
+        leave_alt_screen
+        unset MOLE_ALT_SCREEN_ACTIVE
+        unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
     fi
 
     # Restore cursor and show a concise summary before confirmation

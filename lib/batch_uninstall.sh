@@ -24,6 +24,7 @@ batch_uninstall_applications() {
     local -a sudo_apps=()
     local total_estimated_size=0
     local -a app_details=()
+    local -a dock_cleanup_paths=()
 
     echo ""
     # Silent analysis without spinner output (avoid visual flicker)
@@ -31,8 +32,8 @@ batch_uninstall_applications() {
         [[ -z "$selected_app" ]] && continue
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
 
-        # Check if app is running
-        if pgrep -f "$app_name" >/dev/null 2>&1; then
+        # Check if app is running (use app path for precise matching)
+        if pgrep -f "$app_path" >/dev/null 2>&1; then
             running_apps+=("$app_name")
         fi
 
@@ -49,13 +50,45 @@ batch_uninstall_applications() {
         ((total_estimated_size += total_kb))
 
         # Store details for later use
-        # Base64 encode related_files to handle multi-line data safely
-        local encoded_files=$(echo "$related_files" | base64)
+        # Base64 encode related_files to handle multi-line data safely (single line)
+        local encoded_files
+        encoded_files=$(printf '%s' "$related_files" | base64 | tr -d '\n')
         app_details+=("$app_name|$app_path|$bundle_id|$total_kb|$encoded_files")
     done
 
     # Format size display (convert KB to bytes for bytes_to_human())
     local size_display=$(bytes_to_human "$((total_estimated_size * 1024))")
+
+    # Display detailed file list for each app before confirmation
+    echo -e "${PURPLE}Files to be removed:${NC}"
+    echo ""
+    for detail in "${app_details[@]}"; do
+        IFS='|' read -r app_name app_path bundle_id total_kb encoded_files <<< "$detail"
+        local related_files=$(printf '%s' "$encoded_files" | base64 -d)
+        local app_size_display=$(bytes_to_human "$((total_kb * 1024))")
+
+        echo -e "${BLUE}${ICON_CONFIRM}${NC} ${app_name} ${GRAY}(${app_size_display})${NC}"
+        echo -e "  ${GREEN}✓${NC} $(echo "$app_path" | sed "s|$HOME|~|")"
+
+        # Show related files (limit to 5 most important ones for brevity)
+        local file_count=0
+        local max_files=5
+        while IFS= read -r file; do
+            if [[ -n "$file" && -e "$file" ]]; then
+                if [[ $file_count -lt $max_files ]]; then
+                    echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
+                fi
+                ((file_count++))
+            fi
+        done <<< "$related_files"
+
+        # Show count of remaining files if truncated
+        if [[ $file_count -gt $max_files ]]; then
+            local remaining=$((file_count - max_files))
+            echo -e "  ${GRAY}  ... and ${remaining} more files${NC}"
+        fi
+        echo ""
+    done
 
     # Show summary and get batch confirmation first (before asking for password)
     local app_total=${#selected_apps[@]}
@@ -100,12 +133,7 @@ batch_uninstall_applications() {
     if [[ -t 1 ]]; then start_inline_spinner "Uninstalling apps..."; fi
 
     # Force quit running apps first (batch)
-    if [[ ${#running_apps[@]} -gt 0 ]]; then
-        pkill -f "${running_apps[0]}" 2>/dev/null || true
-        for app_name in "${running_apps[@]:1}"; do pkill -f "$app_name" 2>/dev/null || true; done
-        sleep 2
-        if pgrep -f "${running_apps[0]}" >/dev/null 2>&1; then sleep 1; fi
-    fi
+    # Note: Apps are already killed in the individual uninstall loop below with app_path for precise matching
 
     # Perform uninstallations (silent mode, show results at end)
     if [[ -t 1 ]]; then stop_inline_spinner; fi
@@ -114,11 +142,11 @@ batch_uninstall_applications() {
     local -a success_items=()
     for detail in "${app_details[@]}"; do
         IFS='|' read -r app_name app_path bundle_id total_kb encoded_files <<< "$detail"
-        local related_files=$(echo "$encoded_files" | base64 -d)
+        local related_files=$(printf '%s' "$encoded_files" | base64 -d)
         local reason=""
         local needs_sudo=false
         [[ ! -w "$(dirname "$app_path")" || "$(stat -f%Su "$app_path" 2>/dev/null)" == "root" ]] && needs_sudo=true
-        if ! force_kill_app "$app_name"; then
+        if ! force_kill_app "$app_name" "$app_path"; then
             reason="still running"
         fi
         if [[ -z "$reason" ]]; then
@@ -139,6 +167,7 @@ batch_uninstall_applications() {
             ((files_cleaned++))
             ((total_items++))
             success_items+=("$app_name")
+            dock_cleanup_paths+=("$app_path")
         else
             ((failed_count++))
             failed_items+=("$app_name:$reason")
@@ -148,7 +177,6 @@ batch_uninstall_applications() {
     # Summary
     local freed_display=$(bytes_to_human "$((total_size_freed * 1024))")
     local bar="================================================================================"
-    echo ""
     echo "$bar"
     if [[ $success_count -gt 0 ]]; then
         local success_list="${success_items[*]}"
@@ -178,6 +206,10 @@ batch_uninstall_applications() {
         fi
     fi
     echo "$bar"
+
+    if [[ ${#dock_cleanup_paths[@]} -gt 0 ]]; then
+        remove_apps_from_dock "${dock_cleanup_paths[@]}"
+    fi
 
     # Clean up sudo keepalive if it was started
     if [[ -n "${sudo_keepalive_pid:-}" ]]; then

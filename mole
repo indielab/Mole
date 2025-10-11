@@ -49,7 +49,7 @@ check_for_updates() {
         local latest=$(get_latest_version)
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n${YELLOW}   Run ${GREEN}mole update${YELLOW} to upgrade${NC}" > "$msg_cache"
+            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n${YELLOW}Run ${GREEN}mo update${YELLOW} to upgrade${NC}" > "$msg_cache"
         else
             echo -n > "$msg_cache"
         fi

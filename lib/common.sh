@@ -28,7 +28,7 @@ readonly ICON_ERROR="✗"        # Error
 readonly ICON_EMPTY="○"        # Empty state
 readonly ICON_LIST="-"         # List item
 readonly ICON_MENU="▸"         # Menu item
-readonly ICON_SYSTEM="☯︎"       # System/Architecture info
+readonly ICON_SYSTEM="❤︎"       # System/Architecture info
 readonly ICON_SETTINGS="⚙"     # Settings/Configuration
 
 # Spinner character helpers (ASCII by default, overridable via env)
@@ -741,7 +741,37 @@ clean_tool_cache() {
 }
 
 # ============================================================================
-# Confirmation prompt abstraction (Enter=confirm ESC/q=cancel)
+# Unified confirmation prompt with consistent style
+# ============================================================================
+
+# Unified action prompt
+# Usage: prompt_action "action" "cancel_text" -> returns 0 for yes, 1 for no
+# Example: prompt_action "enable" "quit" -> "☛ Press Enter to enable, ESC to quit: "
+prompt_action() {
+    local action="$1"
+    local cancel="${2:-cancel}"
+
+    echo ""
+    echo -ne "${PURPLE}☛${NC} Press ${GREEN}Enter${NC} to ${action}, ${GRAY}ESC${NC} to ${cancel}: "
+    IFS= read -r -s -n1 key || key=""
+
+    case "$key" in
+        $'\e')  # ESC
+            echo ""
+            return 1
+            ;;
+        ""|$'\n'|$'\r')  # Enter
+            printf "\r\033[K"  # Clear the prompt line
+            return 0
+            ;;
+        *)
+            echo ""
+            return 1
+            ;;
+    esac
+}
+
+# Legacy confirmation prompt (kept for compatibility)
 # confirm_prompt "Message" -> 0 yes, 1 no
 confirm_prompt() {
     local message="$1"

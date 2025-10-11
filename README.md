@@ -142,9 +142,9 @@ Total: 156.8GB
 
 ## Support
 
-- Like Mole? Star or share it with friends.
-- Want to help? Contribute or drop suggestions via issues.
-- Cat lovers can feed Tangyuan and Cola with <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">canned food</a>.
+- If Mole reclaimed storage for you, consider starring the repo or sharing it with someone who needs a cleaner Mac.
+- Have ideas or fixes? Open an issue or PR and help shape Mole’s roadmap together with the community.
+- Love cats? Treat Tangyuan and Cola to canned food via <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">this link</a> and keep the mascots purring.
 
 ## License
 

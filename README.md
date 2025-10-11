@@ -57,7 +57,7 @@ mo --version            # Show installed version
 ## Tips
 
 - 安全第一，如果这台 Mac 对你非常重要，建议等 Mole 更成熟时再使用。
-- Safety first; if your Mac is mission-critical, wait for Mole to mature before full cleanups.
+- Safety first, if your Mac is mission-critical, wait for Mole to mature before full cleanups.
 - Preview the cleanup by running `mo clean --dry-run` and reviewing the generated list.
 - Protect caches with `mo clean --whitelist`; defaults cover Playwright, HuggingFace, and Maven paths.
 - Use `mo touchid` to approve sudo with Touch ID instead of typing your password.

@@ -51,6 +51,7 @@ mo clean --dry-run      # Preview mode
 mo clean --whitelist    # Manage protected caches
 mo uninstall            # Uninstall apps
 mo analyze              # Disk analyzer
+mo touchid              # Configure Touch ID for sudo
 mo update               # Update Mole
 mo remove               # Remove Mole from system
 mo --help               # Show help
@@ -148,16 +149,7 @@ Total: 156.8GB
 
 - **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to select caches to protect.
 
-- **Touch ID support?** Mole uses `sudo` for privileges, so you'll get a password prompt unless you've configured Touch ID for sudo.
-
-  ```bash
-  sudo nano /etc/pam.d/sudo
-
-  # Add this line below the comments at the top:
-  auth sufficient pam_tid.so
-
-  # Save: Ctrl+O, then exit: Ctrl+X
-  ```
+- **Touch ID support?** Yes. Run `mo touchid` to enable Touch ID for sudo and avoid repeated password prompts. This is optional but recommended for better experience.
 
 ## Support
 

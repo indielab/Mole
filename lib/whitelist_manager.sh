@@ -16,6 +16,7 @@ WHITELIST_CONFIG="$HOME/.config/mole/whitelist"
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
+    "$HOME/.m2/repository/*"
 )
 
 # Save whitelist patterns to config
@@ -26,7 +27,7 @@ save_whitelist_patterns() {
 
     cat > "$WHITELIST_CONFIG" << 'EOF'
 # Mole Whitelist - Protected paths won't be deleted
-# Default protections: Playwright browsers, HuggingFace models (can be disabled)
+# Default protections: Playwright browsers, HuggingFace models, Maven local repo (can be disabled)
 # Add one pattern per line to keep items safe.
 EOF
 

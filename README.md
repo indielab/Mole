@@ -25,11 +25,6 @@
 
 ## Quick Start
 
-**Tips:**
-
-- If your Mac is mission-critical, consider waiting for Mole to mature further - safety first
-- 如果这台 Mac 对你非常重要，建议等 Mole 更成熟时来使用，安全第一
-
 **Install:**
 
 ```bash
@@ -58,9 +53,13 @@ mo --help               # Show help
 mo --version            # Show installed version
 ```
 
-> Start with `mo clean --dry-run` to preview what will be deleted.
->
-> Use `mo clean --whitelist` to protect important caches that are slow to re-download.
+## Tips
+
+- 安全第一，如果这台 Mac 对你非常重要，建议等 Mole 更成熟时再使用。
+- Safety first; if your Mac is mission-critical, wait for Mole to mature before full cleanups.
+- Preview the cleanup by running `mo clean --dry-run` and reviewing the generated list.
+- Protect critical caches with `mo clean --whitelist`; defaults cover Playwright, HuggingFace, and Maven paths.
+- Use `mo touchid` to approve sudo with Touch ID instead of typing your password.
 
 ## Features in Detail
 
@@ -140,14 +139,6 @@ Total: 156.8GB
 ├─ 📁 Documents                                      18.4GB
 └─ 📁 Desktop                                        12.7GB
 ```
-
-## FAQ
-
-- **Is Mole safe?** Mole only cleans caches and logs, it doesn't touch app settings, user documents, or system files. Start with `mo clean --dry-run` to preview what will be removed.
-
-- **Can I protect specific caches?** Yes. Run `mo clean --whitelist` to manage protection rules. Mole ships with `$HOME/Library/Caches/ms-playwright*`, `$HOME/.cache/huggingface*`, and `$HOME/.m2/repository/*` whitelisted by default—review and adjust them before your first cleanup.
-
-- **Touch ID support?** Yes. Run `mo touchid` to enable Touch ID for sudo and avoid repeated password prompts. This is optional but recommended for better experience.
 
 ## Support
 

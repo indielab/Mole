@@ -45,12 +45,11 @@ mo clean                # System cleanup
 mo clean --dry-run      # Preview mode
 mo clean --whitelist    # Manage protected caches
 mo uninstall            # Uninstall apps
-
 mo analyze              # Disk analyzer
+
 mo touchid              # Configure Touch ID for sudo
 mo update               # Update Mole
 mo remove               # Remove Mole from system
-
 mo --help               # Show help
 mo --version            # Show installed version
 ```

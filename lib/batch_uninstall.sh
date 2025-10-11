@@ -87,23 +87,36 @@ batch_uninstall_applications() {
             local remaining=$((file_count - max_files))
             echo -e "  ${GRAY}  ... and ${remaining} more files${NC}"
         fi
-        echo ""
     done
 
     # Show summary and get batch confirmation first (before asking for password)
     local app_total=${#selected_apps[@]}
     local app_text="app"
     [[ $app_total -gt 1 ]] && app_text="apps"
+
+    echo ""
+    local removal_note="Remove ${app_total} ${app_text}"
+    [[ -n "$size_display" ]] && removal_note+=" (${size_display})"
     if [[ ${#running_apps[@]} -gt 0 ]]; then
-        echo -n "${BLUE}${ICON_CONFIRM}${NC} Remove ${app_total} ${app_text} | ${size_display} | Force quit: ${running_apps[*]} | Enter=go / ESC=q: "
-    else
-        echo -n "${BLUE}${ICON_CONFIRM}${NC} Remove ${app_total} ${app_text} | ${size_display} | Enter=go / ESC=q: "
+        removal_note+=" - will force quit: ${running_apps[*]}"
     fi
+    echo -ne "${PURPLE}☛${NC} ${removal_note}. Press ${GREEN}Enter${NC} to confirm, ${GRAY}ESC${NC} to cancel: "
+
     IFS= read -r -s -n1 key || key=""
     case "$key" in
-        $'\e'|q|Q) echo ""; return 0 ;;
-        ""|$'\n'|$'\r'|y|Y) echo "" ;;
-        *) echo ""; return 0 ;;
+        $'\e'|q|Q)
+            echo ""
+            echo ""
+            return 0
+            ;;
+        ""|$'\n'|$'\r'|y|Y)
+            printf "\r\033[K"  # Clear the prompt line
+            ;;
+        *)
+            echo ""
+            echo ""
+            return 0
+            ;;
     esac
 
     # User confirmed, now request sudo access if needed
@@ -117,19 +130,9 @@ batch_uninstall_applications() {
             fi
         fi
         (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
-        local sudo_keepalive_pid=$!
-        local _trap_cleanup_cmd="kill $sudo_keepalive_pid 2>/dev/null || true; wait $sudo_keepalive_pid 2>/dev/null || true"
-        for signal in EXIT INT TERM; do
-            local existing_trap; existing_trap=$(trap -p "$signal" | awk -F"'" '{print $2}')
-            if [[ -n "$existing_trap" ]]; then
-                trap "$existing_trap; $_trap_cleanup_cmd" "$signal"
-            else
-                trap "$_trap_cleanup_cmd" "$signal"
-            fi
-        done
+        sudo_keepalive_pid=$!
     fi
 
-    echo ""
     if [[ -t 1 ]]; then start_inline_spinner "Uninstalling apps..."; fi
 
     # Force quit running apps first (batch)
@@ -183,8 +186,23 @@ batch_uninstall_applications() {
 
     if [[ $success_count -gt 0 ]]; then
         local success_list="${success_items[*]}"
-        summary_details+=("Removed: ${GREEN}${success_list}${NC}")
-        summary_details+=("Freed space: ${GREEN}${freed_display}${NC}")
+        local success_text="app"
+        [[ $success_count -gt 1 ]] && success_text="apps"
+        local success_line="Removed ${success_count} ${success_text}"
+        if [[ -n "$freed_display" ]]; then
+            success_line+=", freed ${GREEN}${freed_display}${NC}"
+        fi
+        if [[ -n "$success_list" ]]; then
+            local -a formatted_apps=()
+            for app_name in "${success_items[@]}"; do
+                formatted_apps+=("${GREEN}${app_name}${NC}")
+            done
+            if [[ ${#formatted_apps[@]} -gt 0 ]]; then
+                local IFS=', '
+                success_line+=": ${formatted_apps[*]}"
+            fi
+        fi
+        summary_details+=("$success_line")
     fi
 
     if [[ $failed_count -gt 0 ]]; then
@@ -216,6 +234,7 @@ batch_uninstall_applications() {
     fi
 
     print_summary_block "$summary_status" "Uninstall complete" "${summary_details[@]}"
+    printf '\n'
 
     if [[ ${#dock_cleanup_paths[@]} -gt 0 ]]; then
         remove_apps_from_dock "${dock_cleanup_paths[@]}"
@@ -225,6 +244,7 @@ batch_uninstall_applications() {
     if [[ -n "${sudo_keepalive_pid:-}" ]]; then
         kill "$sudo_keepalive_pid" 2>/dev/null || true
         wait "$sudo_keepalive_pid" 2>/dev/null || true
+        sudo_keepalive_pid=""
     fi
 
     ((total_size_cleaned += total_size_freed))

@@ -2048,7 +2048,8 @@ interactive_drill_down() {
                     fi
 
                     echo ""
-                    echo "  ${GRAY}Press ${NC}${GREEN}ENTER${NC}${GRAY} to confirm, ${NC}${YELLOW}ESC/Q${NC}${GRAY} to cancel${NC}"
+                    echo -e "  ${PURPLE}☛${NC} Press ${GREEN}Enter${NC} to delete, ${GRAY}ESC${NC} to cancel"
+                    echo ""
 
                     # Read confirmation
                     local confirm
@@ -2087,8 +2088,7 @@ interactive_drill_down() {
                         fi
 
                         if [[ "$delete_success" == "true" ]]; then
-                            echo "  ${GREEN}✓ Deleted successfully${NC}"
-                            echo "  ${GRAY}Freed: $human_size${NC}"
+                            echo "  ${GREEN}✓ Deleted successfully (freed $human_size)${NC}"
                             sleep 0.8
 
                             # Clear cache to force rescan

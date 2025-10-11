@@ -363,23 +363,30 @@ start_cleanup() {
 
     if [[ -t 0 ]]; then
         echo ""
-        echo -ne "${BLUE}${ICON_SETTINGS}${NC} ${BLUE}System cleanup?${NC} ${GRAY}Enter to continue, any key to skip${NC} "
+        echo -ne "${PURPLE}☛${NC} System caches need sudo — ${GREEN}Enter${NC} continue, other key skip: "
 
         # Use IFS= and read without -n to allow Ctrl+C to work properly
         IFS= read -r -s -n 1 choice
         local read_status=$?
-        echo ""
 
         # If read was interrupted (Ctrl+C), exit cleanly
         if [[ $read_status -ne 0 ]]; then
+            echo ""
             exit 130
         fi
 
-        # Enter or y = yes, do system cleanup
-        if [[ -z "$choice" ]] || [[ "$choice" == $'\n' ]] || [[ "$choice" =~ ^[Yy]$ ]]; then
+        if [[ "$choice" == $'\e' ]]; then
+            echo -e " ${GRAY}Cancelled${NC}"
+            exit 0
+        fi
+
+        # Enter = yes, do system cleanup
+        if [[ -z "$choice" ]] || [[ "$choice" == $'\n' ]]; then
+            printf "\r\033[K"  # Clear the prompt line
             if request_sudo_access "System cleanup requires admin access"; then
                 SYSTEM_CLEAN=true
                 echo -e "${GREEN}✓${NC} Admin access granted"
+                echo ""
                 # Start sudo keepalive with error handling
                 (
                     local retry_count=0
@@ -404,9 +411,10 @@ start_cleanup() {
                 echo -e "${YELLOW}Authentication failed${NC}, continuing with user-level cleanup"
             fi
         else
-            # Any other key = no system cleanup
+            # ESC or other key = no system cleanup
             SYSTEM_CLEAN=false
-            echo -e "${BLUE}${ICON_EMPTY}${NC} Skipped system cleanup, user-level only"
+            echo ""
+            echo -e "${GRAY}Skipped system cleanup, user-level only${NC}"
         fi
     else
         SYSTEM_CLEAN=false
@@ -1350,7 +1358,7 @@ perform_cleanup() {
     local summary_heading=""
     local summary_status="success"
     if [[ "$DRY_RUN" == "true" ]]; then
-        summary_heading="Dry run complete"
+        summary_heading="Dry run complete - no changes made"
     else
         summary_heading="Cleanup complete"
     fi
@@ -1362,45 +1370,31 @@ perform_cleanup() {
         freed_gb=$(echo "$total_size_cleaned" | awk '{printf "%.2f", $1/1024/1024}')
 
         if [[ "$DRY_RUN" == "true" ]]; then
-            summary_details+=("Potential reclaimable space: ${GREEN}${freed_gb}GB${NC}")
-            summary_details+=("No changes were made in this mode.")
+            # Build compact stats line for dry run
+            local stats="Potential space: ${GREEN}${freed_gb}GB${NC}"
+            [[ $files_cleaned -gt 0 ]] && stats+=" | Files: $files_cleaned"
+            [[ $total_items -gt 0 ]] && stats+=" | Categories: $total_items"
+            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+            summary_details+=("$stats")
+            summary_details+=("Use ${GRAY}mo clean --whitelist${NC} to protect caches")
         else
             summary_details+=("Space freed: ${GREEN}${freed_gb}GB${NC}")
-        fi
-        summary_details+=("Free space now: $(get_free_space)")
+            summary_details+=("Free space now: $(get_free_space)")
 
-        if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
-            local stats
-            if [[ "$DRY_RUN" == "true" ]]; then
-                stats="Files to clean: $files_cleaned | Categories: $total_items"
-            else
-                stats="Files cleaned: $files_cleaned | Categories: $total_items"
+            if [[ $files_cleaned -gt 0 && $total_items -gt 0 ]]; then
+                local stats="Files cleaned: $files_cleaned | Categories: $total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+                summary_details+=("$stats")
+            elif [[ $files_cleaned -gt 0 ]]; then
+                local stats="Files cleaned: $files_cleaned"
+                [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+                summary_details+=("$stats")
+            elif [[ $total_items -gt 0 ]]; then
+                local stats="Categories: $total_items"
+                [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
+                summary_details+=("$stats")
             fi
-            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
-            summary_details+=("$stats")
-        elif [[ $files_cleaned -gt 0 ]]; then
-            local stats
-            if [[ "$DRY_RUN" == "true" ]]; then
-                stats="Files to clean: $files_cleaned"
-            else
-                stats="Files cleaned: $files_cleaned"
-            fi
-            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
-            summary_details+=("$stats")
-        elif [[ $total_items -gt 0 ]]; then
-            local stats
-            if [[ "$DRY_RUN" == "true" ]]; then
-                stats="Categories to review: $total_items"
-            else
-                stats="Categories: $total_items"
-            fi
-            [[ $whitelist_skipped_count -gt 0 ]] && stats+=" | Protected: $whitelist_skipped_count"
-            summary_details+=("$stats")
-        fi
 
-        if [[ "$DRY_RUN" == "true" ]]; then
-            summary_details+=("Protect specific caches anytime with: mo clean --whitelist")
-        else
             if [[ $(echo "$freed_gb" | awk '{print ($1 >= 1) ? 1 : 0}') -eq 1 ]]; then
                 local movies
                 movies=$(echo "$freed_gb" | awk '{printf "%.0f", $1/4.5}')
@@ -1420,6 +1414,7 @@ perform_cleanup() {
     fi
 
     print_summary_block "$summary_status" "$summary_heading" "${summary_details[@]}"
+    printf '\n'
 }
 
 

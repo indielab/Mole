@@ -179,7 +179,6 @@ manage_whitelist_categories() {
     echo ""
     echo -e "${PURPLE}Whitelist Manager${NC}"
     echo ""
-    echo -e "${GRAY}Select caches to protect from cleanup.${NC}"
     echo ""
 
     # Load currently enabled patterns from both sources
@@ -248,7 +247,7 @@ manage_whitelist_categories() {
     fi
 
     MOLE_SELECTION_RESULT=""
-    paginated_multi_select "Select caches to protect" "${menu_options[@]}"
+    paginated_multi_select "Whitelist Manager – Select caches to protect" "${menu_options[@]}"
     unset MOLE_PRESELECTED_INDICES
     local exit_code=$?
 
@@ -283,6 +282,7 @@ manage_whitelist_categories() {
     print_summary_block "success" \
         "Protected ${#selected_patterns[@]} cache(s)" \
         "Saved to ${WHITELIST_CONFIG}"
+    printf '\n'
 }
 
 

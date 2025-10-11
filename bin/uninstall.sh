@@ -501,7 +501,6 @@ uninstall_applications() {
     done
 
     # Show final summary
-    echo ""
     echo -e "${PURPLE}▶ Uninstallation Summary${NC}"
 
     if [[ $total_size_freed -gt 0 ]]; then
@@ -526,6 +525,11 @@ cleanup() {
     if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
         leave_alt_screen
         unset MOLE_ALT_SCREEN_ACTIVE
+    fi
+    if [[ -n "${sudo_keepalive_pid:-}" ]]; then
+        kill "$sudo_keepalive_pid" 2>/dev/null || true
+        wait "$sudo_keepalive_pid" 2>/dev/null || true
+        sudo_keepalive_pid=""
     fi
     show_cursor
     exit "${1:-0}"

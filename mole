@@ -220,22 +220,34 @@ update_mole() {
     local install_output
     if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" --update 2>&1); then
         if [[ -t 1 ]]; then stop_inline_spinner; fi
-        echo "$install_output" | grep -Ev "^$" || true
-        # Only show success message if not already shown by installer
-        if ! echo "$install_output" | grep -q "Already on latest version"; then
+        local filtered_output
+        filtered_output=$(printf '%s\n' "$install_output" | sed '/^$/d')
+        if [[ -n "$filtered_output" ]]; then
+            printf '\n%s\n' "$filtered_output"
+        fi
+        # Only show success message if installer didn't already do so
+        if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
             local new_version
             new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-            echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+            printf '\n%s\n\n' "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+        else
+            printf '\n'
         fi
     else
         # Retry without --update flag
         if install_output=$("$tmp_installer" --prefix "$install_dir" --config "$HOME/.config/mole" 2>&1); then
             if [[ -t 1 ]]; then stop_inline_spinner; fi
-            echo "$install_output" | grep -Ev "^$" || true
-            if ! echo "$install_output" | grep -q "Already on latest version"; then
+            local filtered_output
+            filtered_output=$(printf '%s\n' "$install_output" | sed '/^$/d')
+            if [[ -n "$filtered_output" ]]; then
+                printf '\n%s\n' "$filtered_output"
+            fi
+            if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
                 local new_version
                 new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-                echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+                printf '\n%s\n\n' "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+            else
+                printf '\n'
             fi
         else
             if [[ -t 1 ]]; then stop_inline_spinner; fi

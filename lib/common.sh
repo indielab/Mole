@@ -22,7 +22,7 @@ readonly NC="${ESC}[0m"
 
 # Icon definitions
 readonly ICON_CONFIRM="◎"      # Confirm operation
-readonly ICON_ADMIN="●"        # Admin permission
+readonly ICON_ADMIN="⚙"        # Admin permission
 readonly ICON_SUCCESS="✓"      # Success
 readonly ICON_ERROR="✗"        # Error
 readonly ICON_EMPTY="○"        # Empty state
@@ -114,6 +114,39 @@ icon_menu() {
     local num="$1"
     local text="$2"
     echo -e "${BLUE}${ICON_MENU} ${num}. ${text}${NC}"
+}
+
+# Consistent summary blocks for command results
+print_summary_block() {
+    local status="info"
+    local heading=""
+
+    if [[ $# -gt 0 ]]; then
+        status="$1"
+        shift
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        heading="$1"
+        shift
+    fi
+
+    local -a details=("$@")
+    local divider="======================================================================"
+
+    local color="$BLUE"
+
+    local indent="  "
+
+    echo "$divider"
+    if [[ -n "$heading" ]]; then
+        echo -e "${BLUE}${heading}${NC}"
+    fi
+    for detail in "${details[@]}"; do
+        [[ -z "$detail" ]] && continue
+        echo -e "${detail}"
+    done
+    echo "$divider"
 }
 
 # System detection
@@ -343,7 +376,7 @@ request_sudo_access() {
 
     # If Touch ID is supported and not forced to use password
     if [[ "$force_password" != "true" ]] && check_touchid_support; then
-        echo -e "${BLUE}${ICON_ADMIN}${NC} ${prompt_msg} ${GRAY}(Touch ID or password)${NC}"
+        echo -e "${GRAY}${ICON_ADMIN}${NC} ${GRAY}${prompt_msg} (Touch ID or password)${NC}"
         if sudo -v 2>/dev/null; then
             return 0
         else
@@ -351,8 +384,8 @@ request_sudo_access() {
         fi
     else
         # Traditional password method
-        echo -e "${BLUE}${ICON_ADMIN}${NC} ${prompt_msg}"
-        echo -ne "${BLUE}${ICON_MENU}${NC} Password: "
+        echo -e "${GRAY}${ICON_ADMIN}${NC} ${GRAY}${prompt_msg}${NC}"
+        echo -ne "${GRAY}${ICON_MENU}${NC} Password: "
         read -s password
         echo ""
         if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then

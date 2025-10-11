@@ -280,9 +280,9 @@ manage_whitelist_categories() {
         save_whitelist_patterns
     fi
 
-    echo ""
-    echo -e "${GREEN}✓${NC} Protected ${#selected_patterns[@]} cache(s)"
-    echo -e "${GRAY}Config: ${WHITELIST_CONFIG}${NC}"
+    print_summary_block "success" \
+        "Protected ${#selected_patterns[@]} cache(s)" \
+        "Saved to ${WHITELIST_CONFIG}"
 }
 
 

@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.7.4"
+VERSION="1.7.5"
 MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Get latest version from remote repository
@@ -38,10 +38,10 @@ check_for_updates() {
     local msg_cache="$HOME/.cache/mole/update_message"
     mkdir -p "$(dirname "$cache")" 2>/dev/null
 
-    # Skip if checked within 24 hours
+    # Skip if checked within 3 hours
     if [[ -f "$cache" ]]; then
         local age=$(($(date +%s) - $(stat -f%m "$cache" 2>/dev/null || echo 0)))
-        [[ $age -lt 86400 ]] && return
+        [[ $age -lt 10800 ]] && return
     fi
 
     # Background version check (save to file, don't output)

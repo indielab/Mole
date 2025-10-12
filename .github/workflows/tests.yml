@@ -1,4 +1,4 @@
-name: Mole Tests
+name: Tests
 
 on:
   push:
@@ -13,10 +13,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install bats-core
-        run: |
-          brew update
-          brew install bats-core
+      - name: Install tools
+        run: brew install bats-core shfmt shellcheck
 
-      - name: Run test suite
+      - name: Check formatting
+        run: ./scripts/format.sh --check
+
+      - name: Run shellcheck
+        run: |
+          find . -type f \( -name "*.sh" -o -name "mole" \) \
+            ! -path "./.git/*" \
+            -exec shellcheck -S warning {} +
+
+      - name: Run tests
         run: tests/run.sh

@@ -33,17 +33,17 @@ batch_uninstall_applications() {
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
 
         # Check if app is running (use app path for precise matching)
-        if pgrep -f "$app_path" >/dev/null 2>&1; then
+        if pgrep -f "$app_path" > /dev/null 2>&1; then
             running_apps+=("$app_name")
         fi
 
         # Check if app requires sudo to delete
-        if [[ ! -w "$(dirname "$app_path")" ]] || [[ "$(stat -f%Su "$app_path" 2>/dev/null)" == "root" ]]; then
+        if [[ ! -w "$(dirname "$app_path")" ]] || [[ "$(stat -f%Su "$app_path" 2> /dev/null)" == "root" ]]; then
             sudo_apps+=("$app_name")
         fi
 
         # Calculate size for summary
-        local app_size_kb=$(du -sk "$app_path" 2>/dev/null | awk '{print $1}' || echo "0")
+        local app_size_kb=$(du -sk "$app_path" 2> /dev/null | awk '{print $1}' || echo "0")
         local related_files=$(find_app_files "$bundle_id" "$app_name")
         local related_size_kb=$(calculate_total_size "$related_files")
         local total_kb=$((app_size_kb + related_size_kb))
@@ -104,13 +104,13 @@ batch_uninstall_applications() {
 
     IFS= read -r -s -n1 key || key=""
     case "$key" in
-        $'\e'|q|Q)
+        $'\e' | q | Q)
             echo ""
             echo ""
             return 0
             ;;
-        ""|$'\n'|$'\r'|y|Y)
-            printf "\r\033[K"  # Clear the prompt line
+        "" | $'\n' | $'\r' | y | Y)
+            printf "\r\033[K" # Clear the prompt line
             ;;
         *)
             echo ""
@@ -122,14 +122,18 @@ batch_uninstall_applications() {
     # User confirmed, now request sudo access if needed
     if [[ ${#sudo_apps[@]} -gt 0 ]]; then
         # Check if sudo is already cached
-        if ! sudo -n true 2>/dev/null; then
+        if ! sudo -n true 2> /dev/null; then
             if ! request_sudo_access "Admin required for system apps: ${sudo_apps[*]}"; then
                 echo ""
                 log_error "Admin access denied"
                 return 1
             fi
         fi
-        (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
+        (while true; do
+            sudo -n true
+            sleep 60
+            kill -0 "$$" || exit
+        done 2> /dev/null) &
         sudo_keepalive_pid=$!
     fi
 
@@ -148,22 +152,22 @@ batch_uninstall_applications() {
         local related_files=$(printf '%s' "$encoded_files" | base64 -d)
         local reason=""
         local needs_sudo=false
-        [[ ! -w "$(dirname "$app_path")" || "$(stat -f%Su "$app_path" 2>/dev/null)" == "root" ]] && needs_sudo=true
+        [[ ! -w "$(dirname "$app_path")" || "$(stat -f%Su "$app_path" 2> /dev/null)" == "root" ]] && needs_sudo=true
         if ! force_kill_app "$app_name" "$app_path"; then
             reason="still running"
         fi
         if [[ -z "$reason" ]]; then
             if [[ "$needs_sudo" == true ]]; then
-                sudo rm -rf "$app_path" 2>/dev/null || reason="remove failed"
+                sudo rm -rf "$app_path" 2> /dev/null || reason="remove failed"
             else
-                rm -rf "$app_path" 2>/dev/null || reason="remove failed"
+                rm -rf "$app_path" 2> /dev/null || reason="remove failed"
             fi
         fi
         if [[ -z "$reason" ]]; then
             local files_removed=0
             while IFS= read -r file; do
                 [[ -n "$file" && -e "$file" ]] || continue
-                rm -rf "$file" 2>/dev/null && ((files_removed++)) || true
+                rm -rf "$file" 2> /dev/null && ((files_removed++)) || true
             done <<< "$related_files"
             ((total_size_freed += total_kb))
             ((success_count++))
@@ -202,7 +206,7 @@ batch_uninstall_applications() {
             for app_name in "${success_items[@]}"; do
                 local display_item="${GREEN}${app_name}${NC}"
 
-                if (( idx % 3 == 0 )); then
+                if ((idx % 3 == 0)); then
                     # Start new line
                     if [[ -n "$current_line" ]]; then
                         summary_details+=("$current_line")
@@ -267,8 +271,8 @@ batch_uninstall_applications() {
 
     # Clean up sudo keepalive if it was started
     if [[ -n "${sudo_keepalive_pid:-}" ]]; then
-        kill "$sudo_keepalive_pid" 2>/dev/null || true
-        wait "$sudo_keepalive_pid" 2>/dev/null || true
+        kill "$sudo_keepalive_pid" 2> /dev/null || true
+        wait "$sudo_keepalive_pid" 2> /dev/null || true
         sudo_keepalive_pid=""
     fi
 

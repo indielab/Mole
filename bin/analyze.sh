@@ -19,9 +19,9 @@ source "$LIB_DIR/common.sh"
 # Constants
 readonly CACHE_DIR="${HOME}/.config/mole/cache"
 readonly TEMP_PREFIX="/tmp/mole_analyze_$$"
-readonly MIN_LARGE_FILE_SIZE="1000000000"    # 1GB
-readonly MIN_MEDIUM_FILE_SIZE="100000000"     # 100MB
-readonly MIN_SMALL_FILE_SIZE="10000000"       # 10MB
+readonly MIN_LARGE_FILE_SIZE="1000000000" # 1GB
+readonly MIN_MEDIUM_FILE_SIZE="100000000" # 100MB
+readonly MIN_SMALL_FILE_SIZE="10000000"   # 10MB
 
 # Emoji badges for list displays only
 readonly BADGE_DIR="🍞"
@@ -42,16 +42,16 @@ declare CURRENT_DEPTH=1
 
 # UI State
 declare CURSOR_POS=0
-declare SORT_MODE="size"  # size, name, time
-declare VIEW_MODE="overview"  # overview, detail, files
+declare SORT_MODE="size"     # size, name, time
+declare VIEW_MODE="overview" # overview, detail, files
 
 # Cleanup on exit
 cleanup() {
     show_cursor
     # Cleanup temp files using glob pattern (analyze uses many temp files)
-    rm -f "$TEMP_PREFIX"* 2>/dev/null || true
-    if [[ -n "$SCAN_PID" ]] && kill -0 "$SCAN_PID" 2>/dev/null; then
-        kill "$SCAN_PID" 2>/dev/null || true
+    rm -f "$TEMP_PREFIX"* 2> /dev/null || true
+    if [[ -n "$SCAN_PID" ]] && kill -0 "$SCAN_PID" 2> /dev/null; then
+        kill "$SCAN_PID" 2> /dev/null || true
     fi
 }
 
@@ -66,7 +66,7 @@ scan_large_files() {
     local target_path="$1"
     local output_file="$2"
 
-    if ! command -v mdfind &>/dev/null; then
+    if ! command -v mdfind &> /dev/null; then
         return 1
     fi
 
@@ -75,10 +75,10 @@ scan_large_files() {
     while IFS= read -r file; do
         if [[ -f "$file" ]]; then
             local size
-            size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            size=$(stat -f%z "$file" 2> /dev/null || echo "0")
             echo "$size|$file"
         fi
-    done < <(mdfind -onlyin "$target_path" "kMDItemFSSize > $MIN_LARGE_FILE_SIZE" 2>/dev/null) | \
+    done < <(mdfind -onlyin "$target_path" "kMDItemFSSize > $MIN_LARGE_FILE_SIZE" 2> /dev/null) |
         sort -t'|' -k1 -rn > "$output_file"
 }
 
@@ -87,7 +87,7 @@ scan_medium_files() {
     local target_path="$1"
     local output_file="$2"
 
-    if ! command -v mdfind &>/dev/null; then
+    if ! command -v mdfind &> /dev/null; then
         return 1
     fi
 
@@ -95,11 +95,11 @@ scan_medium_files() {
     while IFS= read -r file; do
         if [[ -f "$file" ]]; then
             local size
-            size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            size=$(stat -f%z "$file" 2> /dev/null || echo "0")
             echo "$size|$file"
         fi
     done < <(mdfind -onlyin "$target_path" \
-        "kMDItemFSSize > $MIN_MEDIUM_FILE_SIZE && kMDItemFSSize < $MIN_LARGE_FILE_SIZE" 2>/dev/null) | \
+        "kMDItemFSSize > $MIN_MEDIUM_FILE_SIZE && kMDItemFSSize < $MIN_LARGE_FILE_SIZE" 2> /dev/null) |
         sort -t'|' -k1 -rn > "$output_file"
 }
 
@@ -110,18 +110,18 @@ scan_directories() {
     local depth="${3:-1}"
 
     # Check if we can use parallel processing
-    if command -v xargs &>/dev/null && [[ $depth -eq 1 ]]; then
+    if command -v xargs &> /dev/null && [[ $depth -eq 1 ]]; then
         # Fast parallel scan for depth 1
-        find "$target_path" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | \
-            xargs -0 -P 4 -I {} du -sk {} 2>/dev/null | \
-            sort -rn | \
+        find "$target_path" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null |
+            xargs -0 -P 4 -I {} du -sk {} 2> /dev/null |
+            sort -rn |
             while IFS=$'\t' read -r size path; do
                 echo "$((size * 1024))|$path"
             done > "$output_file"
     else
         # Standard du scan
-        du -d "$depth" -k "$target_path" 2>/dev/null | \
-            sort -rn | \
+        du -d "$depth" -k "$target_path" 2> /dev/null |
+            sort -rn |
             while IFS=$'\t' read -r size path; do
                 # Skip if path is the target itself at depth > 0
                 if [[ "$path" != "$target_path" ]]; then
@@ -161,21 +161,21 @@ aggregate_by_directory() {
 get_cache_file() {
     local target_path="$1"
     local path_hash
-    path_hash=$(echo "$target_path" | md5 2>/dev/null || echo "$target_path" | shasum | cut -d' ' -f1)
+    path_hash=$(echo "$target_path" | md5 2> /dev/null || echo "$target_path" | shasum | cut -d' ' -f1)
     echo "$CACHE_DIR/scan_${path_hash}.cache"
 }
 
 # Check if cache is valid (less than 1 hour old)
 is_cache_valid() {
     local cache_file="$1"
-    local max_age="${2:-3600}"  # Default 1 hour
+    local max_age="${2:-3600}" # Default 1 hour
 
     if [[ ! -f "$cache_file" ]]; then
         return 1
     fi
 
     local cache_age
-    cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
+    cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2> /dev/null || echo 0)))
     if [[ $cache_age -lt $max_age ]]; then
         return 0
     fi
@@ -192,7 +192,7 @@ save_to_cache() {
     local temp_agg="$TEMP_PREFIX.agg"
 
     # Create cache directory
-    mkdir -p "$(dirname "$cache_file")" 2>/dev/null || return 1
+    mkdir -p "$(dirname "$cache_file")" 2> /dev/null || return 1
 
     # Bundle all scan results into cache file
     {
@@ -204,7 +204,7 @@ save_to_cache() {
         [[ -f "$temp_dirs" ]] && cat "$temp_dirs"
         echo "### AGG ###"
         [[ -f "$temp_agg" ]] && cat "$temp_agg"
-    } > "$cache_file" 2>/dev/null
+    } > "$cache_file" 2> /dev/null
 }
 
 # Load scan results from cache
@@ -283,7 +283,7 @@ perform_scan() {
     )
     local msg_idx=0
 
-    while kill -0 "$SCAN_PID" 2>/dev/null; do
+    while kill -0 "$SCAN_PID" 2> /dev/null; do
         # Show different messages based on elapsed time
         local current_msg=""
         if [[ $elapsed -lt 5 ]]; then
@@ -299,12 +299,12 @@ perform_scan() {
         printf "\r${BLUE}%s${NC} %s" \
             "${spinner_chars:$i:1}" "$current_msg"
 
-        i=$(( (i + 1) % 10 ))
+        i=$(((i + 1) % 10))
         ((elapsed++))
         sleep 0.1
     done
-    wait "$SCAN_PID" 2>/dev/null || true
-    printf "\r%80s\r" ""  # Clear spinner line
+    wait "$SCAN_PID" 2> /dev/null || true
+    printf "\r%80s\r" "" # Clear spinner line
     show_cursor
 
     # Aggregate results
@@ -508,7 +508,7 @@ display_directories_compact() {
 
         # Simple bar (10 chars)
         local bar_width=10
-        local percentage_int=${percentage%.*}  # Remove decimal part
+        local percentage_int=${percentage%.*} # Remove decimal part
         local filled
         filled=$((percentage_int * bar_width / 100))
         [[ $filled -gt $bar_width ]] && filled=$bar_width
@@ -622,8 +622,8 @@ display_cleanup_suggestions_compact() {
     if [[ "$CURRENT_PATH" == "$HOME/Library/Caches"* ]] || [[ "$CURRENT_PATH" == "$HOME/Library"* ]]; then
         if [[ -d "$HOME/Library/Caches" ]]; then
             local cache_size
-            cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
-            if [[ $cache_size -gt 1048576 ]]; then  # > 1GB
+            cache_size=$(du -sk "$HOME/Library/Caches" 2> /dev/null | cut -f1)
+            if [[ $cache_size -gt 1048576 ]]; then # > 1GB
                 local human
                 human=$(bytes_to_human $((cache_size * 1024)))
                 top_suggestion="Clear app caches ($human)"
@@ -637,7 +637,7 @@ display_cleanup_suggestions_compact() {
     # Check Downloads folder (only if analyzing Downloads)
     if [[ "$CURRENT_PATH" == "$HOME/Downloads"* ]]; then
         local old_files
-        old_files=$(find "$CURRENT_PATH" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
+        old_files=$(find "$CURRENT_PATH" -type f -mtime +90 2> /dev/null | wc -l | tr -d ' ')
         if [[ $old_files -gt 0 ]]; then
             [[ -z "$top_suggestion" ]] && top_suggestion="$old_files files older than 90 days found"
             [[ -z "$action_command" ]] && action_command="manually review old files"
@@ -646,13 +646,13 @@ display_cleanup_suggestions_compact() {
     fi
 
     # Check for large disk images in current path
-    if command -v mdfind &>/dev/null; then
+    if command -v mdfind &> /dev/null; then
         local dmg_count=$(mdfind -onlyin "$CURRENT_PATH" \
-            "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2>/dev/null | wc -l | tr -d ' ')
+            "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2> /dev/null | wc -l | tr -d ' ')
         if [[ $dmg_count -gt 0 ]]; then
             local dmg_size=$(mdfind -onlyin "$CURRENT_PATH" \
-                "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2>/dev/null | \
-                xargs stat -f%z 2>/dev/null | awk '{sum+=$1} END {print sum}')
+                "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2> /dev/null |
+                xargs stat -f%z 2> /dev/null | awk '{sum+=$1} END {print sum}')
             local dmg_human
             dmg_human=$(bytes_to_human "$dmg_size")
             [[ -z "$top_suggestion" ]] && top_suggestion="$dmg_count DMG files ($dmg_human) can be removed"
@@ -665,7 +665,7 @@ display_cleanup_suggestions_compact() {
     # Check Xcode (only if in developer paths)
     if [[ "$CURRENT_PATH" == "$HOME/Library/Developer"* ]] && [[ -d "$HOME/Library/Developer/Xcode/DerivedData" ]]; then
         local xcode_size
-        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
+        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2> /dev/null | cut -f1)
         if [[ $xcode_size -gt 10485760 ]]; then
             local xcode_human
             xcode_human=$(bytes_to_human $((xcode_size * 1024)))
@@ -677,9 +677,9 @@ display_cleanup_suggestions_compact() {
     fi
 
     # Check for duplicates in current path
-    if command -v mdfind &>/dev/null; then
-        local dup_count=$(mdfind -onlyin "$CURRENT_PATH" "kMDItemFSSize > 10000000" 2>/dev/null | \
-            xargs -I {} stat -f "%z" {} 2>/dev/null | sort | uniq -d | wc -l | tr -d ' ')
+    if command -v mdfind &> /dev/null; then
+        local dup_count=$(mdfind -onlyin "$CURRENT_PATH" "kMDItemFSSize > 10000000" 2> /dev/null |
+            xargs -I {} stat -f "%z" {} 2> /dev/null | sort | uniq -d | wc -l | tr -d ' ')
         if [[ $dup_count -gt 5 ]]; then
             [[ -z "$top_suggestion" ]] && top_suggestion="$dup_count potential duplicate files detected"
             ((suggestions_count++))
@@ -720,8 +720,8 @@ display_cleanup_suggestions() {
     # Check common cache locations
     if [[ -d "$HOME/Library/Caches" ]]; then
         local cache_size
-        cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
-        if [[ $cache_size -gt 1048576 ]]; then  # > 1GB
+        cache_size=$(du -sk "$HOME/Library/Caches" 2> /dev/null | cut -f1)
+        if [[ $cache_size -gt 1048576 ]]; then # > 1GB
             local human
             human=$(bytes_to_human $((cache_size * 1024)))
             suggestions+=("  Clear application caches: $human")
@@ -731,16 +731,16 @@ display_cleanup_suggestions() {
     # Check Downloads folder
     if [[ -d "$HOME/Downloads" ]]; then
         local old_files
-        old_files=$(find "$HOME/Downloads" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
+        old_files=$(find "$HOME/Downloads" -type f -mtime +90 2> /dev/null | wc -l | tr -d ' ')
         if [[ $old_files -gt 0 ]]; then
             suggestions+=("  Clean old downloads: $old_files files older than 90 days")
         fi
     fi
 
     # Check for large disk images
-    if command -v mdfind &>/dev/null; then
+    if command -v mdfind &> /dev/null; then
         local dmg_count=$(mdfind -onlyin "$HOME" \
-            "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2>/dev/null | wc -l | tr -d ' ')
+            "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2> /dev/null | wc -l | tr -d ' ')
         if [[ $dmg_count -gt 0 ]]; then
             suggestions+=("  Remove disk images: $dmg_count DMG files >500MB")
         fi
@@ -749,8 +749,8 @@ display_cleanup_suggestions() {
     # Check Xcode derived data
     if [[ -d "$HOME/Library/Developer/Xcode/DerivedData" ]]; then
         local xcode_size
-        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
-        if [[ $xcode_size -gt 10485760 ]]; then  # > 10GB
+        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2> /dev/null | cut -f1)
+        if [[ $xcode_size -gt 10485760 ]]; then # > 10GB
             local human
             human=$(bytes_to_human $((xcode_size * 1024)))
             suggestions+=("  Clear Xcode cache: $human")
@@ -760,8 +760,8 @@ display_cleanup_suggestions() {
     # Check iOS device backups
     if [[ -d "$HOME/Library/Application Support/MobileSync/Backup" ]]; then
         local backup_size
-        backup_size=$(du -sk "$HOME/Library/Application Support/MobileSync/Backup" 2>/dev/null | cut -f1)
-        if [[ $backup_size -gt 5242880 ]]; then  # > 5GB
+        backup_size=$(du -sk "$HOME/Library/Application Support/MobileSync/Backup" 2> /dev/null | cut -f1)
+        if [[ $backup_size -gt 5242880 ]]; then # > 5GB
             local human
             human=$(bytes_to_human $((backup_size * 1024)))
             suggestions+=("  📱 Review iOS backups: $human")
@@ -769,13 +769,13 @@ display_cleanup_suggestions() {
     fi
 
     # Check for duplicate files (by size, quick heuristic)
-    if command -v mdfind &>/dev/null; then
+    if command -v mdfind &> /dev/null; then
         local temp_dup="$TEMP_PREFIX.dup_check"
-        mdfind -onlyin "$CURRENT_PATH" "kMDItemFSSize > 10000000" 2>/dev/null | \
-            xargs -I {} stat -f "%z" {} 2>/dev/null | \
-            sort | uniq -d | wc -l | tr -d ' ' > "$temp_dup" 2>/dev/null || echo "0" > "$temp_dup"
+        mdfind -onlyin "$CURRENT_PATH" "kMDItemFSSize > 10000000" 2> /dev/null |
+            xargs -I {} stat -f "%z" {} 2> /dev/null |
+            sort | uniq -d | wc -l | tr -d ' ' > "$temp_dup" 2> /dev/null || echo "0" > "$temp_dup"
         local dup_count
-        dup_count=$(cat "$temp_dup" 2>/dev/null || echo "0")
+        dup_count=$(cat "$temp_dup" 2> /dev/null || echo "0")
         if [[ $dup_count -gt 5 ]]; then
             suggestions+=("  ♻️ Possible duplicates: $dup_count size matches in large files (>10MB)")
         fi
@@ -804,14 +804,14 @@ display_disk_summary() {
     local total_dirs_count=0
 
     if [[ -f "$temp_large" ]]; then
-        total_large_count=$(wc -l < "$temp_large" 2>/dev/null | tr -d ' ')
+        total_large_count=$(wc -l < "$temp_large" 2> /dev/null | tr -d ' ')
         while IFS='|' read -r size path; do
             ((total_large_size += size))
         done < "$temp_large"
     fi
 
     if [[ -f "$temp_dirs" ]]; then
-        total_dirs_count=$(wc -l < "$temp_dirs" 2>/dev/null | tr -d ' ')
+        total_dirs_count=$(wc -l < "$temp_dirs" 2> /dev/null | tr -d ' ')
         while IFS='|' read -r size path; do
             ((total_dirs_size += size))
         done < "$temp_dirs"
@@ -841,20 +841,24 @@ get_file_info() {
     local type="File"
 
     case "$ext" in
-        dmg|iso|pkg|zip|tar|gz|rar|7z)
-            badge="$BADGE_BUNDLE" ; type="Bundle"
+        dmg | iso | pkg | zip | tar | gz | rar | 7z)
+            badge="$BADGE_BUNDLE"
+            type="Bundle"
             ;;
-        mov|mp4|avi|mkv|webm|jpg|jpeg|png|gif|heic)
-            badge="$BADGE_MEDIA" ; type="Media"
+        mov | mp4 | avi | mkv | webm | jpg | jpeg | png | gif | heic)
+            badge="$BADGE_MEDIA"
+            type="Media"
             ;;
-        pdf|key|ppt|pptx)
+        pdf | key | ppt | pptx)
             type="Document"
             ;;
         log)
-            badge="$BADGE_LOG" ; type="Log"
+            badge="$BADGE_LOG"
+            type="Log"
             ;;
         app)
-            badge="$BADGE_APP" ; type="App"
+            badge="$BADGE_APP"
+            type="App"
             ;;
     esac
 
@@ -870,7 +874,7 @@ get_file_age() {
     fi
 
     local mtime
-    mtime=$(stat -f%m "$path" 2>/dev/null || echo "0")
+    mtime=$(stat -f%m "$path" 2> /dev/null || echo "0")
     local now
     now=$(date +%s)
     local diff
@@ -936,8 +940,8 @@ display_large_files_table() {
         # Color based on file type
         local color=""
         case "$ext" in
-            dmg|iso|pkg) color="${RED}" ;;
-            mov|mp4|avi|mkv|webm|zip|tar|gz|rar|7z) color="${YELLOW}" ;;
+            dmg | iso | pkg) color="${RED}" ;;
+            mov | mp4 | avi | mkv | webm | zip | tar | gz | rar | 7z) color="${YELLOW}" ;;
             log) color="${GRAY}" ;;
             *) color="${NC}" ;;
         esac
@@ -1104,7 +1108,7 @@ display_recent_large_files() {
     log_header "Recent Large Files (Last 30 Days)"
     echo ""
 
-    if ! command -v mdfind &>/dev/null; then
+    if ! command -v mdfind &> /dev/null; then
         echo "  ${YELLOW}Note: mdfind not available${NC}"
         echo ""
         return
@@ -1114,13 +1118,13 @@ display_recent_large_files() {
 
     # Find files created in last 30 days, larger than 100MB
     mdfind -onlyin "$CURRENT_PATH" \
-        "kMDItemFSSize > 100000000 && kMDItemContentCreationDate >= \$time.today(-30)" 2>/dev/null | \
+        "kMDItemFSSize > 100000000 && kMDItemContentCreationDate >= \$time.today(-30)" 2> /dev/null |
         while IFS= read -r file; do
             if [[ -f "$file" ]]; then
                 local size
-                size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+                size=$(stat -f%z "$file" 2> /dev/null || echo "0")
                 local mtime
-                mtime=$(stat -f%m "$file" 2>/dev/null || echo "0")
+                mtime=$(stat -f%m "$file" 2> /dev/null || echo "0")
                 echo "$size|$mtime|$file"
             fi
         done | sort -t'|' -k1 -rn | head -10 > "$temp_recent"
@@ -1140,7 +1144,7 @@ display_recent_large_files() {
         local dirname
         dirname=$(dirname "$path" | sed "s|^$HOME|~|")
         local days_ago
-        days_ago=$(( ($(date +%s) - mtime) / 86400 ))
+        days_ago=$((($(date +%s) - mtime) / 86400))
 
         local info
         info=$(get_file_info "$path")
@@ -1162,10 +1166,10 @@ get_subdirectories() {
     local target="$1"
     local temp_file="$2"
 
-    find "$target" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | \
+    find "$target" -mindepth 1 -maxdepth 1 -type d 2> /dev/null |
         while IFS= read -r dir; do
             local size
-            size=$(du -sk "$dir" 2>/dev/null | cut -f1)
+            size=$(du -sk "$dir" 2> /dev/null | cut -f1)
             echo "$((size * 1024))|$dir"
         done | sort -t'|' -k1 -rn > "$temp_file"
 }
@@ -1298,7 +1302,7 @@ display_file_types() {
     log_header "File Types Analysis"
     echo ""
 
-    if ! command -v mdfind &>/dev/null; then
+    if ! command -v mdfind &> /dev/null; then
         echo "  ${YELLOW}Note: mdfind not available, limited analysis${NC}"
         return
     fi
@@ -1336,7 +1340,7 @@ display_file_types() {
         esac
 
         local files
-        files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2>/dev/null)
+        files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2> /dev/null)
         local count
         count=$(echo "$files" | grep -c . || echo "0")
         local total_size=0
@@ -1345,7 +1349,7 @@ display_file_types() {
             while IFS= read -r file; do
                 if [[ -f "$file" ]]; then
                     local fsize
-                    fsize=$(stat -f%z "$file" 2>/dev/null || echo "0")
+                    fsize=$(stat -f%z "$file" 2> /dev/null || echo "0")
                     ((total_size += fsize))
                 fi
             done <<< "$files"
@@ -1364,7 +1368,7 @@ display_file_types() {
 read_single_key() {
     local key=""
     # Read single character without waiting for Enter
-    if read -rsn1 key 2>/dev/null; then
+    if read -rsn1 key 2> /dev/null; then
         echo "$key"
     else
         echo "q"
@@ -1396,13 +1400,13 @@ scan_directory_contents_fast() {
     fi
 
     # Ultra-fast file scanning - batch stat for maximum speed
-    find "$dir_path" -mindepth 1 -maxdepth 1 -type f -print0 2>/dev/null | \
-        xargs -0 -n 20 -P "$num_jobs" stat -f "%z|file|%N" 2>/dev/null > "$temp_files" &
+    find "$dir_path" -mindepth 1 -maxdepth 1 -type f -print0 2> /dev/null |
+        xargs -0 -n 20 -P "$num_jobs" stat -f "%z|file|%N" 2> /dev/null > "$temp_files" &
     local file_pid=$!
 
     # Smart directory scanning with aggressive optimization
     # Strategy: Fast estimation first, accurate on-demand
-    find "$dir_path" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | \
+    find "$dir_path" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null |
         xargs -0 -n 1 -P "$num_jobs" sh -c '
             dir="$1"
             size=""
@@ -1436,7 +1440,7 @@ scan_directory_contents_fast() {
                 [[ -z "$size" ]] || [[ "$size" -eq 0 ]] && size=1
             fi
             echo "$((size * 1024))|dir|$dir"
-        ' _ > "$temp_dirs" 2>/dev/null &
+        ' _ > "$temp_dirs" 2> /dev/null &
     local dir_pid=$!
 
     # Show progress while waiting
@@ -1448,22 +1452,22 @@ scan_directory_contents_fast() {
             local spinner_chars
             spinner_chars="$(mo_spinner_chars)"
             local chars_len=${#spinner_chars}
-            for ((idx=0; idx<chars_len; idx++)); do
+            for ((idx = 0; idx < chars_len; idx++)); do
                 spinner+=("${spinner_chars:idx:1}")
             done
         fi
         [[ ${#spinner[@]} -eq 0 ]] && spinner=('|' '/' '-' '\\')
         local i=0
-        local max_wait=30  # Reduced to 30 seconds (fast fail)
+        local max_wait=30 # Reduced to 30 seconds (fast fail)
         local elapsed=0
         local tick=0
         local spin_len=${#spinner[@]}
-        (( spin_len == 0 )) && spinner=('|' '/' '-' '\\') && spin_len=${#spinner[@]}
+        ((spin_len == 0)) && spinner=('|' '/' '-' '\\') && spin_len=${#spinner[@]}
 
-        while ( kill -0 "$dir_pid" 2>/dev/null || kill -0 "$file_pid" 2>/dev/null ); do
+        while (kill -0 "$dir_pid" 2> /dev/null || kill -0 "$file_pid" 2> /dev/null); do
             printf "\r  ${BLUE}Scanning${NC} ${spinner[$((i % spin_len))]} (%ds)" "$elapsed" >&2
             ((i++))
-            sleep 0.1  # Faster animation (100ms per frame)
+            sleep 0.1 # Faster animation (100ms per frame)
             ((tick++))
 
             # Update elapsed seconds every 10 ticks (1 second)
@@ -1473,10 +1477,10 @@ scan_directory_contents_fast() {
 
             # Force kill if taking too long (30 seconds for fast response)
             if [[ $elapsed -ge $max_wait ]]; then
-                kill -9 "$dir_pid" 2>/dev/null || true
-                kill -9 "$file_pid" 2>/dev/null || true
-                wait "$dir_pid" 2>/dev/null || true
-                wait "$file_pid" 2>/dev/null || true
+                kill -9 "$dir_pid" 2> /dev/null || true
+                kill -9 "$file_pid" 2> /dev/null || true
+                wait "$dir_pid" 2> /dev/null || true
+                wait "$file_pid" 2> /dev/null || true
                 printf "\r  ${YELLOW}Large directory - showing estimated sizes${NC}\n" >&2
                 sleep 0.3
                 break
@@ -1488,8 +1492,8 @@ scan_directory_contents_fast() {
     fi
 
     # Wait for completion (non-blocking if already killed)
-    wait "$file_pid" 2>/dev/null || true
-    wait "$dir_pid" 2>/dev/null || true
+    wait "$file_pid" 2> /dev/null || true
+    wait "$dir_pid" 2> /dev/null || true
 
     # Small delay only if scan was very fast (let user see the spinner briefly)
     if [[ "$show_progress" == "true" ]] && [[ ${elapsed:-0} -lt 1 ]]; then
@@ -1498,19 +1502,19 @@ scan_directory_contents_fast() {
 
     # Combine and sort - only keep top items
     # Ensure we handle empty files gracefully
-    > "$output_file"
+    true > "$output_file"
     if [[ -f "$temp_dirs" ]] || [[ -f "$temp_files" ]]; then
-        cat "$temp_dirs" "$temp_files" 2>/dev/null | sort -t'|' -k1 -rn | head -"$max_items" > "$output_file" || true
+        cat "$temp_dirs" "$temp_files" 2> /dev/null | sort -t'|' -k1 -rn | head -"$max_items" > "$output_file" || true
     fi
 
     # Cleanup
-    rm -f "$temp_dirs" "$temp_files" 2>/dev/null
+    rm -f "$temp_dirs" "$temp_files" 2> /dev/null
 }
 
 # Calculate directory sizes and update (now only used for deep refresh)
 calculate_dir_sizes() {
     local items_file="$1"
-    local max_items="${2:-15}"  # Only recalculate first 15 by default
+    local max_items="${2:-15}" # Only recalculate first 15 by default
     local temp_file="${items_file}.calc"
 
     # Since we now scan with actual sizes, this function is mainly for refresh
@@ -1519,9 +1523,9 @@ calculate_dir_sizes() {
 
     # Only update if source file still exists (might have been deleted if user quit)
     if [[ -f "$items_file" ]]; then
-        mv "$temp_file" "$items_file" 2>/dev/null || true
+        mv "$temp_file" "$items_file" 2> /dev/null || true
     else
-        rm -f "$temp_file" 2>/dev/null || true
+        rm -f "$temp_file" 2> /dev/null || true
     fi
 }
 
@@ -1531,7 +1535,7 @@ combine_initial_scan_results() {
     local temp_large="$TEMP_PREFIX.large"
     local temp_dirs="$TEMP_PREFIX.dirs"
 
-    > "$output_file"
+    true > "$output_file"
 
     # Add directories
     if [[ -f "$temp_dirs" ]]; then
@@ -1572,7 +1576,7 @@ show_volumes_overview() {
         # External volumes (if any)
         if [[ -d "/Volumes" ]]; then
             local vol_priority=500
-            find /Volumes -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r vol; do
+            find /Volumes -mindepth 1 -maxdepth 1 -type d 2> /dev/null | while IFS= read -r vol; do
                 local vol_name
                 vol_name=$(basename "$vol")
                 echo "$((vol_priority))|$vol|Volume: $vol_name"
@@ -1582,17 +1586,17 @@ show_volumes_overview() {
     } | sort -t'|' -k1 -rn > "$temp_volumes"
 
     # Setup alternate screen and hide cursor (keep hidden throughout)
-    tput smcup 2>/dev/null || true
-    printf "\033[?25l" >&2  # Hide cursor
+    tput smcup 2> /dev/null || true
+    printf "\033[?25l" >&2 # Hide cursor
 
     cleanup_volumes() {
-        printf "\033[?25h" >&2  # Show cursor
-        tput rmcup 2>/dev/null || true
+        printf "\033[?25h" >&2 # Show cursor
+        tput rmcup 2> /dev/null || true
     }
     trap cleanup_volumes EXIT INT TERM
 
     # Force cursor hidden at the start
-    stty -echo 2>/dev/null || true
+    stty -echo 2> /dev/null || true
 
     local cursor=0
     local total_items
@@ -1603,10 +1607,10 @@ show_volumes_overview() {
         printf "\033[?25l" >&2
 
         # Drain burst input (trackpad scroll -> many arrows)
-        type drain_pending_input >/dev/null 2>&1 && drain_pending_input
+        type drain_pending_input > /dev/null 2>&1 && drain_pending_input
         # Build output buffer to reduce flicker
         local output=""
-        output+="\033[?25l"  # Hide cursor
+        output+="\033[?25l" # Hide cursor
         output+="\033[H\033[J"
         output+=$'\n'
         output+="\033[0;35mSelect a location to explore\033[0m"$'\n'
@@ -1633,7 +1637,7 @@ show_volumes_overview() {
 
         # Read key (suppress any escape sequences that might leak)
         local key
-        key=$(read_key 2>/dev/null || echo "OTHER")
+        key=$(read_key 2> /dev/null || echo "OTHER")
 
         case "$key" in
             "UP")
@@ -1642,7 +1646,7 @@ show_volumes_overview() {
             "DOWN")
                 ((cursor < total_items - 1)) && ((cursor++))
                 ;;
-            "ENTER"|"RIGHT")
+            "ENTER" | "RIGHT")
                 # Get selected path and enter it
                 local selected_path=""
                 idx=0
@@ -1679,7 +1683,7 @@ show_volumes_overview() {
                 # In volumes view, LEFT does nothing (already at top level)
                 # User must press q/ESC to quit
                 ;;
-            "QUIT"|"q")
+            "QUIT" | "q")
                 # Quit the volumes view
                 break
                 ;;
@@ -1693,13 +1697,13 @@ show_volumes_overview() {
 # Interactive drill-down mode
 interactive_drill_down() {
     local start_path="$1"
-    local initial_items="${2:-}"  # Pre-scanned items for first level
+    local initial_items="${2:-}" # Pre-scanned items for first level
     local current_path="$start_path"
     local path_stack=()
     local cursor=0
-    local scroll_offset=0  # New: for scrolling
+    local scroll_offset=0 # New: for scrolling
     local need_scan=true
-    local wait_for_calc=false  # Don't wait on first load, let user press 'r'
+    local wait_for_calc=false # Don't wait on first load, let user press 'r'
     local temp_items="$TEMP_PREFIX.items"
     local status_message=""
 
@@ -1711,33 +1715,33 @@ interactive_drill_down() {
     # Directory cache: store scan results for each visited directory
     # Use temp files because bash 3.2 doesn't have associative arrays
     local cache_dir="$TEMP_PREFIX.cache.$$"
-    mkdir -p "$cache_dir" 2>/dev/null || true
+    mkdir -p "$cache_dir" 2> /dev/null || true
 
     # Note: We're already in alternate screen from show_volumes_overview
     # Just hide cursor, don't re-enter alternate screen
-    printf "\033[?25l"  # Hide cursor
+    printf "\033[?25l" # Hide cursor
 
     # Save terminal settings and disable echo
     local old_tty_settings=""
     if [[ -t 0 ]]; then
-        old_tty_settings=$(stty -g 2>/dev/null || echo "")
-        stty -echo 2>/dev/null || true
+        old_tty_settings=$(stty -g 2> /dev/null || echo "")
+        stty -echo 2> /dev/null || true
     fi
 
     # Cleanup on exit (but don't exit alternate screen - may return to menu)
     cleanup_drill_down() {
         # Restore terminal settings
         if [[ -n "${old_tty_settings:-}" ]]; then
-            stty "$old_tty_settings" 2>/dev/null || true
+            stty "$old_tty_settings" 2> /dev/null || true
         fi
-        printf "\033[?25h"  # Show cursor
+        printf "\033[?25h" # Show cursor
         # Don't call tput rmcup - we may be returning to volumes menu
-        [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2>/dev/null || true  # Clean up cache
+        [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2> /dev/null || true # Clean up cache
     }
     trap cleanup_drill_down EXIT INT TERM
 
     # Drain any input that accumulated before entering interactive mode
-    type drain_pending_input >/dev/null 2>&1 && drain_pending_input
+    type drain_pending_input > /dev/null 2>&1 && drain_pending_input
 
     while true; do
         # Ensure cursor is always hidden during navigation
@@ -1747,7 +1751,7 @@ interactive_drill_down() {
         if [[ "$need_scan" == "true" ]]; then
             # Generate cache key (use md5 hash of path)
             local cache_key
-            cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
+            cache_key=$(echo "$current_path" | md5 2> /dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
             local cache_file="$cache_dir/$cache_key"
 
             # Check if we have cached results for this directory
@@ -1760,12 +1764,12 @@ interactive_drill_down() {
                 # Use || true to prevent exit on scan failure
                 scan_directory_contents_fast "$current_path" "$temp_items" 50 true || {
                     # Scan failed - create empty result file
-                    > "$temp_items"
+                    true > "$temp_items"
                 }
 
                 # Save to cache for next time (only if not empty)
                 if [[ -s "$temp_items" ]]; then
-                    cp "$temp_items" "$cache_file" 2>/dev/null || true
+                    cp "$temp_items" "$cache_file" 2> /dev/null || true
                 fi
             fi
 
@@ -1787,7 +1791,7 @@ interactive_drill_down() {
             scroll_offset=0
 
             # Drain any input accumulated during scanning
-            type drain_pending_input >/dev/null 2>&1 && drain_pending_input
+            type drain_pending_input > /dev/null 2>&1 && drain_pending_input
 
             # Check if empty or scan failed
             if [[ $total_items -eq 0 ]]; then
@@ -1800,7 +1804,7 @@ interactive_drill_down() {
                     echo "  ${GRAY}Path: $current_path${NC}" >&2
                     echo "" >&2
                     echo "  ${GRAY}Press any key to go back...${NC}" >&2
-                    read_key >/dev/null 2>&1
+                    read_key > /dev/null 2>&1
                 else
                     # Directory exists but scan returned nothing (timeout or empty)
                     printf "\033[H\033[J" >&2
@@ -1811,7 +1815,7 @@ interactive_drill_down() {
                     echo "  ${GRAY}Press ${NC}${GREEN}R${NC}${GRAY} to retry, any other key to go back${NC}" >&2
 
                     local retry_key
-                    retry_key=$(read_key 2>/dev/null || echo "OTHER")
+                    retry_key=$(read_key 2> /dev/null || echo "OTHER")
 
                     if [[ "$retry_key" == "RETRY" ]]; then
                         # Retry scan
@@ -1842,13 +1846,13 @@ interactive_drill_down() {
 
         # Build output buffer once for smooth rendering
         local output=""
-        output+="\033[?25l"  # Hide cursor
-        output+="\033[H\033[J"  # Clear screen
+        output+="\033[?25l"    # Hide cursor
+        output+="\033[H\033[J" # Clear screen
         output+=$'\n'
         output+="\033[0;35mDisk space explorer > $(echo "$current_path" | sed "s|^$HOME|~|")\033[0m"$'\n'
         output+=$'\n'
 
-        local max_show=15  # Show 15 items per page
+        local max_show=15 # Show 15 items per page
         local page_start=$scroll_offset
         local page_end
         page_end=$((scroll_offset + max_show))
@@ -1886,8 +1890,10 @@ interactive_drill_down() {
             local badge="$BADGE_FILE" color="${NC}"
             if [[ "$type" == "dir" ]]; then
                 badge="$BADGE_DIR" color="${BLUE}"
-                if [[ $size -gt 10737418240 ]]; then color="${RED}"
-                elif [[ $size -gt 1073741824 ]]; then color="${YELLOW}"
+                if [[ $size -gt 10737418240 ]]; then
+                    color="${RED}"
+                elif [[ $size -gt 1073741824 ]]; then
+                    color="${YELLOW}"
                 fi
             else
                 local ext="${name##*.}"
@@ -1895,10 +1901,10 @@ interactive_drill_down() {
                 info=$(get_file_info "$path")
                 badge="${info%|*}"
                 case "$ext" in
-                    dmg|iso|pkg|zip|tar|gz|rar|7z)
+                    dmg | iso | pkg | zip | tar | gz | rar | 7z)
                         color="${YELLOW}"
                         ;;
-                    mov|mp4|avi|mkv|webm|jpg|jpeg|png|gif|heic)
+                    mov | mp4 | avi | mkv | webm | jpg | jpeg | png | gif | heic)
                         color="${YELLOW}"
                         ;;
                     log)
@@ -1945,7 +1951,7 @@ interactive_drill_down() {
 
         # Read key directly without draining (to preserve all user input)
         local key
-        key=$(read_key 2>/dev/null || echo "OTHER")
+        key=$(read_key 2> /dev/null || echo "OTHER")
 
         # Debug: uncomment to see what keys are being received
         # printf "\rDEBUG: Received key=[%s]     " "$key" >&2
@@ -1974,7 +1980,7 @@ interactive_drill_down() {
                     fi
                 fi
                 ;;
-            "ENTER"|"RIGHT")
+            "ENTER" | "RIGHT")
                 # Enter selected item - directory or file
                 if [[ $cursor -lt ${#items[@]} ]]; then
                     local selected="${items[$cursor]}"
@@ -1998,7 +2004,7 @@ interactive_drill_down() {
 
                         # For text-like files, use less or fallback to open
                         case "$file_ext" in
-                            txt|log|md|json|xml|yaml|yml|conf|cfg|ini|sh|bash|zsh|py|js|ts|go|rs|c|cpp|h|java|rb|php|html|css|sql)
+                            txt | log | md | json | xml | yaml | yml | conf | cfg | ini | sh | bash | zsh | py | js | ts | go | rs | c | cpp | h | java | rb | php | html | css | sql)
                                 # Clear screen and show loading message
                                 printf "\033[H\033[J"
                                 echo ""
@@ -2006,21 +2012,21 @@ interactive_drill_down() {
                                 echo ""
 
                                 # Try less first (best for text viewing)
-                                if command -v less &>/dev/null; then
+                                if command -v less &> /dev/null; then
                                     # Exit alternate screen only for less
-                                    printf "\033[?25h"  # Show cursor
-                                    tput rmcup 2>/dev/null || true
+                                    printf "\033[?25h" # Show cursor
+                                    tput rmcup 2> /dev/null || true
 
-                                    less -F "$selected_path" 2>/dev/null && open_success=true
+                                    less -F "$selected_path" 2> /dev/null && open_success=true
 
                                     # Return to alternate screen
-                                    tput smcup 2>/dev/null || true
-                                    printf "\033[?25l"  # Hide cursor
+                                    tput smcup 2> /dev/null || true
+                                    printf "\033[?25l" # Hide cursor
                                 else
                                     # Fallback to system open if less is not available
                                     echo "  ${GRAY}Launching default application...${NC}"
-                                    if command -v open &>/dev/null; then
-                                        open "$selected_path" 2>/dev/null && open_success=true
+                                    if command -v open &> /dev/null; then
+                                        open "$selected_path" 2> /dev/null && open_success=true
                                         if [[ "$open_success" == "true" ]]; then
                                             echo ""
                                             echo "  ${GREEN}${ICON_SUCCESS}${NC} File opened in external app"
@@ -2038,8 +2044,8 @@ interactive_drill_down() {
                                 echo ""
                                 echo "  ${GRAY}Launching default application...${NC}"
 
-                                if command -v open &>/dev/null; then
-                                    open "$selected_path" 2>/dev/null && open_success=true
+                                if command -v open &> /dev/null; then
+                                    open "$selected_path" 2> /dev/null && open_success=true
 
                                     # Show brief success message
                                     if [[ "$open_success" == "true" ]]; then
@@ -2059,7 +2065,7 @@ interactive_drill_down() {
                             echo ""
                             echo "  ${GRAY}File: $selected_path${NC}"
                             echo "  ${GRAY}Press any key to return...${NC}"
-                            read -n 1 -s 2>/dev/null
+                            read -n 1 -s 2> /dev/null
                         fi
                     fi
                 fi
@@ -2081,16 +2087,16 @@ interactive_drill_down() {
                     # Already at start path - return to volumes menu
                     # Don't show cursor or exit screen - menu will handle it
                     if [[ -n "${old_tty_settings:-}" ]]; then
-                        stty "$old_tty_settings" 2>/dev/null || true
+                        stty "$old_tty_settings" 2> /dev/null || true
                     fi
-                    [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2>/dev/null || true
+                    [[ -d "${cache_dir:-}" ]] && rm -rf "$cache_dir" 2> /dev/null || true
                     trap - EXIT INT TERM
-                    return 1  # Return to menu
+                    return 1 # Return to menu
                 fi
                 ;;
             "OPEN")
-                if command -v open >/dev/null 2>&1; then
-                    if open "$current_path" >/dev/null 2>&1; then
+                if command -v open > /dev/null 2>&1; then
+                    if open "$current_path" > /dev/null 2>&1; then
                         status_message="${GREEN}${ICON_SUCCESS}${NC} Finder opened: ${GRAY}$current_path${NC}"
                     else
                         status_message="${YELLOW}Warning:${NC} Could not open ${GRAY}$current_path${NC}"
@@ -2155,7 +2161,7 @@ interactive_drill_down() {
 
                     # Read confirmation
                     local confirm
-                    confirm=$(read_key 2>/dev/null || echo "QUIT")
+                    confirm=$(read_key 2> /dev/null || echo "QUIT")
 
                     if [[ "$confirm" == "ENTER" ]]; then
                         # Request sudo if needed before deletion
@@ -2180,11 +2186,11 @@ interactive_drill_down() {
                         # Try to delete with sudo if needed
                         local delete_success=false
                         if [[ "$needs_sudo" == "true" ]]; then
-                            if sudo rm -rf "$selected_path" 2>/dev/null; then
+                            if sudo rm -rf "$selected_path" 2> /dev/null; then
                                 delete_success=true
                             fi
                         else
-                            if rm -rf "$selected_path" 2>/dev/null; then
+                            if rm -rf "$selected_path" 2> /dev/null; then
                                 delete_success=true
                             fi
                         fi
@@ -2195,9 +2201,9 @@ interactive_drill_down() {
 
                             # Clear cache to force rescan
                             local cache_key
-                            cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
+                            cache_key=$(echo "$current_path" | md5 2> /dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
                             local cache_file="$cache_dir/$cache_key"
-                            rm -f "$cache_file" 2>/dev/null || true
+                            rm -f "$cache_file" 2> /dev/null || true
 
                             # Refresh the view
                             need_scan=true
@@ -2215,16 +2221,16 @@ interactive_drill_down() {
                             echo "  ${ICON_LIST} System protection (SIP) prevents deletion"
                             echo ""
                             echo "  ${GRAY}Press any key to continue...${NC}"
-                            read_key >/dev/null 2>&1
+                            read_key > /dev/null 2>&1
                         fi
                     fi
                 fi
                 ;;
-            "QUIT"|"q")
+            "QUIT" | "q")
                 # Quit the explorer
                 cleanup_drill_down
                 trap - EXIT INT TERM
-                return 0  # Return true to indicate normal exit
+                return 0 # Return true to indicate normal exit
                 ;;
             *)
                 # Unknown key - ignore it
@@ -2233,7 +2239,7 @@ interactive_drill_down() {
     done
 
     # Cleanup is handled by trap
-    return 0  # Normal exit if loop ends
+    return 0 # Normal exit if loop ends
 }
 
 # Main interactive loop
@@ -2242,7 +2248,7 @@ interactive_mode() {
     VIEW_MODE="overview"
 
     while true; do
-        type drain_pending_input >/dev/null 2>&1 && drain_pending_input
+        type drain_pending_input > /dev/null 2>&1 && drain_pending_input
         display_interactive_menu
 
         local key
@@ -2291,10 +2297,10 @@ interactive_mode() {
                     VIEW_MODE="overview"
                 fi
                 ;;
-            "f"|"F")
+            "f" | "F")
                 VIEW_MODE="files"
                 ;;
-            "t"|"T")
+            "t" | "T")
                 VIEW_MODE="types"
                 ;;
             "ENTER")
@@ -2402,7 +2408,7 @@ main() {
     # Parse arguments - only support --help
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -h|--help)
+            -h | --help)
                 echo "Usage: mole analyze"
                 echo ""
                 echo "Interactive disk space explorer - Navigate folders sorted by size"
@@ -2446,7 +2452,7 @@ main() {
     CURRENT_PATH="$target_path"
 
     # Create cache directory
-    mkdir -p "$CACHE_DIR" 2>/dev/null || true
+    mkdir -p "$CACHE_DIR" 2> /dev/null || true
 
     # Start with volumes overview to let user choose location
     show_volumes_overview

@@ -18,11 +18,11 @@ DRY_RUN=false
 IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
 
 # Constants
-readonly MAX_PARALLEL_JOBS=15        # Maximum parallel background jobs
-readonly TEMP_FILE_AGE_DAYS=7        # Age threshold for temp file cleanup
-readonly ORPHAN_AGE_DAYS=60          # Age threshold for orphaned data
-readonly SIZE_1GB_KB=1048576         # 1GB in kilobytes
-readonly SIZE_1MB_KB=1024            # 1MB in kilobytes
+readonly MAX_PARALLEL_JOBS=15 # Maximum parallel background jobs
+readonly TEMP_FILE_AGE_DAYS=7 # Age threshold for temp file cleanup
+readonly ORPHAN_AGE_DAYS=60   # Age threshold for orphaned data
+readonly SIZE_1GB_KB=1048576  # 1GB in kilobytes
+readonly SIZE_1MB_KB=1024     # 1MB in kilobytes
 # Default whitelist patterns (preselected, user can disable)
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
@@ -52,7 +52,7 @@ if [[ -f "$HOME/.config/mole/whitelist" ]]; then
 
         # Prevent absolute path to critical system directories
         case "$line" in
-            /System/*|/bin/*|/sbin/*|/usr/bin/*|/usr/sbin/*)
+            /System/* | /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/*)
                 WHITELIST_WARNINGS+=("System path: $line")
                 continue
                 ;;
@@ -104,14 +104,14 @@ cleanup() {
 
     # Stop all spinners and clear the line
     if [[ -n "$SPINNER_PID" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null || true
-        wait "$SPINNER_PID" 2>/dev/null || true
+        kill "$SPINNER_PID" 2> /dev/null || true
+        wait "$SPINNER_PID" 2> /dev/null || true
         SPINNER_PID=""
     fi
 
     if [[ -n "$INLINE_SPINNER_PID" ]]; then
-        kill "$INLINE_SPINNER_PID" 2>/dev/null || true
-        wait "$INLINE_SPINNER_PID" 2>/dev/null || true
+        kill "$INLINE_SPINNER_PID" 2> /dev/null || true
+        wait "$INLINE_SPINNER_PID" 2> /dev/null || true
         INLINE_SPINNER_PID=""
     fi
 
@@ -122,8 +122,8 @@ cleanup() {
 
     # Stop sudo keepalive
     if [[ -n "$SUDO_KEEPALIVE_PID" ]]; then
-        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        kill "$SUDO_KEEPALIVE_PID" 2> /dev/null || true
+        wait "$SUDO_KEEPALIVE_PID" 2> /dev/null || true
         SUDO_KEEPALIVE_PID=""
     fi
 
@@ -176,8 +176,8 @@ stop_spinner() {
     fi
 
     if [[ -n "$SPINNER_PID" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null
-        wait "$SPINNER_PID" 2>/dev/null
+        kill "$SPINNER_PID" 2> /dev/null
+        wait "$SPINNER_PID" 2> /dev/null
         SPINNER_PID=""
         printf "\r  ${GREEN}${ICON_SUCCESS}${NC} %s\n" "$result_message"
     else
@@ -229,7 +229,7 @@ safe_clean() {
         if [[ ${#WHITELIST_PATTERNS[@]} -gt 0 ]]; then
             for w in "${WHITELIST_PATTERNS[@]}"; do
                 # Match both exact path and glob pattern
-                if [[ "$path" == "$w" ]] || [[ "$path" == $w ]]; then
+                if [[ "$path" == "$w" ]] || [[ "$path" == "$w" ]]; then
                     skip=true
                     ((skipped_count++))
                     break
@@ -239,7 +239,7 @@ safe_clean() {
         [[ "$skip" == "true" ]] && continue
         [[ -e "$path" ]] && existing_paths+=("$path")
     done
-    
+
     # Update global whitelist skip counter
     if [[ $skipped_count -gt 0 ]]; then
         ((whitelist_skipped_count += skipped_count))
@@ -253,31 +253,34 @@ safe_clean() {
     # Show progress indicator for potentially slow operations
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
         if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking items with whitelist safety..."; fi
-        local temp_dir=$(create_temp_dir)
+        local temp_dir
+        temp_dir=$(create_temp_dir)
 
         # Parallel processing (bash 3.2 compatible)
         local -a pids=()
         local idx=0
         for path in "${existing_paths[@]}"; do
             (
-                local size=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
-                local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
+                local size
+                size=$(du -sk "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+                local count
+                count=$(find "$path" -type f 2> /dev/null | wc -l | tr -d ' ')
                 # Use index + PID for unique filename
                 local tmp_file="$temp_dir/result_${idx}.$$"
                 echo "$size $count" > "$tmp_file"
-                mv "$tmp_file" "$temp_dir/result_${idx}" 2>/dev/null || true
+                mv "$tmp_file" "$temp_dir/result_${idx}" 2> /dev/null || true
             ) &
             pids+=($!)
             ((idx++))
 
-            if (( ${#pids[@]} >= MAX_PARALLEL_JOBS )); then
-                wait "${pids[0]}" 2>/dev/null || true
+            if ((${#pids[@]} >= MAX_PARALLEL_JOBS)); then
+                wait "${pids[0]}" 2> /dev/null || true
                 pids=("${pids[@]:1}")
             fi
         done
 
         for pid in "${pids[@]}"; do
-            wait "$pid" 2>/dev/null || true
+            wait "$pid" 2> /dev/null || true
         done
 
         # Read results using same index
@@ -285,10 +288,10 @@ safe_clean() {
         for path in "${existing_paths[@]}"; do
             local result_file="$temp_dir/result_${idx}"
             if [[ -f "$result_file" ]]; then
-                read -r size count < "$result_file" 2>/dev/null || true
+                read -r size count < "$result_file" 2> /dev/null || true
                 if [[ "$count" -gt 0 && "$size" -gt 0 ]]; then
                     if [[ "$DRY_RUN" != "true" ]]; then
-                        rm -rf "$path" 2>/dev/null || true
+                        rm -rf "$path" 2> /dev/null || true
                     fi
                     ((total_size_bytes += size))
                     ((total_count += count))
@@ -304,12 +307,14 @@ safe_clean() {
         if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking items with whitelist safety..."; fi
 
         for path in "${existing_paths[@]}"; do
-            local size_bytes=$(du -sk "$path" 2>/dev/null | awk '{print $1}' || echo "0")
-            local count=$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')
+            local size_bytes
+            size_bytes=$(du -sk "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+            local count
+            count=$(find "$path" -type f 2> /dev/null | wc -l | tr -d ' ')
 
             if [[ "$count" -gt 0 && "$size_bytes" -gt 0 ]]; then
                 if [[ "$DRY_RUN" != "true" ]]; then
-                    rm -rf "$path" 2>/dev/null || true
+                    rm -rf "$path" 2> /dev/null || true
                 fi
                 ((total_size_bytes += size_bytes))
                 ((total_count += count))
@@ -319,7 +324,10 @@ safe_clean() {
     fi
 
     # Clear progress / stop spinner before showing result
-    if [[ -t 1 ]]; then stop_inline_spinner; echo -ne "\r\033[K"; fi
+    if [[ -t 1 ]]; then
+        stop_inline_spinner
+        echo -ne "\r\033[K"
+    fi
 
     if [[ $removed_any -eq 1 ]]; then
         # Convert KB to bytes for bytes_to_human()
@@ -335,8 +343,8 @@ safe_clean() {
         else
             echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $label ${GREEN}($size_human)${NC}"
         fi
-        ((files_cleaned+=total_count))
-        ((total_size_cleaned+=total_size_bytes))
+        ((files_cleaned += total_count))
+        ((total_size_cleaned += total_size_bytes))
         ((total_items++))
         note_activity
     fi
@@ -349,7 +357,7 @@ start_cleanup() {
     clear
     printf '\n'
     echo -e "${PURPLE}Clean Your Mac${NC}"
-    
+
     if [[ "$DRY_RUN" != "true" && -t 0 ]]; then
         echo ""
         echo -e "${YELLOW}Tip:${NC} Safety first—run 'mo clean --dry-run'. Important Macs should stop."
@@ -384,7 +392,7 @@ start_cleanup() {
 
         # Enter = yes, do system cleanup
         if [[ -z "$choice" ]] || [[ "$choice" == $'\n' ]]; then
-            printf "\r\033[K"  # Clear the prompt line
+            printf "\r\033[K" # Clear the prompt line
             if request_sudo_access "System cleanup requires admin access"; then
                 SYSTEM_CLEAN=true
                 echo -e "${GREEN}${ICON_SUCCESS}${NC} Admin access granted"
@@ -393,7 +401,7 @@ start_cleanup() {
                 (
                     local retry_count=0
                     while true; do
-                        if ! sudo -n true 2>/dev/null; then
+                        if ! sudo -n true 2> /dev/null; then
                             ((retry_count++))
                             if [[ $retry_count -ge 3 ]]; then
                                 exit 1
@@ -403,9 +411,9 @@ start_cleanup() {
                         fi
                         retry_count=0
                         sleep 30
-                        kill -0 "$$" 2>/dev/null || exit
+                        kill -0 "$$" 2> /dev/null || exit
                     done
-                ) 2>/dev/null &
+                ) 2> /dev/null &
                 SUDO_KEEPALIVE_PID=$!
             else
                 SYSTEM_CLEAN=false
@@ -430,7 +438,7 @@ start_cleanup() {
 
 perform_cleanup() {
     echo -e "${BLUE}${ICON_ADMIN}${NC} $(detect_architecture) | Free space: $(get_free_space)"
-    
+
     # Show whitelist info if patterns are active
     local active_count=${#WHITELIST_PATTERNS[@]}
     if [[ $active_count -gt 2 ]]; then
@@ -453,25 +461,25 @@ perform_cleanup() {
         start_section "Deep system-level cleanup"
 
         # Clean system caches more safely
-        sudo find /Library/Caches -name "*.cache" -delete 2>/dev/null || true
-        sudo find /Library/Caches -name "*.tmp" -delete 2>/dev/null || true
-        sudo find /Library/Caches -type f -name "*.log" -delete 2>/dev/null || true
+        sudo find /Library/Caches -name "*.cache" -delete 2> /dev/null || true
+        sudo find /Library/Caches -name "*.tmp" -delete 2> /dev/null || true
+        sudo find /Library/Caches -type f -name "*.log" -delete 2> /dev/null || true
 
         # Clean old temp files only (avoid breaking running processes)
         local tmp_cleaned=0
-        local tmp_count=$(sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2>/dev/null | wc -l | tr -d ' ')
+        local tmp_count=$(sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2> /dev/null | wc -l | tr -d ' ')
         if [[ "$tmp_count" -gt 0 ]]; then
-            sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2>/dev/null || true
+            sudo find /tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2> /dev/null || true
             tmp_cleaned=1
         fi
-        local var_tmp_count=$(sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2>/dev/null | wc -l | tr -d ' ')
+        local var_tmp_count=$(sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} 2> /dev/null | wc -l | tr -d ' ')
         if [[ "$var_tmp_count" -gt 0 ]]; then
-            sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2>/dev/null || true
+            sudo find /var/tmp -type f -mtime +${TEMP_FILE_AGE_DAYS} -delete 2> /dev/null || true
             tmp_cleaned=1
         fi
         [[ $tmp_cleaned -eq 1 ]] && log_success "Old system temp files (${TEMP_FILE_AGE_DAYS}+ days)"
 
-        sudo rm -rf /Library/Updates/* 2>/dev/null || true
+        sudo rm -rf /Library/Updates/* 2> /dev/null || true
         log_success "System library caches and updates"
 
         end_section
@@ -497,15 +505,15 @@ perform_cleanup() {
             [[ -d "$volume" && -d "$volume/.Trashes" && -w "$volume" ]] || continue
 
             # Skip network volumes
-            local fs_type=$(df -T "$volume" 2>/dev/null | tail -1 | awk '{print $2}')
+            local fs_type=$(df -T "$volume" 2> /dev/null | tail -1 | awk '{print $2}')
             case "$fs_type" in
-                nfs|smbfs|afpfs|cifs|webdav) continue ;;
+                nfs | smbfs | afpfs | cifs | webdav) continue ;;
             esac
 
             # Verify volume is mounted
             if mount | grep -q "on $volume "; then
                 if [[ "$DRY_RUN" != "true" ]]; then
-                    find "$volume/.Trashes" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2>/dev/null || true
+                    find "$volume/.Trashes" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2> /dev/null || true
                 fi
             fi
         done
@@ -526,7 +534,6 @@ perform_cleanup() {
     safe_clean ~/Downloads/*.part "Incomplete downloads (partial)"
     end_section
 
-
     # ===== 3. macOS System Caches =====
     start_section "macOS system caches"
     safe_clean ~/Library/Saved\ Application\ State/* "Saved application states"
@@ -542,7 +549,6 @@ perform_cleanup() {
     safe_clean ~/Library/Application\ Support/CloudDocs/session/db/* "iCloud session cache"
     end_section
 
-
     # ===== 4. Sandboxed App Caches =====
     start_section "Sandboxed app caches"
     # Clean specific high-usage apps first for better user feedback
@@ -552,7 +558,6 @@ perform_cleanup() {
     # General pattern last (may match many apps)
     safe_clean ~/Library/Containers/*/Data/Library/Caches/* "Sandboxed app caches"
     end_section
-
 
     # ===== 5. Browsers =====
     start_section "Browser cleanup"
@@ -577,7 +582,6 @@ perform_cleanup() {
     safe_clean ~/Library/Application\ Support/Firefox/Profiles/*/cache2/* "Firefox profile cache"
     end_section
 
-
     # ===== 6. Cloud Storage =====
     start_section "Cloud storage caches"
     # Only cache files, not sync state or login credentials
@@ -589,7 +593,6 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.box.desktop "Box cache"
     safe_clean ~/Library/Caches/com.microsoft.OneDrive "OneDrive cache"
     end_section
-
 
     # ===== 7. Office Applications =====
     start_section "Office applications"
@@ -603,11 +606,10 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.apple.mail/* "Apple Mail cache"
     end_section
 
-
     # ===== 8. Developer tools =====
     start_section "Developer tools"
     # Node.js ecosystem
-    if command -v npm >/dev/null 2>&1; then
+    if command -v npm > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "npm cache" npm cache clean --force
         else
@@ -622,7 +624,7 @@ perform_cleanup() {
     safe_clean ~/.bun/install/cache/* "Bun cache"
 
     # Python ecosystem
-    if command -v pip3 >/dev/null 2>&1; then
+    if command -v pip3 > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "pip cache" pip3 cache purge
         else
@@ -636,7 +638,7 @@ perform_cleanup() {
     safe_clean ~/.pyenv/cache/* "pyenv cache"
 
     # Go ecosystem
-    if command -v go >/dev/null 2>&1; then
+    if command -v go > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "Go cache" bash -c 'go clean -modcache >/dev/null 2>&1 || true; go clean -cache >/dev/null 2>&1 || true'
         else
@@ -652,7 +654,7 @@ perform_cleanup() {
     safe_clean ~/.cargo/registry/cache/* "Rust cargo cache"
 
     # Docker (only clean build cache, preserve images and volumes)
-    if command -v docker >/dev/null 2>&1; then
+    if command -v docker > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "Docker build cache" docker builder prune -af
         else
@@ -674,9 +676,10 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/Homebrew/* "Homebrew cache"
     safe_clean /opt/homebrew/var/homebrew/locks/* "Homebrew lock files (M series)"
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
-    if command -v brew >/dev/null 2>&1; then
+    if command -v brew > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            clean_tool_cache "Homebrew cleanup" brew cleanup
+            # Use -s (scrub cache) for faster cleanup, --prune=all removes old versions
+            MOLE_CMD_TIMEOUT=300 clean_tool_cache "Homebrew cleanup" brew cleanup -s --prune=all
         else
             echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup)"
         fi
@@ -817,7 +820,6 @@ perform_cleanup() {
     # safe_clean ~/Library/HTTPStorages/* "HTTP storage cache"
 
     end_section
-
 
     # ===== 10. Applications =====
     start_section "Applications"
@@ -983,7 +985,6 @@ perform_cleanup() {
 
     end_section
 
-
     # ===== 11. Virtualization Tools =====
     start_section "Virtualization tools"
     safe_clean ~/Library/Caches/com.vmware.fusion "VMware Fusion cache"
@@ -991,7 +992,6 @@ perform_cleanup() {
     safe_clean ~/VirtualBox\ VMs/.cache "VirtualBox cache"
     safe_clean ~/.vagrant.d/tmp/* "Vagrant temporary files"
     end_section
-
 
     # ===== 12. Application Support logs cleanup =====
     start_section "Application Support logs"
@@ -1003,7 +1003,7 @@ perform_cleanup() {
 
         # Skip system and protected apps
         case "$app_name" in
-            com.apple.*|Adobe*|1Password|Claude)
+            com.apple.* | Adobe* | 1Password | Claude)
                 continue
                 ;;
         esac
@@ -1021,7 +1021,6 @@ perform_cleanup() {
     done
 
     end_section
-
 
     # ===== 13. Orphaned app data cleanup =====
     # Deep cleanup of leftover files from uninstalled apps
@@ -1074,32 +1073,32 @@ perform_cleanup() {
         if [[ -d "$search_path" ]]; then
             while IFS= read -r app; do
                 [[ -f "$app/Contents/Info.plist" ]] || continue
-                bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
+                bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2> /dev/null || echo "")
                 [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
-            done < <(find "$search_path" -maxdepth 3 -type d -name "*.app" 2>/dev/null || true)
+            done < <(find "$search_path" -maxdepth 3 -type d -name "*.app" 2> /dev/null || true)
         fi
     done
 
     # Use Spotlight as fallback to catch apps in unusual locations
     # This significantly reduces false positives
-    if command -v mdfind >/dev/null 2>&1; then
+    if command -v mdfind > /dev/null 2>&1; then
         while IFS= read -r app; do
             [[ -f "$app/Contents/Info.plist" ]] || continue
-            bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
+            bundle_id=$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2> /dev/null || echo "")
             [[ -n "$bundle_id" ]] && echo "$bundle_id" >> "$installed_bundles"
-        done < <(mdfind "kMDItemKind == 'Application'" 2>/dev/null | grep "\.app$" || true)
+        done < <(mdfind "kMDItemKind == 'Application'" 2> /dev/null | grep "\.app$" || true)
     fi
 
     # Get running applications (if an app is running, it's definitely not orphaned)
-    local running_apps=$(osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2>/dev/null || echo "")
+    local running_apps=$(osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2> /dev/null || echo "")
     echo "$running_apps" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' > "$running_bundles"
 
     # Check LaunchAgents and LaunchDaemons (if app has launch items, it likely exists)
     find ~/Library/LaunchAgents /Library/LaunchAgents /Library/LaunchDaemons \
-        -name "*.plist" -type f 2>/dev/null | while IFS= read -r plist; do
+        -name "*.plist" -type f 2> /dev/null | while IFS= read -r plist; do
         bundle_id=$(basename "$plist" .plist)
         echo "$bundle_id" >> "$launch_agents"
-    done 2>/dev/null || true
+    done 2> /dev/null || true
 
     # Combine and deduplicate all bundle IDs
     sort -u "$installed_bundles" "$running_bundles" "$launch_agents" > "${installed_bundles}.final"
@@ -1117,7 +1116,7 @@ perform_cleanup() {
     # Returns 0 (true) only if we are VERY CONFIDENT the app is uninstalled
     is_orphaned() {
         local bundle_id="$1"
-        local directory_path="$2"  # The actual directory we're considering deleting
+        local directory_path="$2" # The actual directory we're considering deleting
 
         # SAFETY CHECK 1: Skip system-critical and protected apps (MOST IMPORTANT)
         if should_protect_data "$bundle_id"; then
@@ -1125,13 +1124,13 @@ perform_cleanup() {
         fi
 
         # SAFETY CHECK 2: Check if app bundle exists in our comprehensive scan
-        if grep -q "^$bundle_id$" "$installed_bundles" 2>/dev/null; then
+        if grep -q "^$bundle_id$" "$installed_bundles" 2> /dev/null; then
             return 1
         fi
 
         # SAFETY CHECK 3: Extra check for system bundles (belt and suspenders)
         case "$bundle_id" in
-            com.apple.*|loginwindow|dock|systempreferences|finder|safari)
+            com.apple.* | loginwindow | dock | systempreferences | finder | safari)
                 return 1
                 ;;
         esac
@@ -1139,7 +1138,7 @@ perform_cleanup() {
         # SAFETY CHECK 4: If it's a very common/important prefix, be extra careful
         # For major vendors, we NEVER auto-clean (too risky)
         case "$bundle_id" in
-            com.adobe.*|com.microsoft.*|com.google.*|org.mozilla.*|com.jetbrains.*|com.docker.*)
+            com.adobe.* | com.microsoft.* | com.google.* | org.mozilla.* | com.jetbrains.* | com.docker.*)
                 return 1
                 ;;
         esac
@@ -1149,9 +1148,9 @@ perform_cleanup() {
         # This protects against apps in unusual locations we didn't scan
         if [[ -e "$directory_path" ]]; then
             # Get last access time (days ago)
-            local last_access_epoch=$(stat -f%a "$directory_path" 2>/dev/null || echo "0")
+            local last_access_epoch=$(stat -f%a "$directory_path" 2> /dev/null || echo "0")
             local current_epoch=$(date +%s)
-            local days_since_access=$(( (current_epoch - last_access_epoch) / 86400 ))
+            local days_since_access=$(((current_epoch - last_access_epoch) / 86400))
 
             # If accessed in the last 60 days, DO NOT DELETE
             # This means app is likely still installed somewhere
@@ -1167,12 +1166,12 @@ perform_cleanup() {
     # Clean orphaned caches
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned caches..."
     local cache_found=0
-    if ls ~/Library/Caches/com.* >/dev/null 2>&1; then
+    if ls ~/Library/Caches/com.* > /dev/null 2>&1; then
         for cache_dir in ~/Library/Caches/com.* ~/Library/Caches/org.* ~/Library/Caches/net.* ~/Library/Caches/io.*; do
             [[ -d "$cache_dir" ]] || continue
             local bundle_id=$(basename "$cache_dir")
             if is_orphaned "$bundle_id" "$cache_dir"; then
-                local size_kb=$(du -sk "$cache_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$cache_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$cache_dir" "Orphaned cache: $bundle_id"
                     ((cache_found++))
@@ -1187,12 +1186,12 @@ perform_cleanup() {
     # Clean orphaned logs
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned logs..."
     local logs_found=0
-    if ls ~/Library/Logs/com.* >/dev/null 2>&1; then
+    if ls ~/Library/Logs/com.* > /dev/null 2>&1; then
         for log_dir in ~/Library/Logs/com.* ~/Library/Logs/org.* ~/Library/Logs/net.* ~/Library/Logs/io.*; do
             [[ -d "$log_dir" ]] || continue
             local bundle_id=$(basename "$log_dir")
             if is_orphaned "$bundle_id" "$log_dir"; then
-                local size_kb=$(du -sk "$log_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$log_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$log_dir" "Orphaned logs: $bundle_id"
                     ((logs_found++))
@@ -1207,12 +1206,12 @@ perform_cleanup() {
     # Clean orphaned saved states
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned saved states..."
     local states_found=0
-    if ls ~/Library/Saved\ Application\ State/*.savedState >/dev/null 2>&1; then
+    if ls ~/Library/Saved\ Application\ State/*.savedState > /dev/null 2>&1; then
         for state_dir in ~/Library/Saved\ Application\ State/*.savedState; do
             [[ -d "$state_dir" ]] || continue
             local bundle_id=$(basename "$state_dir" .savedState)
             if is_orphaned "$bundle_id" "$state_dir"; then
-                local size_kb=$(du -sk "$state_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$state_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$state_dir" "Orphaned state: $bundle_id"
                     ((states_found++))
@@ -1231,13 +1230,13 @@ perform_cleanup() {
     # To avoid deleting data from installed apps, we skip container cleanup.
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned containers..."
     local containers_found=0
-    if ls ~/Library/Containers/com.* >/dev/null 2>&1; then
+    if ls ~/Library/Containers/com.* > /dev/null 2>&1; then
         # Count potential orphaned containers but don't delete them
         for container_dir in ~/Library/Containers/com.* ~/Library/Containers/org.* ~/Library/Containers/net.* ~/Library/Containers/io.*; do
             [[ -d "$container_dir" ]] || continue
             local bundle_id=$(basename "$container_dir")
             if is_orphaned "$bundle_id" "$container_dir"; then
-                local size_kb=$(du -sk "$container_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$container_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     # DISABLED: safe_clean "$container_dir" "Orphaned container: $bundle_id"
                     ((containers_found++))
@@ -1252,12 +1251,12 @@ perform_cleanup() {
     # Clean orphaned WebKit data
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned WebKit data..."
     local webkit_found=0
-    if ls ~/Library/WebKit/com.* >/dev/null 2>&1; then
+    if ls ~/Library/WebKit/com.* > /dev/null 2>&1; then
         for webkit_dir in ~/Library/WebKit/com.* ~/Library/WebKit/org.* ~/Library/WebKit/net.* ~/Library/WebKit/io.*; do
             [[ -d "$webkit_dir" ]] || continue
             local bundle_id=$(basename "$webkit_dir")
             if is_orphaned "$bundle_id" "$webkit_dir"; then
-                local size_kb=$(du -sk "$webkit_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$webkit_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$webkit_dir" "Orphaned WebKit: $bundle_id"
                     ((webkit_found++))
@@ -1272,12 +1271,12 @@ perform_cleanup() {
     # Clean orphaned HTTP storages
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned HTTP storages..."
     local http_found=0
-    if ls ~/Library/HTTPStorages/com.* >/dev/null 2>&1; then
+    if ls ~/Library/HTTPStorages/com.* > /dev/null 2>&1; then
         for http_dir in ~/Library/HTTPStorages/com.* ~/Library/HTTPStorages/org.* ~/Library/HTTPStorages/net.* ~/Library/HTTPStorages/io.*; do
             [[ -d "$http_dir" ]] || continue
             local bundle_id=$(basename "$http_dir")
             if is_orphaned "$bundle_id" "$http_dir"; then
-                local size_kb=$(du -sk "$http_dir" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$http_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$http_dir" "Orphaned HTTP storage: $bundle_id"
                     ((http_found++))
@@ -1292,12 +1291,12 @@ perform_cleanup() {
     # Clean orphaned cookies
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned cookies..."
     local cookies_found=0
-    if ls ~/Library/Cookies/*.binarycookies >/dev/null 2>&1; then
+    if ls ~/Library/Cookies/*.binarycookies > /dev/null 2>&1; then
         for cookie_file in ~/Library/Cookies/*.binarycookies; do
             [[ -f "$cookie_file" ]] || continue
             local bundle_id=$(basename "$cookie_file" .binarycookies)
             if is_orphaned "$bundle_id" "$cookie_file"; then
-                local size_kb=$(du -sk "$cookie_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                local size_kb=$(du -sk "$cookie_file" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     safe_clean "$cookie_file" "Orphaned cookies: $bundle_id"
                     ((cookies_found++))
@@ -1340,9 +1339,9 @@ perform_cleanup() {
     start_section "iOS device backups"
     backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
     if [[ -d "$backup_dir" ]] && find "$backup_dir" -mindepth 1 -maxdepth 1 | read -r _; then
-        backup_kb=$(du -sk "$backup_dir" 2>/dev/null | awk '{print $1}')
+        backup_kb=$(du -sk "$backup_dir" 2> /dev/null | awk '{print $1}')
         if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then
-            backup_human=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
+            backup_human=$(du -sh "$backup_dir" 2> /dev/null | awk '{print $1}')
             note_activity
             echo -e "  Found ${GREEN}${backup_human}${NC} iOS backups"
             echo -e "  You can delete them manually: ${backup_dir}"
@@ -1361,9 +1360,9 @@ perform_cleanup() {
 
             # Skip system volume and network volumes
             [[ "$volume" == "/Volumes/MacintoshHD" || "$volume" == "/" ]] && continue
-            local fs_type=$(df -T "$volume" 2>/dev/null | tail -1 | awk '{print $2}')
+            local fs_type=$(df -T "$volume" 2> /dev/null | tail -1 | awk '{print $2}')
             case "$fs_type" in
-                nfs|smbfs|afpfs|cifs|webdav) continue ;;
+                nfs | smbfs | afpfs | cifs | webdav) continue ;;
             esac
 
             # Look for HFS+ style backups (Backups.backupdb)
@@ -1374,19 +1373,19 @@ perform_cleanup() {
                 while IFS= read -r inprogress_file; do
                     [[ -d "$inprogress_file" ]] || continue
 
-                    local size_kb=$(du -sk "$inprogress_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                    local size_kb=$(du -sk "$inprogress_file" 2> /dev/null | awk '{print $1}' || echo "0")
                     if [[ "$size_kb" -gt 0 ]]; then
                         local backup_name=$(basename "$inprogress_file")
 
                         if [[ "$DRY_RUN" != "true" ]]; then
                             # Use tmutil to safely delete the failed backup
-                            if command -v tmutil >/dev/null 2>&1; then
-                                if tmutil delete "$inprogress_file" 2>/dev/null; then
+                            if command -v tmutil > /dev/null 2>&1; then
+                                if tmutil delete "$inprogress_file" 2> /dev/null; then
                                     local size_human=$(bytes_to_human "$((size_kb * 1024))")
                                     echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Failed backup: $backup_name ${GREEN}($size_human)${NC}"
                                     ((tm_cleaned++))
                                     ((files_cleaned++))
-                                    ((total_size_cleaned+=size_kb))
+                                    ((total_size_cleaned += size_kb))
                                     ((total_items++))
                                     note_activity
                                 else
@@ -1402,7 +1401,7 @@ perform_cleanup() {
                             note_activity
                         fi
                     fi
-                done < <(find "$backupdb_dir" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2>/dev/null || true)
+                done < <(find "$backupdb_dir" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2> /dev/null || true)
             fi
 
             # Look for APFS style backups (.backupbundle or .sparsebundle)
@@ -1414,25 +1413,25 @@ perform_cleanup() {
 
                 # Check if bundle is already mounted by looking at hdiutil info
                 local bundle_name=$(basename "$bundle")
-                local mounted_path=$(hdiutil info 2>/dev/null | grep -A 5 "image-path.*$bundle_name" | grep "/Volumes/" | awk '{print $1}' | head -1 || echo "")
+                local mounted_path=$(hdiutil info 2> /dev/null | grep -A 5 "image-path.*$bundle_name" | grep "/Volumes/" | awk '{print $1}' | head -1 || echo "")
 
                 if [[ -n "$mounted_path" && -d "$mounted_path" ]]; then
                     # Bundle is already mounted, safe to check
                     while IFS= read -r inprogress_file; do
                         [[ -d "$inprogress_file" ]] || continue
 
-                        local size_kb=$(du -sk "$inprogress_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                        local size_kb=$(du -sk "$inprogress_file" 2> /dev/null | awk '{print $1}' || echo "0")
                         if [[ "$size_kb" -gt 0 ]]; then
                             local backup_name=$(basename "$inprogress_file")
 
                             if [[ "$DRY_RUN" != "true" ]]; then
-                                if command -v tmutil >/dev/null 2>&1; then
-                                    if tmutil delete "$inprogress_file" 2>/dev/null; then
+                                if command -v tmutil > /dev/null 2>&1; then
+                                    if tmutil delete "$inprogress_file" 2> /dev/null; then
                                         local size_human=$(bytes_to_human "$((size_kb * 1024))")
                                         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Failed APFS backup in $bundle_name: $backup_name ${GREEN}($size_human)${NC}"
                                         ((tm_cleaned++))
                                         ((files_cleaned++))
-                                        ((total_size_cleaned+=size_kb))
+                                        ((total_size_cleaned += size_kb))
                                         ((total_items++))
                                         note_activity
                                     else
@@ -1446,7 +1445,7 @@ perform_cleanup() {
                                 note_activity
                             fi
                         fi
-                    done < <(find "$mounted_path" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2>/dev/null || true)
+                    done < <(find "$mounted_path" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2> /dev/null || true)
                 fi
             done
         done
@@ -1525,12 +1524,11 @@ perform_cleanup() {
     printf '\n'
 }
 
-
 main() {
     # Parse args (only dry-run and help for minimal impact)
     for arg in "$@"; do
         case "$arg" in
-            "--dry-run"|"-n")
+            "--dry-run" | "-n")
                 DRY_RUN=true
                 ;;
             "--whitelist")
@@ -1538,7 +1536,7 @@ main() {
                 manage_whitelist
                 exit 0
                 ;;
-            "--help"|"-h")
+            "--help" | "-h")
                 echo "Mole - Deeper system cleanup"
                 echo "Usage: clean.sh [options]"
                 echo ""

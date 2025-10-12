@@ -20,14 +20,14 @@ is_touchid_configured() {
     if [[ ! -f "$PAM_SUDO_FILE" ]]; then
         return 1
     fi
-    grep -q "pam_tid.so" "$PAM_SUDO_FILE" 2>/dev/null
+    grep -q "pam_tid.so" "$PAM_SUDO_FILE" 2> /dev/null
 }
 
 # Check if system supports Touch ID
 supports_touchid() {
     # Check if bioutil exists and has Touch ID capability
-    if command -v bioutil &>/dev/null; then
-        bioutil -r 2>/dev/null | grep -q "Touch ID" && return 0
+    if command -v bioutil &> /dev/null; then
+        bioutil -r 2> /dev/null | grep -q "Touch ID" && return 0
     fi
 
     # Fallback: check if running on Apple Silicon or modern Intel Mac
@@ -39,7 +39,7 @@ supports_touchid() {
 
     # For Intel Macs, check if it's 2018 or later (approximation)
     local model_year
-    model_year=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Identifier" | grep -o "[0-9]\{4\}" | head -1)
+    model_year=$(system_profiler SPHardwareDataType 2> /dev/null | grep "Model Identifier" | grep -o "[0-9]\{4\}" | head -1)
     if [[ -n "$model_year" ]] && [[ "$model_year" -ge 2018 ]]; then
         return 0
     fi
@@ -76,7 +76,7 @@ enable_touchid() {
     fi
 
     # Create backup and apply changes
-    if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2>/dev/null; then
+    if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2> /dev/null; then
         log_error "Failed to create backup"
         return 1
     fi
@@ -97,12 +97,12 @@ enable_touchid() {
     ' "$PAM_SUDO_FILE" > "$temp_file"
 
     # Apply the changes
-    if sudo mv "$temp_file" "$PAM_SUDO_FILE" 2>/dev/null; then
+    if sudo mv "$temp_file" "$PAM_SUDO_FILE" 2> /dev/null; then
         echo -e "${GREEN}${ICON_SUCCESS} Touch ID enabled${NC} ${GRAY}- try: sudo ls${NC}"
         echo ""
         return 0
     else
-        rm -f "$temp_file" 2>/dev/null || true
+        rm -f "$temp_file" 2> /dev/null || true
         log_error "Failed to enable Touch ID"
         return 1
     fi
@@ -116,7 +116,7 @@ disable_touchid() {
     fi
 
     # Create backup and remove configuration
-    if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2>/dev/null; then
+    if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2> /dev/null; then
         log_error "Failed to create backup"
         return 1
     fi
@@ -126,12 +126,12 @@ disable_touchid() {
     temp_file=$(mktemp)
     grep -v "pam_tid.so" "$PAM_SUDO_FILE" > "$temp_file"
 
-    if sudo mv "$temp_file" "$PAM_SUDO_FILE" 2>/dev/null; then
+    if sudo mv "$temp_file" "$PAM_SUDO_FILE" 2> /dev/null; then
         echo -e "${GREEN}${ICON_SUCCESS} Touch ID disabled${NC}"
         echo ""
         return 0
     else
-        rm -f "$temp_file" 2>/dev/null || true
+        rm -f "$temp_file" 2> /dev/null || true
         log_error "Failed to disable Touch ID"
         return 1
     fi
@@ -174,11 +174,11 @@ show_menu() {
         echo ""
 
         case "$key" in
-            $'\e')  # ESC
+            $'\e') # ESC
                 return 0
                 ;;
-            ""|$'\n'|$'\r')  # Enter
-                printf "\r\033[K"  # Clear the prompt line
+            "" | $'\n' | $'\r')   # Enter
+                printf "\r\033[K" # Clear the prompt line
                 disable_touchid
                 ;;
             *)
@@ -191,11 +191,11 @@ show_menu() {
         IFS= read -r -s -n1 key || key=""
 
         case "$key" in
-            $'\e')  # ESC
+            $'\e') # ESC
                 return 0
                 ;;
-            ""|$'\n'|$'\r')  # Enter
-                printf "\r\033[K"  # Clear the prompt line
+            "" | $'\n' | $'\r')   # Enter
+                printf "\r\033[K" # Clear the prompt line
                 enable_touchid
                 ;;
             *)
@@ -220,7 +220,7 @@ main() {
         status)
             show_status
             ;;
-        help|--help|-h)
+        help | --help | -h)
             show_help
             ;;
         "")

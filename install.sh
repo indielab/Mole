@@ -13,14 +13,28 @@ NC='\033[0m'
 # Simple spinner
 _SPINNER_PID=""
 start_line_spinner() {
-    local msg="$1"; [[ ! -t 1 ]] && { echo -e "${BLUE}|${NC} $msg"; return; }
-    local chars="${MO_SPINNER_CHARS:-|/-\\}"; [[ -z "$chars" ]] && chars='|/-\\'
+    local msg="$1"
+    [[ ! -t 1 ]] && {
+        echo -e "${BLUE}|${NC} $msg"
+        return
+    }
+    local chars="${MO_SPINNER_CHARS:-|/-\\}"
+    [[ -z "$chars" ]] && chars='|/-\\'
     local i=0
-    ( while true; do c="${chars:$((i % ${#chars})):1}"; printf "\r${BLUE}%s${NC} %s" "$c" "$msg"; ((i++)); sleep 0.12; done ) &
+    (while true; do
+        c="${chars:$((i % ${#chars})):1}"
+        printf "\r${BLUE}%s${NC} %s" "$c" "$msg"
+        ((i++))
+        sleep 0.12
+    done) &
     _SPINNER_PID=$!
 }
-stop_line_spinner() { if [[ -n "$_SPINNER_PID" ]]; then kill "$_SPINNER_PID" 2>/dev/null || true; wait "$_SPINNER_PID" 2>/dev/null || true; _SPINNER_PID=""; printf "\r\033[K"; fi; }
-
+stop_line_spinner() { if [[ -n "$_SPINNER_PID" ]]; then
+    kill "$_SPINNER_PID" 2> /dev/null || true
+    wait "$_SPINNER_PID" 2> /dev/null || true
+    _SPINNER_PID=""
+    printf "\r\033[K"
+fi; }
 
 # Verbosity (0 = quiet, 1 = verbose)
 VERBOSE=1
@@ -105,7 +119,7 @@ resolve_source_dir() {
     trap "rm -rf '$tmp'" EXIT
 
     start_line_spinner "Fetching Mole source..."
-    if command -v curl >/dev/null 2>&1; then
+    if command -v curl > /dev/null 2>&1; then
         if curl -fsSL -o "$tmp/mole.tar.gz" "https://github.com/tw93/mole/archive/refs/heads/main.tar.gz"; then
             stop_line_spinner
             tar -xzf "$tmp/mole.tar.gz" -C "$tmp"
@@ -119,8 +133,8 @@ resolve_source_dir() {
     stop_line_spinner
 
     start_line_spinner "Cloning Mole source..."
-    if command -v git >/dev/null 2>&1; then
-        if git clone --depth=1 https://github.com/tw93/mole.git "$tmp/mole" >/dev/null 2>&1; then
+    if command -v git > /dev/null 2>&1; then
+        if git clone --depth=1 https://github.com/tw93/mole.git "$tmp/mole" > /dev/null 2>&1; then
             stop_line_spinner
             SOURCE_DIR="$tmp/mole"
             return 0
@@ -142,7 +156,7 @@ get_source_version() {
 get_installed_version() {
     local binary="$INSTALL_DIR/mole"
     if [[ -x "$binary" ]]; then
-        "$binary" --version 2>/dev/null | awk 'NF {print $NF; exit}'
+        "$binary" --version 2> /dev/null | awk 'NF {print $NF; exit}'
     fi
 }
 
@@ -166,11 +180,11 @@ parse_args() {
                 uninstall_mole
                 exit 0
                 ;;
-            --verbose|-v)
+            --verbose | -v)
                 VERBOSE=1
                 shift 1
                 ;;
-            --help|-h)
+            --help | -h)
                 show_help
                 exit 0
                 ;;
@@ -192,7 +206,7 @@ check_requirements() {
     fi
 
     # Check if already installed via Homebrew
-    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+    if command -v brew > /dev/null 2>&1 && brew list mole > /dev/null 2>&1; then
         if [[ "$ACTION" == "update" ]]; then
             return 0
         fi
@@ -330,7 +344,7 @@ verify_installation() {
     if [[ -x "$INSTALL_DIR/mole" ]] && [[ -f "$CONFIG_DIR/lib/common.sh" ]]; then
 
         # Test if mole command works
-        if "$INSTALL_DIR/mole" --help >/dev/null 2>&1; then
+        if "$INSTALL_DIR/mole" --help > /dev/null 2>&1; then
             return 0
         else
             log_warning "Mole command installed but may not be working properly"
@@ -369,7 +383,7 @@ print_usage_summary() {
     fi
 
     echo ""
-    
+
     local message="Mole ${action} successfully"
 
     if [[ "$action" == "updated" && -n "$previous_version" && -n "$new_version" && "$previous_version" != "$new_version" ]]; then
@@ -433,15 +447,15 @@ uninstall_mole() {
 
     # Additional safety: never delete system critical paths (check first)
     case "$CONFIG_DIR" in
-        /|/usr|/usr/local|/usr/local/bin|/usr/local/lib|/usr/local/share|\
-        /Library|/System|/bin|/sbin|/etc|/var|/opt|"$HOME"|"$HOME/Library"|\
-        /usr/local/lib/*|/usr/local/share/*|/Library/*|/System/*)
+        / | /usr | /usr/local | /usr/local/bin | /usr/local/lib | /usr/local/share | \
+            /Library | /System | /bin | /sbin | /etc | /var | /opt | "$HOME" | "$HOME/Library" | \
+            /usr/local/lib/* | /usr/local/share/* | /Library/* | /System/*)
             is_safe=0
             ;;
         *)
             # Safe patterns: must be in user's home and end with 'mole'
             if [[ "$CONFIG_DIR" == "$HOME/.config/mole" ]] ||
-               [[ "$CONFIG_DIR" == "$HOME"/.*/mole ]]; then
+                [[ "$CONFIG_DIR" == "$HOME"/.*/mole ]]; then
                 is_safe=1
             fi
             ;;
@@ -457,7 +471,9 @@ uninstall_mole() {
             echo "  $CONFIG_DIR"
         else
             echo ""
-            read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r; echo ""; if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Remove configuration directory $CONFIG_DIR? (y/N): " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
                 rm -rf "$CONFIG_DIR"
                 log_success "Removed configuration"
             else
@@ -495,9 +511,9 @@ perform_install() {
 perform_update() {
     check_requirements
 
-    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+    if command -v brew > /dev/null 2>&1 && brew list mole > /dev/null 2>&1; then
         # Try to use shared function if available (when running from installed Mole)
-        resolve_source_dir 2>/dev/null || true
+        resolve_source_dir 2> /dev/null || true
         if [[ -f "$SOURCE_DIR/lib/common.sh" ]]; then
             # shellcheck disable=SC1090,SC1091
             source "$SOURCE_DIR/lib/common.sh"
@@ -527,7 +543,7 @@ perform_update() {
 
             if echo "$upgrade_output" | grep -q "already installed"; then
                 local current_version
-                current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+                current_version=$(brew list --versions mole 2> /dev/null | awk '{print $2}')
                 echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$VERSION})"
             elif echo "$upgrade_output" | grep -q "Error:"; then
                 log_error "Homebrew upgrade failed"
@@ -536,7 +552,7 @@ perform_update() {
             else
                 echo "$upgrade_output" | grep -Ev "^(==>|Updating Homebrew|Warning:)" || true
                 local new_version
-                new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
+                new_version=$(brew list --versions mole 2> /dev/null | awk '{print $2}')
                 echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$VERSION})"
             fi
 
@@ -571,9 +587,21 @@ perform_update() {
     # Update with minimal output (suppress info/success, show errors only)
     local old_verbose=$VERBOSE
     VERBOSE=0
-    create_directories || { VERBOSE=$old_verbose; log_error "Failed to create directories"; exit 1; }
-    install_files || { VERBOSE=$old_verbose; log_error "Failed to install files"; exit 1; }
-    verify_installation || { VERBOSE=$old_verbose; log_error "Failed to verify installation"; exit 1; }
+    create_directories || {
+        VERBOSE=$old_verbose
+        log_error "Failed to create directories"
+        exit 1
+    }
+    install_files || {
+        VERBOSE=$old_verbose
+        log_error "Failed to install files"
+        exit 1
+    }
+    verify_installation || {
+        VERBOSE=$old_verbose
+        log_error "Failed to verify installation"
+        exit 1
+    }
     setup_path
     VERBOSE=$old_verbose
 

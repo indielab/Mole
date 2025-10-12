@@ -4,8 +4,8 @@
 set -euo pipefail
 
 # Terminal control functions
-enter_alt_screen() { tput smcup 2>/dev/null || true; }
-leave_alt_screen() { tput rmcup 2>/dev/null || true; }
+enter_alt_screen() { tput smcup 2> /dev/null || true; }
+leave_alt_screen() { tput rmcup 2> /dev/null || true; }
 
 # Main paginated multi-select menu function
 paginated_multi_select() {
@@ -47,16 +47,16 @@ paginated_multi_select() {
 
     # Preserve original TTY settings so we can restore them reliably
     local original_stty=""
-    if [[ -t 0 ]] && command -v stty >/dev/null 2>&1; then
-        original_stty=$(stty -g 2>/dev/null || echo "")
+    if [[ -t 0 ]] && command -v stty > /dev/null 2>&1; then
+        original_stty=$(stty -g 2> /dev/null || echo "")
     fi
 
     restore_terminal() {
         show_cursor
         if [[ -n "${original_stty-}" ]]; then
-            stty "${original_stty}" 2>/dev/null || stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
+            stty "${original_stty}" 2> /dev/null || stty sane 2> /dev/null || stty echo icanon 2> /dev/null || true
         else
-            stty sane 2>/dev/null || stty echo icanon 2>/dev/null || true
+            stty sane 2> /dev/null || stty echo icanon 2> /dev/null || true
         fi
         if [[ "${external_alt_screen:-false}" == false ]]; then
             leave_alt_screen
@@ -72,14 +72,14 @@ paginated_multi_select() {
     # Interrupt handler
     handle_interrupt() {
         cleanup
-        exit 130  # Standard exit code for Ctrl+C
+        exit 130 # Standard exit code for Ctrl+C
     }
 
     trap cleanup EXIT
     trap handle_interrupt INT TERM
 
     # Setup terminal - preserve interrupt character
-    stty -echo -icanon intr ^C 2>/dev/null || true
+    stty -echo -icanon intr ^C 2> /dev/null || true
     if [[ $external_alt_screen == false ]]; then
         enter_alt_screen
         # Clear screen once on entry to alt screen
@@ -108,7 +108,7 @@ paginated_multi_select() {
     draw_menu() {
         # Move to home position without clearing (reduces flicker)
         printf "\033[H" >&2
-        
+
         # Clear each line as we go instead of clearing entire screen
         local clear_line="\r\033[2K"
 
@@ -169,7 +169,7 @@ paginated_multi_select() {
         # Clear any remaining lines at bottom
         printf "${clear_line}\n" >&2
         printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
-        
+
         # Clear one more line to ensure no artifacts
         printf "${clear_line}" >&2
     }
@@ -177,7 +177,7 @@ paginated_multi_select() {
     # Show help screen
     show_help() {
         printf "\033[H\033[J" >&2
-        cat >&2 <<EOF
+        cat >&2 << EOF
 Help - Navigation Controls
 ==========================
 
@@ -269,7 +269,7 @@ EOF
                     local IFS=','
                     final_result="${selected_indices[*]}"
                 fi
-                
+
                 # Remove the trap to avoid cleanup on normal exit
                 trap - EXIT INT TERM
 

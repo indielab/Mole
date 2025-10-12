@@ -1,4 +1,4 @@
-name: Shell Format & Lint
+name: Shell Format & Lint (Minimal)
 
 on:
   push:
@@ -7,54 +7,60 @@ on:
 jobs:
   format-lint:
     runs-on: macos-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install shfmt and shellcheck
+      - name: Install shfmt & shellcheck
         run: |
           set -euo pipefail
           brew update
           brew install shfmt shellcheck
+          shfmt -version || true
+          shellcheck --version || true
 
-      - name: Collect shell files
-        id: files
+      - name: List target files
+        id: list
         shell: bash
         run: |
           set -euo pipefail
-          count=0
-          : > files-null.list
-          while IFS= read -r -d '' f; do
-            printf '%s\0' "$f" >> files-null.list
-            count=$((count+1))
-          done < <(git ls-files -z '*.sh' 'mole' || true)
-
-          if [[ $count -eq 0 ]]; then
+          FILES=$(git ls-files '*.sh' 'mole' || true)
+          echo "FILES<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES"       >> "$GITHUB_OUTPUT"
+          echo "EOF"          >> "$GITHUB_OUTPUT"
+          if [[ -z "$FILES" ]]; then
             echo "found=0" >> "$GITHUB_OUTPUT"
-            rm -f files-null.list
+            echo "No shell files found."
           else
-            echo "found=$count" >> "$GITHUB_OUTPUT"
+            echo "found=1" >> "$GITHUB_OUTPUT"
+            echo "Files:"
+            echo "$FILES"
           fi
 
-      - name: Run shfmt (diff mode, indent=4, simplify)
-        if: steps.files.outputs.found != '0'
+      - name: Run shfmt (diff only)
+        if: steps.list.outputs.found == '1'
+        shell: bash
         run: |
           set -euo pipefail
-          xargs -0 shfmt -i 4 -ci -sr -d < files-null.list
+          shfmt -i 4 -ci -sr -d ${FILES}
+        env:
+          FILES: ${{ steps.list.outputs.FILES }}
 
       - name: Run shellcheck
-        if: steps.files.outputs.found != '0'
+        if: steps.list.outputs.found == '1'
+        shell: bash
         run: |
           set -euo pipefail
           if [[ -f .shellcheckrc ]]; then
-            xargs -0 shellcheck --rcfile ./.shellcheckrc < files-null.list
+            shellcheck --rcfile .shellcheckrc ${FILES}
           else
-            xargs -0 shellcheck < files-null.list
+            shellcheck ${FILES}
           fi
+        env:
+          FILES: ${{ steps.list.outputs.FILES }}
 
       - name: Nothing to check
-        if: steps.files.outputs.found == '0'
-        run: echo "No shell files found; skipping shfmt & shellcheck"
+        if: steps.list.outputs.found == '0'
+        run: echo "Skip: no shell files."

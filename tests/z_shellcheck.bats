@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
 
 setup_file() {
-  PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-  export PROJECT_ROOT
+    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
+    export PROJECT_ROOT
 }
 
 @test "shellcheck passes for test scripts" {
-  if ! command -v shellcheck >/dev/null 2>&1; then
-    skip "shellcheck not installed"
-  fi
+    if ! command -v shellcheck > /dev/null 2>&1; then
+        skip "shellcheck not installed"
+    fi
 
-  run env PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
+    run env PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
 set -euo pipefail
 cd "$PROJECT_ROOT"
 targets=()
@@ -24,6 +24,6 @@ fi
 shellcheck --rcfile "$PROJECT_ROOT/.shellcheckrc" "${targets[@]}"
 EOF
 
-  printf '%s\n' "$output" >&3
-  [ "$status" -eq 0 ]
+    printf '%s\n' "$output" >&3
+    [ "$status" -eq 0 ]
 }

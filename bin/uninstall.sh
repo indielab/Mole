@@ -56,10 +56,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 # Initialize global variables
-selected_apps=()  # Global array for app selection
+selected_apps=() # Global array for app selection
 declare -a apps_data=()
 declare -a selection_state=()
-current_line=0
 total_items=0
 files_cleaned=0
 total_size_cleaned=0
@@ -68,16 +67,16 @@ total_size_cleaned=0
 get_app_last_used() {
     local app_path="$1"
     local last_used
-    last_used=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
+    last_used=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2> /dev/null)
 
     if [[ "$last_used" == "(null)" || -z "$last_used" ]]; then
         echo "Never"
     else
         local last_used_epoch
-        last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last_used" "+%s" 2>/dev/null)
+        last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last_used" "+%s" 2> /dev/null)
         local current_epoch
         current_epoch=$(date "+%s")
-        local days_ago=$(( (current_epoch - last_used_epoch) / 86400 ))
+        local days_ago=$(((current_epoch - last_used_epoch) / 86400))
 
         if [[ $days_ago -eq 0 ]]; then
             echo "Today"
@@ -86,10 +85,10 @@ get_app_last_used() {
         elif [[ $days_ago -lt 30 ]]; then
             echo "${days_ago} days ago"
         elif [[ $days_ago -lt 365 ]]; then
-            local months_ago=$(( days_ago / 30 ))
+            local months_ago=$((days_ago / 30))
             echo "${months_ago} month(s) ago"
         else
-            local years_ago=$(( days_ago / 365 ))
+            local years_ago=$((days_ago / 365))
             echo "${years_ago} year(s) ago"
         fi
     fi
@@ -101,22 +100,24 @@ scan_applications() {
     local cache_dir="$HOME/.cache/mole"
     local cache_file="$cache_dir/app_scan_cache"
     local cache_meta="$cache_dir/app_scan_meta"
-    local cache_ttl=3600  # 1 hour cache validity
+    local cache_ttl=3600 # 1 hour cache validity
 
-    mkdir -p "$cache_dir" 2>/dev/null
+    mkdir -p "$cache_dir" 2> /dev/null
 
     # Quick count of current apps (system + user directories)
     local current_app_count
     current_app_count=$(
-        (find /Applications -name "*.app" -maxdepth 1 2>/dev/null;
-         find ~/Applications -name "*.app" -maxdepth 1 2>/dev/null) | wc -l | tr -d ' '
+        (
+            find /Applications -name "*.app" -maxdepth 1 2> /dev/null
+            find ~/Applications -name "*.app" -maxdepth 1 2> /dev/null
+        ) | wc -l | tr -d ' '
     )
 
     # Check if cache is valid unless explicitly disabled
     if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
-        local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
+        local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2> /dev/null || echo 0)))
         local cached_app_count
-        cached_app_count=$(cat "$cache_meta" 2>/dev/null || echo "0")
+        cached_app_count=$(cat "$cache_meta" 2> /dev/null || echo "0")
 
         # Cache is valid if: age < TTL AND app count matches
         if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
@@ -149,26 +150,26 @@ scan_applications() {
         local bundle_id="unknown"
         local display_name="$app_name"
         if [[ -f "$app_path/Contents/Info.plist" ]]; then
-            bundle_id=$(defaults read "$app_path/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "unknown")
+            bundle_id=$(defaults read "$app_path/Contents/Info.plist" CFBundleIdentifier 2> /dev/null || echo "unknown")
 
             # Try to get English name from bundle info
             local bundle_executable
-            bundle_executable=$(defaults read "$app_path/Contents/Info.plist" CFBundleExecutable 2>/dev/null)
+            bundle_executable=$(defaults read "$app_path/Contents/Info.plist" CFBundleExecutable 2> /dev/null)
 
             # Smart display name selection - prefer descriptive names over generic ones
             local candidates=()
 
             # Get all potential names
             local bundle_display_name
-            bundle_display_name=$(plutil -extract CFBundleDisplayName raw "$app_path/Contents/Info.plist" 2>/dev/null)
+            bundle_display_name=$(plutil -extract CFBundleDisplayName raw "$app_path/Contents/Info.plist" 2> /dev/null)
             local bundle_name
-            bundle_name=$(plutil -extract CFBundleName raw "$app_path/Contents/Info.plist" 2>/dev/null)
+            bundle_name=$(plutil -extract CFBundleName raw "$app_path/Contents/Info.plist" 2> /dev/null)
 
             # Check if executable name is generic/technical (should be avoided)
             local is_generic_executable=false
             if [[ -n "$bundle_executable" ]]; then
                 case "$bundle_executable" in
-                    "pake"|"Electron"|"electron"|"nwjs"|"node"|"helper"|"main"|"app"|"binary")
+                    "pake" | "Electron" | "electron" | "nwjs" | "node" | "helper" | "main" | "app" | "binary")
                         is_generic_executable=true
                         ;;
                 esac
@@ -219,19 +220,19 @@ scan_applications() {
         app_data_tuples+=("${app_path}|${app_name}|${bundle_id}|${display_name}")
     done < <(
         # Scan both system and user application directories
-        find /Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null
-        find ~/Applications -name "*.app" -maxdepth 1 -print0 2>/dev/null
+        find /Applications -name "*.app" -maxdepth 1 -print0 2> /dev/null
+        find ~/Applications -name "*.app" -maxdepth 1 -print0 2> /dev/null
     )
 
     # Second pass: process each app with parallel size calculation
     local app_count=0
     local total_apps=${#app_data_tuples[@]}
-    local max_parallel=10  # Process 10 apps in parallel
+    local max_parallel=10 # Process 10 apps in parallel
     local pids=()
     local inline_loading=false
     if [[ "${MOLE_INLINE_LOADING:-}" == "1" || "${MOLE_INLINE_LOADING:-}" == "true" ]]; then
         inline_loading=true
-        printf "\033[H" >&2  # Position cursor at top of screen
+        printf "\033[H" >&2 # Position cursor at top of screen
     fi
 
     # Process app metadata extraction function
@@ -245,7 +246,7 @@ scan_applications() {
         # Parallel size calculation
         local app_size="N/A"
         if [[ -d "$app_path" ]]; then
-            app_size=$(du -sh "$app_path" 2>/dev/null | cut -f1 || echo "N/A")
+            app_size=$(du -sh "$app_path" 2> /dev/null | cut -f1 || echo "N/A")
         fi
 
         # Get real last used date from macOS metadata
@@ -254,13 +255,13 @@ scan_applications() {
 
         if [[ -d "$app_path" ]]; then
             local metadata_date
-            metadata_date=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
+            metadata_date=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2> /dev/null)
 
             if [[ "$metadata_date" != "(null)" && -n "$metadata_date" ]]; then
-                last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$metadata_date" "+%s" 2>/dev/null || echo "0")
+                last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$metadata_date" "+%s" 2> /dev/null || echo "0")
 
                 if [[ $last_used_epoch -gt 0 ]]; then
-                    local days_ago=$(( (current_epoch - last_used_epoch) / 86400 ))
+                    local days_ago=$(((current_epoch - last_used_epoch) / 86400))
 
                     if [[ $days_ago -eq 0 ]]; then
                         last_used="Today"
@@ -269,21 +270,21 @@ scan_applications() {
                     elif [[ $days_ago -lt 7 ]]; then
                         last_used="${days_ago} days ago"
                     elif [[ $days_ago -lt 30 ]]; then
-                        local weeks_ago=$(( days_ago / 7 ))
+                        local weeks_ago=$((days_ago / 7))
                         [[ $weeks_ago -eq 1 ]] && last_used="1 week ago" || last_used="${weeks_ago} weeks ago"
                     elif [[ $days_ago -lt 365 ]]; then
-                        local months_ago=$(( days_ago / 30 ))
+                        local months_ago=$((days_ago / 30))
                         [[ $months_ago -eq 1 ]] && last_used="1 month ago" || last_used="${months_ago} months ago"
                     else
-                        local years_ago=$(( days_ago / 365 ))
+                        local years_ago=$((days_ago / 365))
                         [[ $years_ago -eq 1 ]] && last_used="1 year ago" || last_used="${years_ago} years ago"
                     fi
                 fi
             else
                 # Fallback to file modification time
-                last_used_epoch=$(stat -f%m "$app_path" 2>/dev/null || echo "0")
+                last_used_epoch=$(stat -f%m "$app_path" 2> /dev/null || echo "0")
                 if [[ $last_used_epoch -gt 0 ]]; then
-                    local days_ago=$(( (current_epoch - last_used_epoch) / 86400 ))
+                    local days_ago=$(((current_epoch - last_used_epoch) / 86400))
                     if [[ $days_ago -lt 30 ]]; then
                         last_used="Recent"
                     elif [[ $days_ago -lt 365 ]]; then
@@ -319,15 +320,15 @@ scan_applications() {
         ((spinner_idx++))
 
         # Wait if we've hit max parallel limit
-        if (( ${#pids[@]} >= max_parallel )); then
-            wait "${pids[0]}" 2>/dev/null
-            pids=("${pids[@]:1}")  # Remove first pid
+        if ((${#pids[@]} >= max_parallel)); then
+            wait "${pids[0]}" 2> /dev/null
+            pids=("${pids[@]:1}") # Remove first pid
         fi
     done
 
     # Wait for remaining background processes
     for pid in "${pids[@]}"; do
-        wait "$pid" 2>/dev/null
+        wait "$pid" 2> /dev/null
     done
 
     # Check if we found any applications
@@ -347,12 +348,15 @@ scan_applications() {
     fi
 
     # Sort by last used (oldest first) and cache the result
-    sort -t'|' -k1,1n "$temp_file" > "${temp_file}.sorted" || { rm -f "$temp_file"; return 1; }
+    sort -t'|' -k1,1n "$temp_file" > "${temp_file}.sorted" || {
+        rm -f "$temp_file"
+        return 1
+    }
     rm -f "$temp_file"
 
     # Update cache with app count metadata
-    cp "${temp_file}.sorted" "$cache_file" 2>/dev/null || true
-    echo "$current_app_count" > "$cache_meta" 2>/dev/null || true
+    cp "${temp_file}.sorted" "$cache_file" 2> /dev/null || true
+    echo "$current_app_count" > "$cache_meta" 2> /dev/null || true
 
     # Verify sorted file exists before returning
     if [[ -f "${temp_file}.sorted" ]]; then
@@ -415,12 +419,12 @@ uninstall_applications() {
         echo ""
 
         # Check if app is running (use app path for precise matching)
-        if pgrep -f "$app_path" >/dev/null 2>&1; then
+        if pgrep -f "$app_path" > /dev/null 2>&1; then
             echo -e "${YELLOW}${ICON_ERROR} $app_name is currently running${NC}"
             read -p "  Force quit $app_name? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                pkill -f "$app_path" 2>/dev/null || true
+                pkill -f "$app_path" 2> /dev/null || true
                 sleep 2
             else
                 echo -e "  ${BLUE}${ICON_EMPTY}${NC} Skipped $app_name"
@@ -438,7 +442,7 @@ uninstall_applications() {
 
         # Calculate total size
         local app_size_kb
-        app_size_kb=$(du -sk "$app_path" 2>/dev/null | awk '{print $1}' || echo "0")
+        app_size_kb=$(du -sk "$app_path" 2> /dev/null | awk '{print $1}' || echo "0")
         local related_size_kb
         related_size_kb=$(calculate_total_size "$related_files")
         local system_size_kb
@@ -461,12 +465,13 @@ uninstall_applications() {
             done <<< "$system_files"
         fi
 
-        if [[ $total_kb -gt 1048576 ]]; then  # > 1GB
-            local size_display=$(echo "$total_kb" | awk '{printf "%.2fGB", $1/1024/1024}')
-        elif [[ $total_kb -gt 1024 ]]; then  # > 1MB
-            local size_display=$(echo "$total_kb" | awk '{printf "%.1fMB", $1/1024}')
+        local size_display
+        if [[ $total_kb -gt 1048576 ]]; then # > 1GB
+            size_display=$(echo "$total_kb" | awk '{printf "%.2fGB", $1/1024/1024}')
+        elif [[ $total_kb -gt 1024 ]]; then # > 1MB
+            size_display=$(echo "$total_kb" | awk '{printf "%.1fMB", $1/1024}')
         else
-            local size_display="${total_kb}KB"
+            size_display="${total_kb}KB"
         fi
 
         echo -e "  ${BLUE}Total size: $size_display${NC}"
@@ -477,7 +482,7 @@ uninstall_applications() {
 
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             # Remove the application
-            if rm -rf "$app_path" 2>/dev/null; then
+            if rm -rf "$app_path" 2> /dev/null; then
                 echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed application"
             else
                 echo -e "  ${RED}${ICON_ERROR}${NC} Failed to remove $app_path"
@@ -487,7 +492,7 @@ uninstall_applications() {
             # Remove user-level related files
             while IFS= read -r file; do
                 if [[ -n "$file" && -e "$file" ]]; then
-                    if rm -rf "$file" 2>/dev/null; then
+                    if rm -rf "$file" 2> /dev/null; then
                         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
                     fi
                 fi
@@ -498,7 +503,7 @@ uninstall_applications() {
                 echo -e "  ${BLUE}${ICON_SOLID}${NC} Admin access required for system files"
                 while IFS= read -r file; do
                     if [[ -n "$file" && -e "$file" ]]; then
-                        if sudo rm -rf "$file" 2>/dev/null; then
+                        if sudo rm -rf "$file" 2> /dev/null; then
                             echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed $(basename "$file")"
                         else
                             echo -e "  ${YELLOW}${ICON_ERROR}${NC} Failed to remove: $file"
@@ -521,12 +526,13 @@ uninstall_applications() {
     echo -e "${PURPLE}${ICON_ARROW} Uninstallation Summary${NC}"
 
     if [[ $total_size_freed -gt 0 ]]; then
-        if [[ $total_size_freed -gt 1048576 ]]; then  # > 1GB
-            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.2fGB", $1/1024/1024}')
-        elif [[ $total_size_freed -gt 1024 ]]; then  # > 1MB
-            local freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fMB", $1/1024}')
+        local freed_display
+        if [[ $total_size_freed -gt 1048576 ]]; then # > 1GB
+            freed_display=$(echo "$total_size_freed" | awk '{printf "%.2fGB", $1/1024/1024}')
+        elif [[ $total_size_freed -gt 1024 ]]; then # > 1MB
+            freed_display=$(echo "$total_size_freed" | awk '{printf "%.1fMB", $1/1024}')
         else
-            local freed_display="${total_size_freed}KB"
+            freed_display="${total_size_freed}KB"
         fi
 
         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Freed $freed_display of disk space"
@@ -544,8 +550,8 @@ cleanup() {
         unset MOLE_ALT_SCREEN_ACTIVE
     fi
     if [[ -n "${sudo_keepalive_pid:-}" ]]; then
-        kill "$sudo_keepalive_pid" 2>/dev/null || true
-        wait "$sudo_keepalive_pid" 2>/dev/null || true
+        kill "$sudo_keepalive_pid" 2> /dev/null || true
+        wait "$sudo_keepalive_pid" 2> /dev/null || true
         sudo_keepalive_pid=""
     fi
     show_cursor
@@ -634,7 +640,9 @@ main() {
     clear
     local selection_count=${#selected_apps[@]}
     if [[ $selection_count -eq 0 ]]; then
-        echo "No apps selected"; rm -f "$apps_file"; return 0
+        echo "No apps selected"
+        rm -f "$apps_file"
+        return 0
     fi
     # Show selected apps, max 3 per line
     echo -e "${BLUE}${ICON_CONFIRM}${NC} Selected ${selection_count} app(s):"
@@ -644,7 +652,7 @@ main() {
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
         local display_item="${app_name}(${size})"
 
-        if (( idx % 3 == 0 )); then
+        if ((idx % 3 == 0)); then
             # Start new line
             [[ -n "$line" ]] && echo "  $line"
             line="$display_item"

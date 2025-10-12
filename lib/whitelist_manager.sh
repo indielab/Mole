@@ -114,7 +114,6 @@ patterns_equivalent() {
     return 1
 }
 
-
 load_whitelist() {
     local -a patterns=()
 
@@ -163,13 +162,12 @@ is_whitelisted() {
         if [[ "$check_pattern" == "$existing_expanded" ]]; then
             return 0
         fi
-        if [[ "$check_pattern" == $existing_expanded ]]; then
+        if [[ "$check_pattern" == "$existing_expanded" ]]; then
             return 0
         fi
     done
     return 1
 }
-
 
 manage_whitelist() {
     manage_whitelist_categories
@@ -285,7 +283,6 @@ manage_whitelist_categories() {
         "Saved to ${WHITELIST_CONFIG}"
     printf '\n'
 }
-
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     manage_whitelist

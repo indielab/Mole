@@ -28,7 +28,7 @@ MOLE_TAGLINE="can dig deep to clean your Mac."
 # Get latest version from remote repository
 get_latest_version() {
     curl -fsSL --connect-timeout 2 --max-time 3 -H "Cache-Control: no-cache" \
-        "https://raw.githubusercontent.com/tw93/mole/main/mole" 2>/dev/null | \
+        "https://raw.githubusercontent.com/tw93/mole/main/mole" 2> /dev/null |
         grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/'
 }
 
@@ -37,11 +37,11 @@ check_for_updates() {
     local cache="$HOME/.cache/mole/version_check"
     local msg_cache="$HOME/.cache/mole/update_message"
     local ttl="${MO_UPDATE_CHECK_TTL:-3600}"
-    mkdir -p "$(dirname "$cache")" 2>/dev/null
+    mkdir -p "$(dirname "$cache")" 2> /dev/null
 
     # Skip if checked recently
     if [[ -f "$cache" ]]; then
-        local age=$(($(date +%s) - $(stat -f%m "$cache" 2>/dev/null || echo 0)))
+        local age=$(($(date +%s) - $(stat -f%m "$cache" 2> /dev/null || echo 0)))
         [[ $age -lt $ttl ]] && return
     fi
 
@@ -55,9 +55,9 @@ check_for_updates() {
         else
             echo -n > "$msg_cache"
         fi
-        touch "$cache" 2>/dev/null
+        touch "$cache" 2> /dev/null
     ) &
-    disown 2>/dev/null || true
+    disown 2> /dev/null || true
 }
 
 # Show update notification if available
@@ -93,7 +93,7 @@ animate_mole_intro() {
     local -a mole_lines=()
     while IFS= read -r line; do
         mole_lines+=("$line")
-    done <<'EOF'
+    done << 'EOF'
         /\_/\
    ____/ o o \
  /~____  =o= /
@@ -108,7 +108,7 @@ EOF
     local body_color="${PURPLE}"
     local ground_color="${GREEN}"
     for idx in "${!mole_lines[@]}"; do
-        if (( idx < body_cutoff )); then
+        if ((idx < body_cutoff)); then
             printf "%s\n" "${body_color}${mole_lines[$idx]}${NC}"
         else
             printf "%s\n" "${ground_color}${mole_lines[$idx]}${NC}"
@@ -150,7 +150,7 @@ show_help() {
 # Simple update function
 update_mole() {
     # Check if installed via Homebrew
-    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+    if command -v brew > /dev/null 2>&1 && brew list mole > /dev/null 2>&1; then
         update_via_homebrew "$VERSION"
         exit 0
     fi
@@ -180,17 +180,20 @@ update_mole() {
 
     local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
     local tmp_installer
-    tmp_installer="$(mktemp_file)" || { log_error "Update failed"; exit 1; }
+    tmp_installer="$(mktemp_file)" || {
+        log_error "Update failed"
+        exit 1
+    }
 
     # Download installer with progress
-    if command -v curl >/dev/null 2>&1; then
+    if command -v curl > /dev/null 2>&1; then
         if ! curl -fsSL --connect-timeout 10 --max-time 60 "$installer_url" -o "$tmp_installer" 2>&1; then
             if [[ -t 1 ]]; then stop_inline_spinner; fi
             rm -f "$tmp_installer"
             log_error "Update failed. Check network connection."
             exit 1
         fi
-    elif command -v wget >/dev/null 2>&1; then
+    elif command -v wget > /dev/null 2>&1; then
         if ! wget --timeout=10 --tries=3 -qO "$tmp_installer" "$installer_url" 2>&1; then
             if [[ -t 1 ]]; then stop_inline_spinner; fi
             rm -f "$tmp_installer"
@@ -209,7 +212,7 @@ update_mole() {
 
     # Determine install directory
     local mole_path
-    mole_path="$(command -v mole 2>/dev/null || echo "$0")"
+    mole_path="$(command -v mole 2> /dev/null || echo "$0")"
     local install_dir
     install_dir="$(cd "$(dirname "$mole_path")" && pwd)"
 
@@ -231,7 +234,7 @@ update_mole() {
         # Only show success message if installer didn't already do so
         if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
             local new_version
-            new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
+            new_version=$("$mole_path" --version 2> /dev/null | awk 'NF {print $NF}' || echo "")
             printf '\n%s\n\n' "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version (${new_version:-unknown})"
         else
             printf '\n'
@@ -247,7 +250,7 @@ update_mole() {
             fi
             if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
                 local new_version
-                new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
+                new_version=$("$mole_path" --version 2> /dev/null | awk 'NF {print $NF}' || echo "")
                 printf '\n%s\n\n' "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version (${new_version:-unknown})"
             else
                 printf '\n'
@@ -256,7 +259,7 @@ update_mole() {
             if [[ -t 1 ]]; then stop_inline_spinner; fi
             rm -f "$tmp_installer"
             log_error "Update failed"
-            echo "$install_output" | tail -10 >&2  # Show last 10 lines of error
+            echo "$install_output" | tail -10 >&2 # Show last 10 lines of error
             exit 1
         fi
     fi
@@ -279,7 +282,7 @@ remove_mole() {
     local -a alias_installs=()
 
     # Check Homebrew
-    if command -v brew >/dev/null 2>&1 && brew list mole >/dev/null 2>&1; then
+    if command -v brew > /dev/null 2>&1 && brew list mole > /dev/null 2>&1; then
         is_homebrew=true
     fi
 
@@ -318,7 +321,9 @@ remove_mole() {
     printf '\n'
 
     # Check if anything to remove
-    if [[ "$is_homebrew" == "false" && ${#manual_installs[@]:-0} -eq 0 && ${#alias_installs[@]:-0} -eq 0 ]]; then
+    local manual_count=${#manual_installs[@]}
+    local alias_count=${#alias_installs[@]}
+    if [[ "$is_homebrew" == "false" && ${manual_count:-0} -eq 0 && ${alias_count:-0} -eq 0 ]]; then
         printf '%s\n\n' "${YELLOW}No Mole installation detected${NC}"
         exit 0
     fi
@@ -343,8 +348,8 @@ remove_mole() {
             echo ""
             exit 0
             ;;
-        ""|$'\n'|$'\r')
-            printf "\r\033[K"  # Clear the prompt line
+        "" | $'\n' | $'\r')
+            printf "\r\033[K" # Clear the prompt line
             # Continue with removal
             ;;
         *)
@@ -357,32 +362,32 @@ remove_mole() {
     # Remove Homebrew installation (silent)
     local has_error=false
     if [[ "$is_homebrew" == "true" ]]; then
-        if ! brew uninstall mole >/dev/null 2>&1; then
+        if ! brew uninstall mole > /dev/null 2>&1; then
             has_error=true
         fi
     fi
     # Remove manual installations (silent)
-    if [[ ${#manual_installs[@]:-0} -gt 0 ]]; then
+    if [[ ${manual_count:-0} -gt 0 ]]; then
         for install in "${manual_installs[@]}"; do
             if [[ -f "$install" ]]; then
-                rm -f "$install" 2>/dev/null || has_error=true
+                rm -f "$install" 2> /dev/null || has_error=true
             fi
         done
     fi
-    if [[ ${#alias_installs[@]} -gt 0 ]]; then
+    if [[ ${alias_count:-0} -gt 0 ]]; then
         for alias in "${alias_installs[@]}"; do
             if [[ -f "$alias" ]]; then
-                rm -f "$alias" 2>/dev/null || true
+                rm -f "$alias" 2> /dev/null || true
             fi
         done
     fi
     # Clean up cache first (silent)
     if [[ -d "$HOME/.cache/mole" ]]; then
-        rm -rf "$HOME/.cache/mole" 2>/dev/null || true
+        rm -rf "$HOME/.cache/mole" 2> /dev/null || true
     fi
     # Clean up configuration last (silent)
     if [[ -d "$HOME/.config/mole" ]]; then
-        rm -rf "$HOME/.config/mole" 2>/dev/null || true
+        rm -rf "$HOME/.config/mole" 2> /dev/null || true
     fi
 
     # Show final result
@@ -400,7 +405,7 @@ remove_mole() {
 # Display main menu options with minimal refresh to avoid flicker
 show_main_menu() {
     local selected="${1:-1}"
-    local _full_draw="${2:-true}"  # Kept for compatibility (unused)
+    local _full_draw="${2:-true}" # Kept for compatibility (unused)
     local banner="${MAIN_MENU_BANNER:-}"
     local update_message="${MAIN_MENU_UPDATE_MESSAGE:-}"
 
@@ -410,7 +415,7 @@ show_main_menu() {
         MAIN_MENU_BANNER="$banner"
     fi
 
-    printf '\033[H'  # Move cursor to home
+    printf '\033[H' # Move cursor to home
 
     local line=""
     # Leading spacer
@@ -452,13 +457,13 @@ interactive_main_menu() {
     # Show intro animation only once per terminal tab
     if [[ -t 1 ]]; then
         local tty_name
-        tty_name=$(tty 2>/dev/null || echo "")
+        tty_name=$(tty 2> /dev/null || echo "")
         if [[ -n "$tty_name" ]]; then
             local flag_file
             flag_file="/tmp/mole_intro_$(echo "$tty_name" | tr -c '[:alnum:]_' '_')"
             if [[ ! -f "$flag_file" ]]; then
                 animate_mole_intro
-                touch "$flag_file" 2>/dev/null || true
+                touch "$flag_file" 2> /dev/null || true
             fi
         fi
     fi
@@ -472,7 +477,7 @@ interactive_main_menu() {
     MAIN_MENU_BANNER="$brand_banner"
 
     if [[ -f "$msg_cache" && -s "$msg_cache" ]]; then
-        update_message="$(cat "$msg_cache" 2>/dev/null || echo "")"
+        update_message="$(cat "$msg_cache" 2> /dev/null || echo "")"
     fi
     MAIN_MENU_UPDATE_MESSAGE="$update_message"
 
@@ -501,7 +506,7 @@ interactive_main_menu() {
         case "$key" in
             "UP") ((current_option > 1)) && ((current_option--)) ;;
             "DOWN") ((current_option < 5)) && ((current_option++)) ;;
-            "ENTER"|"$current_option")
+            "ENTER" | "$current_option")
                 show_cursor
                 case $current_option in
                     1)
@@ -509,7 +514,11 @@ interactive_main_menu() {
                         ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
                     3) exec "$SCRIPT_DIR/bin/analyze.sh" ;;
-                    4) clear; show_help; exit 0 ;;
+                    4)
+                        clear
+                        show_help
+                        exit 0
+                        ;;
                     5) cleanup_and_exit ;;
                 esac
                 ;;
@@ -522,7 +531,11 @@ interactive_main_menu() {
                         ;;
                     2) exec "$SCRIPT_DIR/bin/uninstall.sh" ;;
                     3) exec "$SCRIPT_DIR/bin/analyze.sh" ;;
-                    4) clear; show_help; exit 0 ;;
+                    4)
+                        clear
+                        show_help
+                        exit 0
+                        ;;
                     5) cleanup_and_exit ;;
                 esac
                 ;;
@@ -552,11 +565,11 @@ main() {
             remove_mole
             exit 0
             ;;
-        "help"|"--help"|"-h")
+        "help" | "--help" | "-h")
             show_help
             exit 0
             ;;
-        "version"|"--version"|"-V")
+        "version" | "--version" | "-V")
             show_version
             exit 0
             ;;

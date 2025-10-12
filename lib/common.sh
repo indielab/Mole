@@ -122,11 +122,9 @@ icon_menu() {
 
 # Consistent summary blocks for command results
 print_summary_block() {
-    local status="info"
     local heading=""
 
     if [[ $# -gt 0 ]]; then
-        status="$1"
         shift
     fi
 
@@ -137,10 +135,6 @@ print_summary_block() {
 
     local -a details=("$@")
     local divider="======================================================================"
-
-    local color="$BLUE"
-
-    local indent="  "
 
     echo "$divider"
     if [[ -n "$heading" ]]; then
@@ -253,11 +247,10 @@ read_key() {
 
 # Drain pending input (useful for scrolling prevention)
 drain_pending_input() {
-    local dummy
     local drained=0
     # Single pass with reasonable timeout
     # Touchpad scrolling can generate bursts of arrow keys
-    while IFS= read -r -s -n 1 -t 0.001 dummy 2> /dev/null; do
+    while IFS= read -r -s -n 1 -t 0.001 _ 2> /dev/null; do
         ((drained++))
         # Safety limit to prevent infinite loop
         [[ $drained -gt 500 ]] && break

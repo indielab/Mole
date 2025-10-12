@@ -21,8 +21,6 @@ IS_M_SERIES=$([ "$(uname -m)" = "arm64" ] && echo "true" || echo "false")
 readonly MAX_PARALLEL_JOBS=15 # Maximum parallel background jobs
 readonly TEMP_FILE_AGE_DAYS=7 # Age threshold for temp file cleanup
 readonly ORPHAN_AGE_DAYS=60   # Age threshold for orphaned data
-readonly SIZE_1GB_KB=1048576  # 1GB in kilobytes
-readonly SIZE_1MB_KB=1024     # 1MB in kilobytes
 # Default whitelist patterns (preselected, user can disable)
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
@@ -78,7 +76,6 @@ total_items=0
 # Tracking variables
 TRACK_SECTION=0
 SECTION_ACTIVITY=0
-LAST_CLEAN_RESULT=0
 files_cleaned=0
 total_size_cleaned=0
 whitelist_skipped_count=0
@@ -246,7 +243,6 @@ safe_clean() {
     fi
 
     if [[ ${#existing_paths[@]} -eq 0 ]]; then
-        LAST_CLEAN_RESULT=0
         return 0
     fi
 
@@ -349,7 +345,6 @@ safe_clean() {
         note_activity
     fi
 
-    LAST_CLEAN_RESULT=$removed_any
     return 0
 }
 
@@ -447,9 +442,6 @@ perform_cleanup() {
     elif [[ $active_count -eq 2 ]]; then
         echo -e "${BLUE}${ICON_SUCCESS}${NC} Whitelist: 2 core patterns active"
     fi
-
-    # Get initial space
-    space_before=$(df / | tail -1 | awk '{print $4}')
 
     # Initialize counters
     total_items=0
@@ -1457,9 +1449,6 @@ perform_cleanup() {
     end_section
 
     # ===== Final summary =====
-    space_after=$(df / | tail -1 | awk '{print $4}')
-    space_freed_kb=$((space_after - space_before))
-
     echo ""
 
     local summary_heading=""

@@ -30,7 +30,7 @@ batch_uninstall_applications() {
     # Silent analysis without spinner output (avoid visual flicker)
     for selected_app in "${selected_apps[@]}"; do
         [[ -z "$selected_app" ]] && continue
-        IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
+        IFS='|' read -r _ app_path app_name bundle_id _ _ <<< "$selected_app"
 
         # Check if app is running (use app path for precise matching)
         if pgrep -f "$app_path" > /dev/null 2>&1; then

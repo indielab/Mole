@@ -26,6 +26,7 @@ shellcheck -S warning mole bin/*.sh lib/*.sh
 ## Git Hooks
 
 Pre-commit hook will auto-format your code. Install with:
+
 ```bash
 ./scripts/install-hooks.sh
 ```

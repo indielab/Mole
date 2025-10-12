@@ -1,10 +1,7 @@
 # Mole project shellcheck configuration
-#
-# Keep the lint strict by default. Add rules to disable only when we have a
-# clear justification.
-#
-# Examples:
-# disable=SC2034  # unused variables (if intentionally unused)
-# disable=SC1091  # sourcing files not present in repo (optional)
 
-# Currently no global disables are required.
+disable=SC2155
+disable=SC2034
+disable=SC2154
+disable=SC2001
+

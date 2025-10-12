@@ -24,6 +24,7 @@ format_app_display() {
 MOLE_SELECTION_RESULT=""
 
 # Main app selection function
+# shellcheck disable=SC2154  # apps_data is set by caller
 select_apps_for_uninstall() {
     if [[ ${#apps_data[@]} -eq 0 ]]; then
         log_warning "No applications available for uninstallation"
@@ -33,7 +34,8 @@ select_apps_for_uninstall() {
     # Build menu options
     local -a menu_options=()
     for app_data in "${apps_data[@]}"; do
-        IFS='|' read -r epoch app_path display_name bundle_id size last_used <<< "$app_data"
+        # Ignore metadata fields not needed for menu display
+        IFS='|' read -r _ _ display_name _ size last_used <<< "$app_data"
         menu_options+=("$(format_app_display "$display_name" "$size" "$last_used")")
     done
 

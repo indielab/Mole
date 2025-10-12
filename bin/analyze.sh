@@ -21,7 +21,6 @@ readonly CACHE_DIR="${HOME}/.config/mole/cache"
 readonly TEMP_PREFIX="/tmp/mole_analyze_$$"
 readonly MIN_LARGE_FILE_SIZE="1000000000" # 1GB
 readonly MIN_MEDIUM_FILE_SIZE="100000000" # 100MB
-readonly MIN_SMALL_FILE_SIZE="10000000"   # 10MB
 
 # Emoji badges for list displays only
 readonly BADGE_DIR="🍞"
@@ -32,17 +31,12 @@ readonly BADGE_LOG="🍹"
 readonly BADGE_APP="🐣"
 
 # Global state
-declare -a SCAN_RESULTS=()
-declare -a DIR_RESULTS=()
-declare -a LARGE_FILES=()
 declare SCAN_PID=""
-declare TOTAL_SIZE=0
 declare CURRENT_PATH="$HOME"
 declare CURRENT_DEPTH=1
 
 # UI State
 declare CURSOR_POS=0
-declare SORT_MODE="size"     # size, name, time
 declare VIEW_MODE="overview" # overview, detail, files
 
 # Cleanup on exit
@@ -281,8 +275,6 @@ perform_scan() {
         "Calculating sizes"
         "Finishing up"
     )
-    local msg_idx=0
-
     while kill -0 "$SCAN_PID" 2> /dev/null; do
         # Show different messages based on elapsed time
         local current_msg=""
@@ -1297,8 +1289,6 @@ display_interactive_menu() {
 
 # Analyze file types
 display_file_types() {
-    local temp_types="$TEMP_PREFIX.types"
-
     log_header "File Types Analysis"
     echo ""
 
@@ -1617,7 +1607,7 @@ show_volumes_overview() {
         output+=$'\n'
 
         local idx=0
-        while IFS='|' read -r priority path display_name; do
+        while IFS='|' read -r _ path display_name; do
             # Build line (simple display without size)
             local line=""
             if [[ $idx -eq $cursor ]]; then
@@ -1650,7 +1640,7 @@ show_volumes_overview() {
                 # Get selected path and enter it
                 local selected_path=""
                 idx=0
-                while IFS='|' read -r priority path display_name; do
+                while IFS='|' read -r _ path _; do
                     if [[ $idx -eq $cursor ]]; then
                         selected_path="$path"
                         break
@@ -1697,7 +1687,6 @@ show_volumes_overview() {
 # Interactive drill-down mode
 interactive_drill_down() {
     local start_path="$1"
-    local initial_items="${2:-}" # Pre-scanned items for first level
     local current_path="$start_path"
     local path_stack=()
     local cursor=0
@@ -1709,7 +1698,6 @@ interactive_drill_down() {
 
     # Cache variables to avoid recalculation
     local -a items=()
-    local has_calculating=false
     local total_items=0
 
     # Directory cache: store scan results for each visited directory
@@ -1783,7 +1771,6 @@ interactive_drill_down() {
             total_items=${#items[@]}
 
             # No more calculating state
-            has_calculating=false
             need_scan=false
             wait_for_calc=false
 

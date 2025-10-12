@@ -189,7 +189,7 @@ manage_whitelist_categories() {
     local -a menu_options=()
     local index=0
 
-    while IFS='|' read -r display_name pattern category; do
+    while IFS='|' read -r display_name pattern _; do
         # Expand $HOME in pattern
         pattern="${pattern/\$HOME/$HOME}"
 
@@ -240,7 +240,7 @@ manage_whitelist_categories() {
             preselected_indices+=("$i")
         done
         local IFS=','
-        MOLE_PRESELECTED_INDICES="${preselected_indices[*]}"
+        export MOLE_PRESELECTED_INDICES="${preselected_indices[*]}"
     else
         unset MOLE_PRESELECTED_INDICES
     fi

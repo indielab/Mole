@@ -28,21 +28,21 @@ show_help() {
     echo "Interactive application uninstaller - Remove apps completely"
     echo ""
     echo "Keyboard Controls:"
-    echo "  ↑/↓         Navigate items"
+    echo "  ${ICON_NAV_UP}/${ICON_NAV_DOWN}         Navigate items"
     echo "  Space       Select/deselect"
     echo "  Enter       Confirm and uninstall"
     echo "  Q / ESC     Quit"
     echo ""
     echo "What gets cleaned:"
-    echo "  • Application bundle"
-    echo "  • Application Support data (12+ locations)"
-    echo "  • Cache files"
-    echo "  • Preference files"
-    echo "  • Log files"
-    echo "  • Saved application state"
-    echo "  • Container data (sandboxed apps)"
-    echo "  • WebKit storage, HTTP storage, cookies"
-    echo "  • Extensions, plugins, services"
+    echo "  ${ICON_LIST} Application bundle"
+    echo "  ${ICON_LIST} Application Support data (12+ locations)"
+    echo "  ${ICON_LIST} Cache files"
+    echo "  ${ICON_LIST} Preference files"
+    echo "  ${ICON_LIST} Log files"
+    echo "  ${ICON_LIST} Saved application state"
+    echo "  ${ICON_LIST} Container data (sandboxed apps)"
+    echo "  ${ICON_LIST} WebKit storage, HTTP storage, cookies"
+    echo "  ${ICON_LIST} Extensions, plugins, services"
     echo ""
     echo "Examples:"
     echo "  mole uninstall         Launch interactive uninstaller"
@@ -390,7 +390,7 @@ uninstall_applications() {
     local total_size_freed=0
 
     echo ""
-    echo -e "${PURPLE}▶ Uninstalling selected applications${NC}"
+    echo -e "${PURPLE}${ICON_ARROW} Uninstalling selected applications${NC}"
 
     if [[ ${#selected_apps[@]} -eq 0 ]]; then
         log_warning "No applications selected for uninstallation"
@@ -404,14 +404,14 @@ uninstall_applications() {
 
         # Check if app is running (use app path for precise matching)
         if pgrep -f "$app_path" >/dev/null 2>&1; then
-            echo -e "${YELLOW}⚠ $app_name is currently running${NC}"
+            echo -e "${YELLOW}${ICON_ERROR} $app_name is currently running${NC}"
             read -p "  Force quit $app_name? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 pkill -f "$app_path" 2>/dev/null || true
                 sleep 2
             else
-                echo -e "  ${BLUE}○${NC} Skipped $app_name"
+                echo -e "  ${BLUE}${ICON_EMPTY}${NC} Skipped $app_name"
                 continue
             fi
         fi
@@ -429,18 +429,18 @@ uninstall_applications() {
         local total_kb=$((app_size_kb + related_size_kb + system_size_kb))
 
         # Show what will be removed
-        echo -e "${BLUE}◎${NC} $app_name - Files to be removed:"
-        echo -e "  ${GREEN}✓${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
+        echo -e "${BLUE}${ICON_CONFIRM}${NC} $app_name - Files to be removed:"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Application: $(echo "$app_path" | sed "s|$HOME|~|")"
 
         # Show user-level files
         while IFS= read -r file; do
-            [[ -n "$file" && -e "$file" ]] && echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
+            [[ -n "$file" && -e "$file" ]] && echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $(echo "$file" | sed "s|$HOME|~|")"
         done <<< "$related_files"
 
         # Show system-level files
         if [[ -n "$system_files" ]]; then
             while IFS= read -r file; do
-                [[ -n "$file" && -e "$file" ]] && echo -e "  ${BLUE}●${NC} System: $file"
+                [[ -n "$file" && -e "$file" ]] && echo -e "  ${BLUE}${ICON_SOLID}${NC} System: $file"
             done <<< "$system_files"
         fi
 
@@ -461,9 +461,9 @@ uninstall_applications() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             # Remove the application
             if rm -rf "$app_path" 2>/dev/null; then
-                echo -e "  ${GREEN}✓${NC} Removed application"
+                echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed application"
             else
-                echo -e "  ${RED}✗${NC} Failed to remove $app_path"
+                echo -e "  ${RED}${ICON_ERROR}${NC} Failed to remove $app_path"
                 continue
             fi
 
@@ -471,20 +471,20 @@ uninstall_applications() {
             while IFS= read -r file; do
                 if [[ -n "$file" && -e "$file" ]]; then
                     if rm -rf "$file" 2>/dev/null; then
-                        echo -e "  ${GREEN}✓${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
+                        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed $(echo "$file" | sed "s|$HOME|~|" | xargs basename)"
                     fi
                 fi
             done <<< "$related_files"
 
             # Remove system-level files (requires sudo)
             if [[ -n "$system_files" ]]; then
-                echo -e "  ${BLUE}●${NC} Admin access required for system files"
+                echo -e "  ${BLUE}${ICON_SOLID}${NC} Admin access required for system files"
                 while IFS= read -r file; do
                     if [[ -n "$file" && -e "$file" ]]; then
                         if sudo rm -rf "$file" 2>/dev/null; then
-                            echo -e "  ${GREEN}✓${NC} Removed $(basename "$file")"
+                            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed $(basename "$file")"
                         else
-                            echo -e "  ${YELLOW}⚠${NC} Failed to remove: $file"
+                            echo -e "  ${YELLOW}${ICON_ERROR}${NC} Failed to remove: $file"
                         fi
                     fi
                 done <<< "$system_files"
@@ -494,14 +494,14 @@ uninstall_applications() {
             ((files_cleaned++))
             ((total_items++))
 
-            echo -e "  ${GREEN}✓${NC} $app_name uninstalled successfully"
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $app_name uninstalled successfully"
         else
-            echo -e "  ${BLUE}○${NC} Skipped $app_name"
+            echo -e "  ${BLUE}${ICON_EMPTY}${NC} Skipped $app_name"
         fi
     done
 
     # Show final summary
-    echo -e "${PURPLE}▶ Uninstallation Summary${NC}"
+    echo -e "${PURPLE}${ICON_ARROW} Uninstallation Summary${NC}"
 
     if [[ $total_size_freed -gt 0 ]]; then
         if [[ $total_size_freed -gt 1048576 ]]; then  # > 1GB
@@ -512,10 +512,10 @@ uninstall_applications() {
             local freed_display="${total_size_freed}KB"
         fi
 
-        echo -e "  ${GREEN}✓${NC} Freed $freed_display of disk space"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Freed $freed_display of disk space"
     fi
 
-    echo -e "  ${GREEN}✓${NC} Applications uninstalled: $files_cleaned"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Applications uninstalled: $files_cleaned"
     ((total_size_cleaned += total_size_freed))
 }
 
@@ -632,7 +632,7 @@ main() {
     local extra=$((selection_count-3))
     local list="${names[*]}"
     [[ $extra -gt 0 ]] && list+=" +${extra}"
-    echo -e "${BLUE}◎${NC} ${selection_count} apps: ${list}"
+    echo -e "${BLUE}${ICON_CONFIRM}${NC} ${selection_count} apps: ${list}"
 
     # Execute batch uninstallation (handles confirmation)
     batch_uninstall_applications

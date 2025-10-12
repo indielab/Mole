@@ -29,7 +29,7 @@ VERBOSE=1
 readonly ICON_SUCCESS="✓"
 readonly ICON_ADMIN="●"
 readonly ICON_CONFIRM="◎"
-readonly ICON_ERROR="✗"
+readonly ICON_ERROR="☻"
 
 # Logging functions
 log_info() { [[ ${VERBOSE} -eq 1 ]] && echo -e "${BLUE}$1${NC}"; }

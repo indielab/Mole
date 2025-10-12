@@ -94,11 +94,11 @@ paginated_multi_select() {
 
     render_item() {
         local idx=$1 is_current=$2
-        local checkbox="○"
-        [[ ${selected[idx]} == true ]] && checkbox="●"
+        local checkbox="$ICON_EMPTY"
+        [[ ${selected[idx]} == true ]] && checkbox="$ICON_SOLID"
 
         if [[ $is_current == true ]]; then
-            printf "\r\033[2K${BLUE}> %s %s${NC}\n" "$checkbox" "${items[idx]}" >&2
+            printf "\r\033[2K${BLUE}${ICON_ARROW} %s %s${NC}\n" "$checkbox" "${items[idx]}" >&2
         else
             printf "\r\033[2K  %s %s\n" "$checkbox" "${items[idx]}" >&2
         fi
@@ -168,7 +168,7 @@ paginated_multi_select() {
 
         # Clear any remaining lines at bottom
         printf "${clear_line}\n" >&2
-        printf "${clear_line}${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
+        printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
         
         # Clear one more line to ensure no artifacts
         printf "${clear_line}" >&2
@@ -177,14 +177,14 @@ paginated_multi_select() {
     # Show help screen
     show_help() {
         printf "\033[H\033[J" >&2
-        cat >&2 << 'EOF'
+        cat >&2 <<EOF
 Help - Navigation Controls
 ==========================
 
-  ↑ / ↓      Navigate up/down
-  Space      Select/deselect item
-  Enter      Confirm selection
-  Q / ESC    Exit
+  ${ICON_NAV_UP} / ${ICON_NAV_DOWN}      Navigate up/down
+  Space              Select/deselect item
+  Enter              Confirm selection
+  Q / ESC            Exit
 
 Press any key to continue...
 EOF

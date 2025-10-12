@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Version info
-VERSION="1.7.8"
+VERSION="1.7.9"
 MOLE_TAGLINE="can dig deep to clean your Mac."
 
 # Get latest version from remote repository
@@ -36,12 +36,13 @@ get_latest_version() {
 check_for_updates() {
     local cache="$HOME/.cache/mole/version_check"
     local msg_cache="$HOME/.cache/mole/update_message"
+    local ttl="${MO_UPDATE_CHECK_TTL:-3600}"
     mkdir -p "$(dirname "$cache")" 2>/dev/null
 
-    # Skip if checked within 3 hours
+    # Skip if checked recently
     if [[ -f "$cache" ]]; then
         local age=$(($(date +%s) - $(stat -f%m "$cache" 2>/dev/null || echo 0)))
-        [[ $age -lt 10800 ]] && return
+        [[ $age -lt $ttl ]] && return
     fi
 
     # Background version check (save to file, don't output)
@@ -49,7 +50,7 @@ check_for_updates() {
         local latest=$(get_latest_version)
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-            echo -e "${YELLOW}New version ${GREEN}${latest}${YELLOW} available (current: ${VERSION})\n${YELLOW}Run ${GREEN}mo update${YELLOW} to upgrade${NC}" > "$msg_cache"
+            printf "\nUpdate available: %s → %s, run %smo update%s\n\n" "$VERSION" "$latest" "$GREEN" "$NC" > "$msg_cache"
         else
             echo -n > "$msg_cache"
         fi
@@ -163,7 +164,7 @@ update_mole() {
 
     if [[ "$VERSION" == "$latest" ]]; then
         echo ""
-        echo -e "${GREEN}✓${NC} Already on latest version (${VERSION})"
+        echo -e "${GREEN}${ICON_SUCCESS}${NC} Already on latest version (${VERSION})"
         echo ""
         exit 0
     fi
@@ -229,7 +230,7 @@ update_mole() {
         if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
             local new_version
             new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-            printf '\n%s\n\n' "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+            printf '\n%s\n\n' "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version (${new_version:-unknown})"
         else
             printf '\n'
         fi
@@ -245,7 +246,7 @@ update_mole() {
             if ! printf '%s\n' "$install_output" | grep -Eq "Updated to latest version|Already on latest version"; then
                 local new_version
                 new_version=$("$mole_path" --version 2>/dev/null | awk 'NF {print $NF}' || echo "")
-                printf '\n%s\n\n' "${GREEN}✓${NC} Updated to latest version (${new_version:-unknown})"
+                printf '\n%s\n\n' "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version (${new_version:-unknown})"
             else
                 printf '\n'
             fi
@@ -330,7 +331,7 @@ remove_mole() {
     done
     echo "  - ~/.config/mole"
     echo "  - ~/.cache/mole"
-    echo -ne "${PURPLE}☛${NC} Press ${GREEN}Enter${NC} to confirm, ${GRAY}ESC${NC} to cancel: "
+    echo -ne "${PURPLE}${ICON_ARROW}${NC} Press ${GREEN}Enter${NC} to confirm, ${GRAY}ESC${NC} to cancel: "
 
     # Read single key
     IFS= read -r -s -n1 key || key=""
@@ -385,9 +386,9 @@ remove_mole() {
     # Show final result
     local final_message
     if [[ "$has_error" == "true" ]]; then
-        final_message="${YELLOW}⚠ Mole uninstalled with some errors, thank you for using Mole!${NC}"
+        final_message="${YELLOW}${ICON_ERROR} Mole uninstalled with some errors, thank you for using Mole!${NC}"
     else
-        final_message="${GREEN}✓ Mole uninstalled successfully, thank you for using Mole!${NC}"
+        final_message="${GREEN}${ICON_SUCCESS} Mole uninstalled successfully, thank you for using Mole!${NC}"
     fi
     printf '\n%s\n\n' "$final_message"
 

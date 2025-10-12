@@ -68,7 +68,7 @@ batch_uninstall_applications() {
         local app_size_display=$(bytes_to_human "$((total_kb * 1024))")
 
         echo -e "${BLUE}${ICON_CONFIRM}${NC} ${app_name} ${GRAY}(${app_size_display})${NC}"
-        echo -e "  ${GREEN}✓${NC} $(echo "$app_path" | sed "s|$HOME|~|")"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $(echo "$app_path" | sed "s|$HOME|~|")"
 
         # Show related files (limit to 5 most important ones for brevity)
         local file_count=0
@@ -76,7 +76,7 @@ batch_uninstall_applications() {
         while IFS= read -r file; do
             if [[ -n "$file" && -e "$file" ]]; then
                 if [[ $file_count -lt $max_files ]]; then
-                    echo -e "  ${GREEN}✓${NC} $(echo "$file" | sed "s|$HOME|~|")"
+                    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $(echo "$file" | sed "s|$HOME|~|")"
                 fi
                 ((file_count++))
             fi
@@ -100,7 +100,7 @@ batch_uninstall_applications() {
     if [[ ${#running_apps[@]} -gt 0 ]]; then
         removal_note+=" - will force quit: ${running_apps[*]}"
     fi
-    echo -ne "${PURPLE}☛${NC} ${removal_note}. Press ${GREEN}Enter${NC} to confirm, ${GRAY}ESC${NC} to cancel: "
+    echo -ne "${PURPLE}${ICON_ARROW}${NC} ${removal_note}. Press ${GREEN}Enter${NC} to confirm, ${GRAY}ESC${NC} to cancel: "
 
     IFS= read -r -s -n1 key || key=""
     case "$key" in

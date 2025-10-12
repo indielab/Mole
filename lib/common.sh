@@ -20,16 +20,20 @@ readonly RED="${ESC}[0;31m"
 readonly GRAY="${ESC}[0;90m"
 readonly NC="${ESC}[0m"
 
-# Icon definitions
-readonly ICON_CONFIRM="◎"      # Confirm operation
-readonly ICON_ADMIN="⚙"        # Admin permission
-readonly ICON_SUCCESS="✓"      # Success
-readonly ICON_ERROR="✗"        # Error
-readonly ICON_EMPTY="○"        # Empty state
-readonly ICON_LIST="-"         # List item
-readonly ICON_MENU="▸"         # Menu item
-readonly ICON_SYSTEM="❤︎"       # System/Architecture info
-readonly ICON_SETTINGS="⚙"     # Settings/Configuration
+# Icon definitions (shared across modules)
+readonly ICON_CONFIRM="◎"      # Confirm operation / spinner text
+readonly ICON_ADMIN="⚙"        # Gear indicator for admin/settings/system info
+readonly ICON_SUCCESS="✓"      # Success mark
+readonly ICON_ERROR="☻"        # Error / warning mark
+readonly ICON_EMPTY="○"        # Hollow circle (empty state / unchecked)
+readonly ICON_SOLID="●"        # Solid circle (selected / system marker)
+readonly ICON_LIST="•"         # Basic list bullet
+readonly ICON_ARROW="➤"        # Pointer / prompt indicator
+readonly ICON_WARNING="☻"      # Warning marker (shares glyph with error)
+readonly ICON_NAV_UP="↑"       # Navigation up
+readonly ICON_NAV_DOWN="↓"     # Navigation down
+readonly ICON_NAV_LEFT="←"     # Navigation left
+readonly ICON_NAV_RIGHT="→"    # Navigation right
 
 # Spinner character helpers (ASCII by default, overridable via env)
 mo_spinner_chars() {
@@ -81,7 +85,7 @@ log_error() {
 
 log_header() {
     rotate_log
-    echo -e "\n${PURPLE}${ICON_MENU} $1${NC}"
+    echo -e "\n${PURPLE}${ICON_ARROW} $1${NC}"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] SECTION: $1" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -113,7 +117,7 @@ icon_list() {
 icon_menu() {
     local num="$1"
     local text="$2"
-    echo -e "${BLUE}${ICON_MENU} ${num}. ${text}${NC}"
+    echo -e "${BLUE}${ICON_ARROW} ${num}. ${text}${NC}"
 }
 
 # Consistent summary blocks for command results
@@ -267,7 +271,7 @@ show_menu_option() {
     local selected="$3"
 
     if [[ "$selected" == "true" ]]; then
-        echo -e "${BLUE}▶ $number. $text${NC}"
+        echo -e "${BLUE}${ICON_ARROW} $number. $text${NC}"
     else
         echo "  $number. $text"
     fi
@@ -376,7 +380,7 @@ request_sudo_access() {
 
     # If Touch ID is supported and not forced to use password
     if [[ "$force_password" != "true" ]] && check_touchid_support; then
-        echo -e "${GRAY}${ICON_ADMIN}${NC} ${GRAY}${prompt_msg} (Touch ID or password)${NC}"
+        echo -e "${PURPLE}${ICON_ARROW}${NC} ${prompt_msg} ${GRAY}(Touch ID or password)${NC}"
         if sudo -v 2>/dev/null; then
             return 0
         else
@@ -384,8 +388,8 @@ request_sudo_access() {
         fi
     else
         # Traditional password method
-        echo -e "${GRAY}${ICON_ADMIN}${NC} ${GRAY}${prompt_msg}${NC}"
-        echo -ne "${GRAY}${ICON_MENU}${NC} Password: "
+        echo -e "${PURPLE}${ICON_ARROW}${NC} ${prompt_msg}"
+        echo -ne "${PURPLE}${ICON_ARROW}${NC} Password: "
         read -s password
         echo ""
         if [[ -n "$password" ]] && echo "$password" | sudo -S true 2>/dev/null; then
@@ -439,7 +443,7 @@ update_via_homebrew() {
         # Get current version
         local current_version
         current_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${GREEN}✓${NC} Already on latest version (${current_version:-$version})"
+        echo -e "${GREEN}${ICON_SUCCESS}${NC} Already on latest version (${current_version:-$version})"
     elif echo "$upgrade_output" | grep -q "Error:"; then
         log_error "Homebrew upgrade failed"
         echo "$upgrade_output" | grep "Error:" >&2
@@ -450,7 +454,7 @@ update_via_homebrew() {
         # Get new version
         local new_version
         new_version=$(brew list --versions mole 2>/dev/null | awk '{print $2}')
-        echo -e "${GREEN}✓${NC} Updated to latest version (${new_version:-$version})"
+        echo -e "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version (${new_version:-$version})"
     fi
 
     # Clear version check cache
@@ -555,9 +559,9 @@ stop_spinner() {
 
     if [[ -n "$result_message" ]]; then
         if [[ -t 1 ]]; then
-            printf "\r${MOLE_SPINNER_PREFIX:-}${GREEN}✓${NC} %s\n" "$result_message"
+            printf "\r${MOLE_SPINNER_PREFIX:-}${GREEN}${ICON_SUCCESS}${NC} %s\n" "$result_message"
         else
-            echo " ✓ $result_message"
+            echo " ${ICON_SUCCESS} $result_message"
         fi
     fi
 }
@@ -687,7 +691,7 @@ with_spinner() {
             local exit_code=$?
             if [[ -t 1 ]]; then stop_inline_spinner; fi
             # Exit code 124 means timeout
-            [[ $exit_code -eq 124 ]] && echo -e "  ${YELLOW}⚠${NC} $msg timed out (skipped)" >&2
+            [[ $exit_code -eq 124 ]] && echo -e "  ${YELLOW}${ICON_WARNING}${NC} $msg timed out (skipped)" >&2
             return $exit_code
         }
     else
@@ -700,7 +704,7 @@ with_spinner() {
                 kill -TERM $cmd_pid 2>/dev/null || true
                 wait $cmd_pid 2>/dev/null || true
                 if [[ -t 1 ]]; then stop_inline_spinner; fi
-                echo -e "  ${YELLOW}⚠${NC} $msg timed out (skipped)" >&2
+                echo -e "  ${YELLOW}${ICON_WARNING}${NC} $msg timed out (skipped)" >&2
                 return 124
             fi
             sleep 1
@@ -729,12 +733,12 @@ clean_tool_cache() {
         return 0
     fi
     if MOLE_SPINNER_PREFIX="  " with_spinner "$label" "$@"; then
-        echo -e "  ${GREEN}✓${NC} $label"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $label"
     else
         local exit_code=$?
         # Timeout returns 124, don't show error message (already shown by with_spinner)
         if [[ $exit_code -ne 124 ]]; then
-            echo -e "  ${YELLOW}⚠${NC} $label failed (skipped)" >&2
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} $label failed (skipped)" >&2
         fi
     fi
     return 0  # Always return success to continue cleanup
@@ -752,7 +756,7 @@ prompt_action() {
     local cancel="${2:-cancel}"
 
     echo ""
-    echo -ne "${PURPLE}☛${NC} Press ${GREEN}Enter${NC} to ${action}, ${GRAY}ESC${NC} to ${cancel}: "
+    echo -ne "${PURPLE}${ICON_ARROW}${NC} Press ${GREEN}Enter${NC} to ${action}, ${GRAY}ESC${NC} to ${cancel}: "
     IFS= read -r -s -n1 key || key=""
 
     case "$key" in
@@ -1024,13 +1028,13 @@ start_section() {
     TRACK_SECTION=1
     SECTION_ACTIVITY=0
     echo ""
-    echo -e "${PURPLE}▶ $1${NC}"
+    echo -e "${PURPLE}${ICON_ARROW} $1${NC}"
 }
 
 # End a section (show "Nothing to tidy" if no activity)
 end_section() {
     if [[ $TRACK_SECTION -eq 1 && $SECTION_ACTIVITY -eq 0 ]]; then
-        echo -e "  ${BLUE}○${NC} Nothing to tidy"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Nothing to tidy"
     fi
     TRACK_SECTION=0
 }

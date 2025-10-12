@@ -25,10 +25,10 @@ readonly MIN_SMALL_FILE_SIZE="10000000"       # 10MB
 
 # Emoji badges for list displays only
 readonly BADGE_DIR="🍞"
-readonly BADGE_FILE="📔"
-readonly BADGE_MEDIA="🌁"
+readonly BADGE_FILE="🍚"
+readonly BADGE_MEDIA="🥟"
 readonly BADGE_BUNDLE="🥜"
-readonly BADGE_LOG="📝"
+readonly BADGE_LOG="🍹"
 readonly BADGE_APP="🐣"
 
 # Global state
@@ -662,9 +662,9 @@ display_cleanup_suggestions_compact() {
         echo ""
         if [[ -n "$action_command" ]]; then
             if [[ "$action_command" == "mole clean" ]]; then
-                echo "  ${GRAY}→ Run${NC} ${YELLOW}mole clean${NC} ${GRAY}to cleanup system files${NC}"
+                echo "  ${GRAY}${ICON_NAV_RIGHT} Run${NC} ${YELLOW}mole clean${NC} ${GRAY}to cleanup system files${NC}"
             else
-                echo "  ${GRAY}→ Review and ${NC}${YELLOW}$action_command${NC}"
+                echo "  ${GRAY}${ICON_NAV_RIGHT} Review and ${NC}${YELLOW}$action_command${NC}"
             fi
         fi
         echo ""
@@ -740,7 +740,7 @@ display_cleanup_suggestions() {
         echo ""
         echo "  Tip: Run 'mole clean' to perform cleanup operations"
     else
-        echo "  ${GREEN}✓${NC} No obvious cleanup opportunities found"
+        echo "  ${GREEN}${ICON_SUCCESS}${NC} No obvious cleanup opportunities found"
     fi
     echo ""
 }
@@ -971,14 +971,14 @@ display_recommendations() {
     echo "  ${YELLOW}Quick Actions:${NC}"
 
     if [[ "$CURRENT_PATH" == "$HOME/Downloads"* ]]; then
-        echo "    → Delete ${RED}[Can Delete]${NC} items (installers/DMG)"
-        echo "    → Review ${YELLOW}[Review]${NC} items (videos/archives)"
+        echo "    ${ICON_NAV_RIGHT} Delete ${RED}[Can Delete]${NC} items (installers/DMG)"
+        echo "    ${ICON_NAV_RIGHT} Review ${YELLOW}[Review]${NC} items (videos/archives)"
     elif [[ "$CURRENT_PATH" == "$HOME/Library"* ]]; then
-        echo "    → Run ${GREEN}mole clean${NC} to clear caches safely"
-        echo "    → Check Xcode/developer caches if applicable"
+        echo "    ${ICON_NAV_RIGHT} Run ${GREEN}mole clean${NC} to clear caches safely"
+        echo "    ${ICON_NAV_RIGHT} Check Xcode/developer caches if applicable"
     else
-        echo "    → Review ${RED}[Can Delete]${NC} and ${YELLOW}[Review]${NC} items"
-        echo "    → Run ${GREEN}mole analyze ~/Library${NC} to check caches"
+        echo "    ${ICON_NAV_RIGHT} Review ${RED}[Can Delete]${NC} and ${YELLOW}[Review]${NC} items"
+        echo "    ${ICON_NAV_RIGHT} Run ${GREEN}mole analyze ~/Library${NC} to check caches"
     fi
     echo ""
 }
@@ -1124,7 +1124,7 @@ display_directory_list() {
 
         # Highlight selected line
         if [[ $idx -eq $cursor_pos ]]; then
-            printf "  ${BLUE}▶${NC} %s [${GREEN}%s${NC}] %5s%%  %s\n" \
+            printf "  ${BLUE}${ICON_ARROW}${NC} %s [${GREEN}%s${NC}] %5s%%  %s\n" \
                 "$bar" "$human_size" "$percentage" "$dirname"
         else
             printf "    %s [${BLUE}%s${NC}] %5s%%  %s\n" \
@@ -1183,7 +1183,7 @@ display_interactive_menu() {
     echo ""
 
     # Show navigation hints
-    echo "${GRAY}↑↓ Navigate | → Drill Down | ← Go Back | f Files | t Types | q Quit${NC}"
+    echo "${GRAY}${ICON_NAV_UP}${ICON_NAV_DOWN} Navigate | ${ICON_NAV_RIGHT} Drill Down | ${ICON_NAV_LEFT} Go Back | f Files | t Types | q Quit${NC}"
     echo ""
 
     # Display results based on view mode
@@ -1222,12 +1222,12 @@ display_file_types() {
 
     # Analyze common file types (bash 3.2 compatible - no associative arrays)
     local -a type_names=("Videos" "Images" "Archives" "Documents" "Audio")
-    
+
     local type_name
     for type_name in "${type_names[@]}"; do
         local query=""
         local badge="$BADGE_FILE"
-        
+
         # Map type name to query and badge
         case "$type_name" in
             "Videos")
@@ -1251,7 +1251,7 @@ display_file_types() {
                 badge="🎵"
                 ;;
         esac
-        
+
         local files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2>/dev/null)
         local count=$(echo "$files" | grep -c . || echo "0")
         local total_size=0
@@ -1526,7 +1526,7 @@ show_volumes_overview() {
             # Build line (simple display without size)
             local line=""
             if [[ $idx -eq $cursor ]]; then
-                line=$(printf "  ${GREEN}▶${NC} ${BLUE}%s${NC}" "$display_name")
+                line=$(printf "  ${GREEN}${ICON_ARROW}${NC} ${BLUE}%s${NC}" "$display_name")
             else
                 line=$(printf "    ${GRAY}%s${NC}" "$display_name")
             fi
@@ -1817,7 +1817,7 @@ interactive_drill_down() {
             # Build line with emoji badge, size, and name
             local line
             if [[ $idx -eq $cursor ]]; then
-                line=$(printf "  ${GREEN}▶${NC} %s%s${NC} %10s    %s${NC}" "$color" "$badge" "$human_size" "$name")
+                line=$(printf "  ${GREEN}${ICON_ARROW}${NC} %s%s${NC} %10s    %s${NC}" "$color" "$badge" "$human_size" "$name")
             else
                 line=$(printf "    %s%s${NC} %10s    %s${NC}" "$color" "$badge" "$human_size" "$name")
             fi
@@ -1842,7 +1842,7 @@ interactive_drill_down() {
         fi
 
         # Bottom help bar
-        output+="  ${GRAY}↑/↓${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Enter${NC} Open  ${GRAY}|${NC}  ${GRAY}←${NC} Back  ${GRAY}|${NC}  ${GRAY}Del${NC} Delete  ${GRAY}|${NC}  ${GRAY}O${NC} Finder  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"$'\n'
+        output+="  ${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Enter${NC} Open  ${GRAY}|${NC}  ${GRAY}${ICON_NAV_LEFT}${NC} Back  ${GRAY}|${NC}  ${GRAY}Del${NC} Delete  ${GRAY}|${NC}  ${GRAY}O${NC} Finder  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit"$'\n'
 
         # Output everything at once (single write = no flicker)
         printf "%b" "$output" >&2
@@ -1925,7 +1925,7 @@ interactive_drill_down() {
                                         open "$selected_path" 2>/dev/null && open_success=true
                                         if [[ "$open_success" == "true" ]]; then
                                             echo ""
-                                            echo "  ${GREEN}✓${NC} File opened in external app"
+                                            echo "  ${GREEN}${ICON_SUCCESS}${NC} File opened in external app"
                                             sleep 0.8
                                         fi
                                     fi
@@ -1946,7 +1946,7 @@ interactive_drill_down() {
                                     # Show brief success message
                                     if [[ "$open_success" == "true" ]]; then
                                         echo ""
-                                        echo "  ${GREEN}✓${NC} File opened in external app"
+                                        echo "  ${GREEN}${ICON_SUCCESS}${NC} File opened in external app"
                                         sleep 0.8
                                     fi
                                 fi
@@ -1992,7 +1992,7 @@ interactive_drill_down() {
             "OPEN")
                 if command -v open >/dev/null 2>&1; then
                     if open "$current_path" >/dev/null 2>&1; then
-                        status_message="${GREEN}✓${NC} Finder opened: ${GRAY}$current_path${NC}"
+                        status_message="${GREEN}${ICON_SUCCESS}${NC} Finder opened: ${GRAY}$current_path${NC}"
                     else
                         status_message="${YELLOW}Warning:${NC} Could not open ${GRAY}$current_path${NC}"
                     fi
@@ -2048,7 +2048,7 @@ interactive_drill_down() {
                     fi
 
                     echo ""
-                    echo -e "  ${PURPLE}☛${NC} Press ${GREEN}Enter${NC} to delete, ${GRAY}ESC${NC} to cancel"
+                    echo -e "  ${PURPLE}${ICON_ARROW}${NC} Press ${GREEN}Enter${NC} to delete, ${GRAY}ESC${NC} to cancel"
                     echo ""
 
                     # Read confirmation
@@ -2063,7 +2063,7 @@ interactive_drill_down() {
                             echo ""
                             if ! request_sudo_access "Admin access required to delete this item"; then
                                 echo ""
-                                echo "  ${RED}✗ Admin access denied${NC}"
+                                echo "  ${RED}${ICON_ERROR} Admin access denied${NC}"
                                 sleep 1.5
                                 continue
                             fi
@@ -2088,7 +2088,7 @@ interactive_drill_down() {
                         fi
 
                         if [[ "$delete_success" == "true" ]]; then
-                            echo "  ${GREEN}✓ Deleted successfully (freed $human_size)${NC}"
+                            echo "  ${GREEN}${ICON_SUCCESS} Deleted successfully (freed $human_size)${NC}"
                             sleep 0.8
 
                             # Clear cache to force rescan
@@ -2104,12 +2104,12 @@ interactive_drill_down() {
                                 ((cursor--))
                             fi
                         else
-                            echo "  ${RED}✗ Failed to delete${NC}"
+                            echo "  ${RED}${ICON_ERROR} Failed to delete${NC}"
                             echo ""
                             echo "  ${YELLOW}Possible reasons:${NC}"
-                            echo "  • File is being used by another application"
-                            echo "  • Insufficient permissions"
-                            echo "  • System protection (SIP) prevents deletion"
+                            echo "  ${ICON_LIST} File is being used by another application"
+                            echo "  ${ICON_LIST} Insufficient permissions"
+                            echo "  ${ICON_LIST} System protection (SIP) prevents deletion"
                             echo ""
                             echo "  ${GRAY}Press any key to continue...${NC}"
                             read_key >/dev/null 2>&1
@@ -2298,20 +2298,20 @@ main() {
                 echo "Interactive disk space explorer - Navigate folders sorted by size"
                 echo ""
                 echo "Keyboard Controls:"
-                echo "  ↑/↓         Navigate items"
-                echo "  Enter / →   Open selected folder"
-                echo "  ←           Go back to parent directory"
+                echo "  ${ICON_NAV_UP}/${ICON_NAV_DOWN}         Navigate items"
+                echo "  Enter / ${ICON_NAV_RIGHT}   Open selected folder"
+                echo "  ${ICON_NAV_LEFT}           Go back to parent directory"
                 echo "  Delete      Delete selected file/folder (requires confirmation)"
                 echo "  O           Reveal current directory in Finder"
                 echo "  Q / ESC     Quit the explorer"
                 echo ""
                 echo "Features:"
-                echo "  • Files and folders sorted by size (largest first)"
-                echo "  • Shows top 16 items per directory"
-                echo "  • Fast parallel scanning with smart timeout"
-                echo "  • Session cache for instant navigation"
-                echo "  • Color coding for large folders (Red >10GB, Yellow >1GB)"
-                echo "  • Safe deletion with confirmation"
+                echo "  ${ICON_LIST} Files and folders sorted by size (largest first)"
+                echo "  ${ICON_LIST} Shows top 16 items per directory"
+                echo "  ${ICON_LIST} Fast parallel scanning with smart timeout"
+                echo "  ${ICON_LIST} Session cache for instant navigation"
+                echo "  ${ICON_LIST} Color coding for large folders (Red >10GB, Yellow >1GB)"
+                echo "  ${ICON_LIST} Safe deletion with confirmation"
                 echo ""
                 echo "Examples:"
                 echo "  mole analyze           Start exploring from home directory"

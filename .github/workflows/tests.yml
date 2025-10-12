@@ -1,0 +1,22 @@
+name: Mole Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: |
+          brew update
+          brew install bats-core
+
+      - name: Run test suite
+        run: tests/run.sh

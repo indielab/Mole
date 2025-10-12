@@ -67,13 +67,16 @@ total_size_cleaned=0
 # Get app last used date in human readable format
 get_app_last_used() {
     local app_path="$1"
-    local last_used=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
+    local last_used
+    last_used=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
 
     if [[ "$last_used" == "(null)" || -z "$last_used" ]]; then
         echo "Never"
     else
-        local last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last_used" "+%s" 2>/dev/null)
-        local current_epoch=$(date "+%s")
+        local last_used_epoch
+        last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last_used" "+%s" 2>/dev/null)
+        local current_epoch
+        current_epoch=$(date "+%s")
         local days_ago=$(( (current_epoch - last_used_epoch) / 86400 ))
 
         if [[ $days_ago -eq 0 ]]; then
@@ -103,7 +106,8 @@ scan_applications() {
     mkdir -p "$cache_dir" 2>/dev/null
 
     # Quick count of current apps (system + user directories)
-    local current_app_count=$(
+    local current_app_count
+    current_app_count=$(
         (find /Applications -name "*.app" -maxdepth 1 2>/dev/null;
          find ~/Applications -name "*.app" -maxdepth 1 2>/dev/null) | wc -l | tr -d ' '
     )
@@ -111,7 +115,8 @@ scan_applications() {
     # Check if cache is valid unless explicitly disabled
     if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
         local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
-        local cached_app_count=$(cat "$cache_meta" 2>/dev/null || echo "0")
+        local cached_app_count
+        cached_app_count=$(cat "$cache_meta" 2>/dev/null || echo "0")
 
         # Cache is valid if: age < TTL AND app count matches
         if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
@@ -121,10 +126,12 @@ scan_applications() {
         fi
     fi
 
-    local temp_file=$(create_temp_file)
+    local temp_file
+    temp_file=$(create_temp_file)
 
     # Pre-cache current epoch to avoid repeated calls
-    local current_epoch=$(date "+%s")
+    local current_epoch
+    current_epoch=$(date "+%s")
 
     # Spinner for scanning feedback (simple ASCII for compatibility)
     local spinner_chars="|/-\\"
@@ -135,7 +142,8 @@ scan_applications() {
     while IFS= read -r -d '' app_path; do
         if [[ ! -e "$app_path" ]]; then continue; fi
 
-        local app_name=$(basename "$app_path" .app)
+        local app_name
+        app_name=$(basename "$app_path" .app)
 
         # Try to get English name from bundle info, fallback to folder name
         local bundle_id="unknown"
@@ -144,14 +152,17 @@ scan_applications() {
             bundle_id=$(defaults read "$app_path/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || echo "unknown")
 
             # Try to get English name from bundle info
-            local bundle_executable=$(defaults read "$app_path/Contents/Info.plist" CFBundleExecutable 2>/dev/null)
+            local bundle_executable
+            bundle_executable=$(defaults read "$app_path/Contents/Info.plist" CFBundleExecutable 2>/dev/null)
 
             # Smart display name selection - prefer descriptive names over generic ones
             local candidates=()
 
             # Get all potential names
-            local bundle_display_name=$(plutil -extract CFBundleDisplayName raw "$app_path/Contents/Info.plist" 2>/dev/null)
-            local bundle_name=$(plutil -extract CFBundleName raw "$app_path/Contents/Info.plist" 2>/dev/null)
+            local bundle_display_name
+            bundle_display_name=$(plutil -extract CFBundleDisplayName raw "$app_path/Contents/Info.plist" 2>/dev/null)
+            local bundle_name
+            bundle_name=$(plutil -extract CFBundleName raw "$app_path/Contents/Info.plist" 2>/dev/null)
 
             # Check if executable name is generic/technical (should be avoided)
             local is_generic_executable=false
@@ -242,7 +253,8 @@ scan_applications() {
         local last_used_epoch=0
 
         if [[ -d "$app_path" ]]; then
-            local metadata_date=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
+            local metadata_date
+            metadata_date=$(mdls -name kMDItemLastUsedDate -raw "$app_path" 2>/dev/null)
 
             if [[ "$metadata_date" != "(null)" && -n "$metadata_date" ]]; then
                 last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$metadata_date" "+%s" 2>/dev/null || echo "0")
@@ -417,15 +429,20 @@ uninstall_applications() {
         fi
 
         # Find related files (user-level)
-        local related_files=$(find_app_files "$bundle_id" "$app_name")
+        local related_files
+        related_files=$(find_app_files "$bundle_id" "$app_name")
 
         # Find system-level files (requires sudo)
-        local system_files=$(find_app_system_files "$bundle_id" "$app_name")
+        local system_files
+        system_files=$(find_app_system_files "$bundle_id" "$app_name")
 
         # Calculate total size
-        local app_size_kb=$(du -sk "$app_path" 2>/dev/null | awk '{print $1}' || echo "0")
-        local related_size_kb=$(calculate_total_size "$related_files")
-        local system_size_kb=$(calculate_total_size "$system_files")
+        local app_size_kb
+        app_size_kb=$(du -sk "$app_path" 2>/dev/null | awk '{print $1}' || echo "0")
+        local related_size_kb
+        related_size_kb=$(calculate_total_size "$related_files")
+        local system_size_kb
+        system_size_kb=$(calculate_total_size "$system_files")
         local total_kb=$((app_size_kb + related_size_kb + system_size_kb))
 
         # Show what will be removed
@@ -619,20 +636,27 @@ main() {
     if [[ $selection_count -eq 0 ]]; then
         echo "No apps selected"; rm -f "$apps_file"; return 0
     fi
-    # Compact one-line summary (list up to 3 names, aggregate rest)
-    local names=()
+    # Show selected apps, max 3 per line
+    echo -e "${BLUE}${ICON_CONFIRM}${NC} Selected ${selection_count} app(s):"
     local idx=0
+    local line=""
     for selected_app in "${selected_apps[@]}"; do
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
-        if (( idx < 3 )); then
-            names+=("${app_name}(${size})")
+        local display_item="${app_name}(${size})"
+
+        if (( idx % 3 == 0 )); then
+            # Start new line
+            [[ -n "$line" ]] && echo "  $line"
+            line="$display_item"
+        else
+            # Add to current line
+            line="$line, $display_item"
         fi
         ((idx++))
     done
-    local extra=$((selection_count-3))
-    local list="${names[*]}"
-    [[ $extra -gt 0 ]] && list+=" +${extra}"
-    echo -e "${BLUE}${ICON_CONFIRM}${NC} ${selection_count} apps: ${list}"
+    # Print the last line
+    [[ -n "$line" ]] && echo "  $line"
+    echo ""
 
     # Execute batch uninstallation (handles confirmation)
     batch_uninstall_applications

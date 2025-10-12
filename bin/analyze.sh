@@ -74,7 +74,8 @@ scan_large_files() {
     local file=""
     while IFS= read -r file; do
         if [[ -f "$file" ]]; then
-            local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            local size
+            size=$(stat -f%z "$file" 2>/dev/null || echo "0")
             echo "$size|$file"
         fi
     done < <(mdfind -onlyin "$target_path" "kMDItemFSSize > $MIN_LARGE_FILE_SIZE" 2>/dev/null) | \
@@ -93,7 +94,8 @@ scan_medium_files() {
     local file=""
     while IFS= read -r file; do
         if [[ -f "$file" ]]; then
-            local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+            local size
+            size=$(stat -f%z "$file" 2>/dev/null || echo "0")
             echo "$size|$file"
         fi
     done < <(mdfind -onlyin "$target_path" \
@@ -158,7 +160,8 @@ aggregate_by_directory() {
 # Get cache file path for a directory
 get_cache_file() {
     local target_path="$1"
-    local path_hash=$(echo "$target_path" | md5 2>/dev/null || echo "$target_path" | shasum | cut -d' ' -f1)
+    local path_hash
+    path_hash=$(echo "$target_path" | md5 2>/dev/null || echo "$target_path" | shasum | cut -d' ' -f1)
     echo "$CACHE_DIR/scan_${path_hash}.cache"
 }
 
@@ -171,7 +174,8 @@ is_cache_valid() {
         return 1
     fi
 
-    local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
+    local cache_age
+    cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || echo 0)))
     if [[ $cache_age -lt $max_age ]]; then
         return 0
     fi
@@ -236,7 +240,8 @@ perform_scan() {
     local force_rescan="${2:-false}"
 
     # Check cache first
-    local cache_file=$(get_cache_file "$target_path")
+    local cache_file
+    cache_file=$(get_cache_file "$target_path")
     if [[ "$force_rescan" != "true" ]] && is_cache_valid "$cache_file" 3600; then
         log_info "Loading cached results for $target_path..."
         load_from_cache "$cache_file"
@@ -328,8 +333,10 @@ generate_bar() {
         return
     fi
 
-    local filled=$((current * width / max))
-    local empty=$((width - filled))
+    local filled
+    filled=$((current * width / max))
+    local empty
+    empty=$((width - filled))
 
     # Ensure non-negative
     [[ $filled -lt 0 ]] && filled=0
@@ -372,7 +379,8 @@ display_large_files_compact() {
 
     local count=0
     local total_size=0
-    local total_count=$(wc -l < "$temp_large" | tr -d ' ')
+    local total_count
+    total_count=$(wc -l < "$temp_large" | tr -d ' ')
 
     # Calculate total size
     while IFS='|' read -r size path; do
@@ -385,11 +393,15 @@ display_large_files_compact() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local filename=$(basename "$path")
-        local dirname=$(basename "$(dirname "$path")")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local filename
+        filename=$(basename "$path")
+        local dirname
+        dirname=$(basename "$(dirname "$path")")
 
-        local info=$(get_file_info "$path")
+        local info
+        info=$(get_file_info "$path")
         local badge="${info%|*}"
         printf "  ${GREEN}%-8s${NC} %s %-40s ${GRAY}%s${NC}\n" \
             "$human_size" "$badge" "${filename:0:40}" "$dirname"
@@ -398,7 +410,8 @@ display_large_files_compact() {
     done < "$temp_large"
 
     echo ""
-    local total_human=$(bytes_to_human "$total_size")
+    local total_human
+    total_human=$(bytes_to_human "$total_size")
     echo "  ${GRAY}Found $total_count large files (>1GB), totaling $total_human${NC}"
     echo ""
 }
@@ -430,13 +443,19 @@ display_large_files() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local percentage=$(calc_percentage "$size" "$max_size")
-        local bar=$(generate_bar "$size" "$max_size" 20)
-        local filename=$(basename "$path")
-        local dirname=$(dirname "$path" | sed "s|^$HOME|~|")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local percentage
+        percentage=$(calc_percentage "$size" "$max_size")
+        local bar
+        bar=$(generate_bar "$size" "$max_size" 20)
+        local filename
+        filename=$(basename "$path")
+        local dirname
+        dirname=$(dirname "$path" | sed "s|^$HOME|~|")
 
-        local info=$(get_file_info "$path")
+        local info
+        info=$(get_file_info "$path")
         local badge="${info%|*}"
         printf "  %s [${GREEN}%s${NC}] %7s\n" "$bar" "$human_size" ""
         printf "    %s %s\n" "$badge" "$filename"
@@ -446,7 +465,8 @@ display_large_files() {
     done < "$temp_large"
 
     # Show total count
-    local total_count=$(wc -l < "$temp_large" | tr -d ' ')
+    local total_count
+    total_count=$(wc -l < "$temp_large" | tr -d ' ')
     if [[ $total_count -gt 10 ]]; then
         echo "  ${GRAY}... and $((total_count - 10)) more files${NC}"
         echo ""
@@ -479,17 +499,22 @@ display_directories_compact() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local percentage=$(calc_percentage "$size" "$total_size")
-        local dirname=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local percentage
+        percentage=$(calc_percentage "$size" "$total_size")
+        local dirname
+        dirname=$(basename "$path")
 
         # Simple bar (10 chars)
         local bar_width=10
         local percentage_int=${percentage%.*}  # Remove decimal part
-        local filled=$((percentage_int * bar_width / 100))
+        local filled
+        filled=$((percentage_int * bar_width / 100))
         [[ $filled -gt $bar_width ]] && filled=$bar_width
         [[ $filled -lt 0 ]] && filled=0
-        local empty=$((bar_width - filled))
+        local empty
+        empty=$((bar_width - filled))
         [[ $empty -lt 0 ]] && empty=0
         local bar=""
         if [[ $filled -gt 0 ]]; then
@@ -538,11 +563,16 @@ display_directories() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local percentage=$(calc_percentage "$size" "$total_size")
-        local bar=$(generate_bar "$size" "$max_size" 20)
-        local display_path=$(echo "$path" | sed "s|^$HOME|~|")
-        local dirname=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local percentage
+        percentage=$(calc_percentage "$size" "$total_size")
+        local bar
+        bar=$(generate_bar "$size" "$max_size" 20)
+        local display_path
+        display_path=$(echo "$path" | sed "s|^$HOME|~|")
+        local dirname
+        dirname=$(basename "$path")
 
         printf "  %s [${BLUE}%s${NC}] %5s%%\n" "$bar" "$human_size" "$percentage"
         printf "    %s %s\n\n" "$BADGE_DIR" "$display_path"
@@ -568,8 +598,10 @@ display_hotspots() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local display_path=$(echo "$path" | sed "s|^$HOME|~|")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local display_path
+        display_path=$(echo "$path" | sed "s|^$HOME|~|")
 
         printf "  %s\n" "$display_path"
         printf "     ${GREEN}%s${NC} in ${YELLOW}%d${NC} large files\n\n" \
@@ -589,9 +621,11 @@ display_cleanup_suggestions_compact() {
     # Check common cache locations (only if analyzing Library/Caches or system paths)
     if [[ "$CURRENT_PATH" == "$HOME/Library/Caches"* ]] || [[ "$CURRENT_PATH" == "$HOME/Library"* ]]; then
         if [[ -d "$HOME/Library/Caches" ]]; then
-            local cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
+            local cache_size
+            cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
             if [[ $cache_size -gt 1048576 ]]; then  # > 1GB
-                local human=$(bytes_to_human $((cache_size * 1024)))
+                local human
+                human=$(bytes_to_human $((cache_size * 1024)))
                 top_suggestion="Clear app caches ($human)"
                 action_command="mole clean"
                 ((potential_space += cache_size * 1024))
@@ -602,7 +636,8 @@ display_cleanup_suggestions_compact() {
 
     # Check Downloads folder (only if analyzing Downloads)
     if [[ "$CURRENT_PATH" == "$HOME/Downloads"* ]]; then
-        local old_files=$(find "$CURRENT_PATH" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
+        local old_files
+        old_files=$(find "$CURRENT_PATH" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
         if [[ $old_files -gt 0 ]]; then
             [[ -z "$top_suggestion" ]] && top_suggestion="$old_files files older than 90 days found"
             [[ -z "$action_command" ]] && action_command="manually review old files"
@@ -618,7 +653,8 @@ display_cleanup_suggestions_compact() {
             local dmg_size=$(mdfind -onlyin "$CURRENT_PATH" \
                 "kMDItemFSSize > 500000000 && kMDItemDisplayName == '*.dmg'" 2>/dev/null | \
                 xargs stat -f%z 2>/dev/null | awk '{sum+=$1} END {print sum}')
-            local dmg_human=$(bytes_to_human "$dmg_size")
+            local dmg_human
+            dmg_human=$(bytes_to_human "$dmg_size")
             [[ -z "$top_suggestion" ]] && top_suggestion="$dmg_count DMG files ($dmg_human) can be removed"
             [[ -z "$action_command" ]] && action_command="manually delete DMG files"
             ((potential_space += dmg_size))
@@ -628,9 +664,11 @@ display_cleanup_suggestions_compact() {
 
     # Check Xcode (only if in developer paths)
     if [[ "$CURRENT_PATH" == "$HOME/Library/Developer"* ]] && [[ -d "$HOME/Library/Developer/Xcode/DerivedData" ]]; then
-        local xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
+        local xcode_size
+        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
         if [[ $xcode_size -gt 10485760 ]]; then
-            local xcode_human=$(bytes_to_human $((xcode_size * 1024)))
+            local xcode_human
+            xcode_human=$(bytes_to_human $((xcode_size * 1024)))
             [[ -z "$top_suggestion" ]] && top_suggestion="Xcode cache ($xcode_human) can be cleared"
             [[ -z "$action_command" ]] && action_command="mole clean"
             ((potential_space += xcode_size * 1024))
@@ -656,7 +694,8 @@ display_cleanup_suggestions_compact() {
             echo "  ${GRAY}... and $((suggestions_count - 1)) more insights${NC}"
         fi
         if [[ $potential_space -gt 0 ]]; then
-            local space_human=$(bytes_to_human "$potential_space")
+            local space_human
+            space_human=$(bytes_to_human "$potential_space")
             echo "  ${GREEN}Potential recovery: ~$space_human${NC}"
         fi
         echo ""
@@ -680,16 +719,19 @@ display_cleanup_suggestions() {
 
     # Check common cache locations
     if [[ -d "$HOME/Library/Caches" ]]; then
-        local cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
+        local cache_size
+        cache_size=$(du -sk "$HOME/Library/Caches" 2>/dev/null | cut -f1)
         if [[ $cache_size -gt 1048576 ]]; then  # > 1GB
-            local human=$(bytes_to_human $((cache_size * 1024)))
+            local human
+            human=$(bytes_to_human $((cache_size * 1024)))
             suggestions+=("  Clear application caches: $human")
         fi
     fi
 
     # Check Downloads folder
     if [[ -d "$HOME/Downloads" ]]; then
-        local old_files=$(find "$HOME/Downloads" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
+        local old_files
+        old_files=$(find "$HOME/Downloads" -type f -mtime +90 2>/dev/null | wc -l | tr -d ' ')
         if [[ $old_files -gt 0 ]]; then
             suggestions+=("  Clean old downloads: $old_files files older than 90 days")
         fi
@@ -706,18 +748,22 @@ display_cleanup_suggestions() {
 
     # Check Xcode derived data
     if [[ -d "$HOME/Library/Developer/Xcode/DerivedData" ]]; then
-        local xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
+        local xcode_size
+        xcode_size=$(du -sk "$HOME/Library/Developer/Xcode/DerivedData" 2>/dev/null | cut -f1)
         if [[ $xcode_size -gt 10485760 ]]; then  # > 10GB
-            local human=$(bytes_to_human $((xcode_size * 1024)))
+            local human
+            human=$(bytes_to_human $((xcode_size * 1024)))
             suggestions+=("  Clear Xcode cache: $human")
         fi
     fi
 
     # Check iOS device backups
     if [[ -d "$HOME/Library/Application Support/MobileSync/Backup" ]]; then
-        local backup_size=$(du -sk "$HOME/Library/Application Support/MobileSync/Backup" 2>/dev/null | cut -f1)
+        local backup_size
+        backup_size=$(du -sk "$HOME/Library/Application Support/MobileSync/Backup" 2>/dev/null | cut -f1)
         if [[ $backup_size -gt 5242880 ]]; then  # > 5GB
-            local human=$(bytes_to_human $((backup_size * 1024)))
+            local human
+            human=$(bytes_to_human $((backup_size * 1024)))
             suggestions+=("  📱 Review iOS backups: $human")
         fi
     fi
@@ -728,7 +774,8 @@ display_cleanup_suggestions() {
         mdfind -onlyin "$CURRENT_PATH" "kMDItemFSSize > 10000000" 2>/dev/null | \
             xargs -I {} stat -f "%z" {} 2>/dev/null | \
             sort | uniq -d | wc -l | tr -d ' ' > "$temp_dup" 2>/dev/null || echo "0" > "$temp_dup"
-        local dup_count=$(cat "$temp_dup" 2>/dev/null || echo "0")
+        local dup_count
+        dup_count=$(cat "$temp_dup" 2>/dev/null || echo "0")
         if [[ $dup_count -gt 5 ]]; then
             suggestions+=("  ♻️ Possible duplicates: $dup_count size matches in large files (>10MB)")
         fi
@@ -772,11 +819,13 @@ display_disk_summary() {
 
     log_header "Disk Situation"
 
-    local target_display=$(echo "$CURRENT_PATH" | sed "s|^$HOME|~|")
+    local target_display
+    target_display=$(echo "$CURRENT_PATH" | sed "s|^$HOME|~|")
     echo "  ${BLUE}Scanning:${NC} $target_display | ${BLUE}Free:${NC} $(get_free_space)"
 
     if [[ $total_large_count -gt 0 ]]; then
-        local large_human=$(bytes_to_human "$total_large_size")
+        local large_human
+        large_human=$(bytes_to_human "$total_large_size")
         echo "  ${BLUE}Large Files:${NC} $total_large_count files ($large_human) | ${BLUE}Total:${NC} $(bytes_to_human "$total_dirs_size") in $total_dirs_count dirs"
     elif [[ $total_dirs_size -gt 0 ]]; then
         echo "  ${BLUE}Total Scanned:${NC} $(bytes_to_human "$total_dirs_size") across $total_dirs_count directories"
@@ -820,10 +869,14 @@ get_file_age() {
         return
     fi
 
-    local mtime=$(stat -f%m "$path" 2>/dev/null || echo "0")
-    local now=$(date +%s)
-    local diff=$((now - mtime))
-    local days=$((diff / 86400))
+    local mtime
+    mtime=$(stat -f%m "$path" 2>/dev/null || echo "0")
+    local now
+    now=$(date +%s)
+    local diff
+    diff=$((now - mtime))
+    local days
+    days=$((diff / 86400))
 
     if [[ $days -lt 1 ]]; then
         echo "Today"
@@ -832,10 +885,12 @@ get_file_age() {
     elif [[ $days -lt 30 ]]; then
         echo "${days}d"
     elif [[ $days -lt 365 ]]; then
-        local months=$((days / 30))
+        local months
+        months=$((days / 30))
         echo "${months}mo"
     else
-        local years=$((days / 365))
+        local years
+        years=$((days / 365))
         echo "${years}yr"
     fi
 }
@@ -860,13 +915,17 @@ display_large_files_table() {
             break
         fi
 
-        local human_size=$(bytes_to_human "$size")
-        local filename=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local filename
+        filename=$(basename "$path")
         local ext="${filename##*.}"
-        local age=$(get_file_age "$path")
+        local age
+        age=$(get_file_age "$path")
 
         # Get file info and badge
-        local info=$(get_file_info "$path")
+        local info
+        info=$(get_file_info "$path")
         local badge="${info%|*}"
 
         # Truncate filename if too long
@@ -889,7 +948,8 @@ display_large_files_table() {
         ((count++))
     done < "$temp_large"
 
-    local total=$(wc -l < "$temp_large" | tr -d ' ')
+    local total
+    total=$(wc -l < "$temp_large" | tr -d ' ')
     if [[ $total -gt 20 ]]; then
         echo "  ${GRAY}... $((total - 20)) more files${NC}"
     fi
@@ -925,19 +985,24 @@ display_unified_directories() {
             break
         fi
 
-        local percentage=$((size * 100 / total_size))
-        local bar_width=$((percentage * chart_width / 100))
+        local percentage
+        percentage=$((size * 100 / total_size))
+        local bar_width
+        bar_width=$((percentage * chart_width / 100))
         [[ $bar_width -lt 1 ]] && bar_width=1
 
-        local dirname=$(basename "$path")
-        local human_size=$(bytes_to_human "$size")
+        local dirname
+        dirname=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
 
         # Build compact bar
         local bar=""
         if [[ $bar_width -gt 0 ]]; then
             bar=$(printf "%${bar_width}s" "" | tr ' ' '▓')
         fi
-        local empty=$((chart_width - bar_width))
+        local empty
+        empty=$((chart_width - bar_width))
         if [[ $empty -gt 0 ]]; then
             bar="${bar}$(printf "%${empty}s" "" | tr ' ' '░')"
         fi
@@ -1009,12 +1074,16 @@ display_space_chart() {
             break
         fi
 
-        local percentage=$((size * 100 / total_size))
-        local bar_width=$((percentage * chart_width / 100))
+        local percentage
+        percentage=$((size * 100 / total_size))
+        local bar_width
+        bar_width=$((percentage * chart_width / 100))
         [[ $bar_width -lt 1 ]] && bar_width=1
 
-        local dirname=$(basename "$path")
-        local human_size=$(bytes_to_human "$size")
+        local dirname
+        dirname=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
 
         # Build visual bar
         local bar=""
@@ -1048,8 +1117,10 @@ display_recent_large_files() {
         "kMDItemFSSize > 100000000 && kMDItemContentCreationDate >= \$time.today(-30)" 2>/dev/null | \
         while IFS= read -r file; do
             if [[ -f "$file" ]]; then
-                local size=$(stat -f%z "$file" 2>/dev/null || echo "0")
-                local mtime=$(stat -f%m "$file" 2>/dev/null || echo "0")
+                local size
+                size=$(stat -f%z "$file" 2>/dev/null || echo "0")
+                local mtime
+                mtime=$(stat -f%m "$file" 2>/dev/null || echo "0")
                 echo "$size|$mtime|$file"
             fi
         done | sort -t'|' -k1 -rn | head -10 > "$temp_recent"
@@ -1062,12 +1133,17 @@ display_recent_large_files() {
 
     local count=0
     while IFS='|' read -r size mtime path; do
-        local human_size=$(bytes_to_human "$size")
-        local filename=$(basename "$path")
-        local dirname=$(dirname "$path" | sed "s|^$HOME|~|")
-        local days_ago=$(( ($(date +%s) - mtime) / 86400 ))
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local filename
+        filename=$(basename "$path")
+        local dirname
+        dirname=$(dirname "$path" | sed "s|^$HOME|~|")
+        local days_ago
+        days_ago=$(( ($(date +%s) - mtime) / 86400 ))
 
-        local info=$(get_file_info "$path")
+        local info
+        info=$(get_file_info "$path")
         local badge="${info%|*}"
 
         printf "  %s %s ${GRAY}(%s)${NC}\n" "$badge" "$filename" "$human_size"
@@ -1088,7 +1164,8 @@ get_subdirectories() {
 
     find "$target" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | \
         while IFS= read -r dir; do
-            local size=$(du -sk "$dir" 2>/dev/null | cut -f1)
+            local size
+            size=$(du -sk "$dir" 2>/dev/null | cut -f1)
             echo "$((size * 1024))|$dir"
         done | sort -t'|' -k1 -rn > "$temp_file"
 }
@@ -1116,11 +1193,16 @@ display_directory_list() {
 
     # Display with cursor
     while IFS='|' read -r size path; do
-        local human_size=$(bytes_to_human "$size")
-        local percentage=$(calc_percentage "$size" "$total_size")
-        local bar=$(generate_bar "$size" "$max_size" 20)
-        local display_path=$(echo "$path" | sed "s|^$HOME|~|")
-        local dirname=$(basename "$path")
+        local human_size
+        human_size=$(bytes_to_human "$size")
+        local percentage
+        percentage=$(calc_percentage "$size" "$total_size")
+        local bar
+        bar=$(generate_bar "$size" "$max_size" 20)
+        local display_path
+        display_path=$(echo "$path" | sed "s|^$HOME|~|")
+        local dirname
+        dirname=$(basename "$path")
 
         # Highlight selected line
         if [[ $idx -eq $cursor_pos ]]; then
@@ -1168,7 +1250,8 @@ count_directories() {
         echo "0"
         return
     fi
-    local count=$(wc -l < "$temp_dirs" | tr -d ' ')
+    local count
+    count=$(wc -l < "$temp_dirs" | tr -d ' ')
     [[ $count -gt 15 ]] && count=15
     echo "$count"
 }
@@ -1252,20 +1335,24 @@ display_file_types() {
                 ;;
         esac
 
-        local files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2>/dev/null)
-        local count=$(echo "$files" | grep -c . || echo "0")
+        local files
+        files=$(mdfind -onlyin "$CURRENT_PATH" "$query" 2>/dev/null)
+        local count
+        count=$(echo "$files" | grep -c . || echo "0")
         local total_size=0
 
         if [[ $count -gt 0 ]]; then
             while IFS= read -r file; do
                 if [[ -f "$file" ]]; then
-                    local fsize=$(stat -f%z "$file" 2>/dev/null || echo "0")
+                    local fsize
+                    fsize=$(stat -f%z "$file" 2>/dev/null || echo "0")
                     ((total_size += fsize))
                 fi
             done <<< "$files"
 
             if [[ $total_size -gt 0 ]]; then
-                local human_size=$(bytes_to_human "$total_size")
+                local human_size
+                human_size=$(bytes_to_human "$total_size")
                 printf "  %s %-12s %8s (%d files)\n" "$badge" "$type_name:" "$human_size" "$count"
             fi
         fi
@@ -1292,7 +1379,8 @@ scan_directory_contents_fast() {
     local show_progress="${4:-true}"
 
     # Auto-detect optimal parallel jobs using common function
-    local num_jobs=$(get_optimal_parallel_jobs "io")
+    local num_jobs
+    num_jobs=$(get_optimal_parallel_jobs "io")
     # Cap at reasonable limits for I/O operations
     [[ $num_jobs -gt 24 ]] && num_jobs=24
     [[ $num_jobs -lt 12 ]] && num_jobs=12
@@ -1456,7 +1544,8 @@ combine_initial_scan_results() {
     if [[ -f "$temp_large" ]]; then
         while IFS='|' read -r size path; do
             # Only include if parent directory is the current scan path
-            local parent=$(dirname "$path")
+            local parent
+            parent=$(dirname "$path")
             if [[ "$parent" == "$CURRENT_PATH" ]]; then
                 echo "$size|file|$path"
             fi
@@ -1484,7 +1573,8 @@ show_volumes_overview() {
         if [[ -d "/Volumes" ]]; then
             local vol_priority=500
             find /Volumes -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r vol; do
-                local vol_name=$(basename "$vol")
+                local vol_name
+                vol_name=$(basename "$vol")
                 echo "$((vol_priority))|$vol|Volume: $vol_name"
                 ((vol_priority--))
             done
@@ -1505,7 +1595,8 @@ show_volumes_overview() {
     stty -echo 2>/dev/null || true
 
     local cursor=0
-    local total_items=$(wc -l < "$temp_volumes" | tr -d ' ')
+    local total_items
+    total_items=$(wc -l < "$temp_volumes" | tr -d ' ')
 
     while true; do
         # Ensure cursor is always hidden
@@ -1655,7 +1746,8 @@ interactive_drill_down() {
         # Only scan if needed (directory changed or refresh requested)
         if [[ "$need_scan" == "true" ]]; then
             # Generate cache key (use md5 hash of path)
-            local cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
+            local cache_key
+            cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
             local cache_file="$cache_dir/$cache_key"
 
             # Check if we have cached results for this directory
@@ -1732,7 +1824,8 @@ interactive_drill_down() {
                 if [[ ${#path_stack[@]} -gt 0 ]]; then
                     # Use bash 3.2 compatible way to get last element
                     local stack_size=${#path_stack[@]}
-                    local last_index=$((stack_size - 1))
+                    local last_index
+                    last_index=$((stack_size - 1))
                     current_path="${path_stack[$last_index]}"
                     unset "path_stack[$last_index]"
                     cursor=0
@@ -1757,7 +1850,8 @@ interactive_drill_down() {
 
         local max_show=15  # Show 15 items per page
         local page_start=$scroll_offset
-        local page_end=$((scroll_offset + max_show))
+        local page_end
+        page_end=$((scroll_offset + max_show))
         [[ $page_end -gt $total_items ]] && page_end=$total_items
 
         local display_idx=0
@@ -1778,7 +1872,8 @@ interactive_drill_down() {
             local rest="${item_info#*|}"
             local type="${rest%%|*}"
             local path="${rest#*|}"
-            local name=$(basename "$path")
+            local name
+            name=$(basename "$path")
 
             local human_size
             if [[ "$size" -eq 0 ]]; then
@@ -1796,7 +1891,8 @@ interactive_drill_down() {
                 fi
             else
                 local ext="${name##*.}"
-                local info=$(get_file_info "$path")
+                local info
+                info=$(get_file_info "$path")
                 badge="${info%|*}"
                 case "$ext" in
                     dmg|iso|pkg|zip|tar|gz|rar|7z)
@@ -1871,7 +1967,8 @@ interactive_drill_down() {
                 if [[ $cursor -lt $((total_items - 1)) ]]; then
                     ((cursor++))
                     # Scroll down if cursor goes below visible area
-                    local page_end=$((scroll_offset + max_show))
+                    local page_end
+                    page_end=$((scroll_offset + max_show))
                     if [[ $cursor -ge $page_end ]]; then
                         scroll_offset=$((cursor - max_show + 1))
                     fi
@@ -1895,7 +1992,8 @@ interactive_drill_down() {
                     else
                         # It's a file - open it for viewing
                         local file_ext="${selected_path##*.}"
-                        local filename=$(basename "$selected_path")
+                        local filename
+                        filename=$(basename "$selected_path")
                         local open_success=false
 
                         # For text-like files, use less or fallback to open
@@ -1972,7 +2070,8 @@ interactive_drill_down() {
                     # Pop from stack and go back
                     # Use bash 3.2 compatible way to get last element
                     local stack_size=${#path_stack[@]}
-                    local last_index=$((stack_size - 1))
+                    local last_index
+                    last_index=$((stack_size - 1))
                     current_path="${path_stack[$last_index]}"
                     unset "path_stack[$last_index]"
                     cursor=0
@@ -2008,8 +2107,10 @@ interactive_drill_down() {
                     local rest="${selected#*|}"
                     local type="${rest%%|*}"
                     local selected_path="${rest#*|}"
-                    local selected_name=$(basename "$selected_path")
-                    local human_size=$(bytes_to_human "$size")
+                    local selected_name
+                    selected_name=$(basename "$selected_path")
+                    local human_size
+                    human_size=$(bytes_to_human "$size")
 
                     # Check if sudo is needed
                     local needs_sudo=false
@@ -2034,7 +2135,8 @@ interactive_drill_down() {
                     if [[ "$type" == "dir" ]]; then
                         echo "  ${BADGE_DIR} ${YELLOW}$selected_name${NC}"
                     else
-                        local info=$(get_file_info "$selected_path")
+                        local info
+                        info=$(get_file_info "$selected_path")
                         local badge="${info%|*}"
                         echo "  $badge ${YELLOW}$selected_name${NC}"
                     fi
@@ -2092,7 +2194,8 @@ interactive_drill_down() {
                             sleep 0.8
 
                             # Clear cache to force rescan
-                            local cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
+                            local cache_key
+                            cache_key=$(echo "$current_path" | md5 2>/dev/null || echo "$current_path" | shasum | cut -d' ' -f1)
                             local cache_file="$cache_dir/$cache_key"
                             rm -f "$cache_file" 2>/dev/null || true
 
@@ -2142,7 +2245,8 @@ interactive_mode() {
         type drain_pending_input >/dev/null 2>&1 && drain_pending_input
         display_interactive_menu
 
-        local key=$(read_key)
+        local key
+        key=$(read_key)
         case "$key" in
             "QUIT")
                 break
@@ -2154,14 +2258,16 @@ interactive_mode() {
                 ;;
             "DOWN")
                 if [[ "$VIEW_MODE" == "navigate" ]]; then
-                    local max_count=$(count_directories)
+                    local max_count
+                    max_count=$(count_directories)
                     ((CURSOR_POS < max_count - 1)) && ((CURSOR_POS++))
                 fi
                 ;;
             "RIGHT")
                 if [[ "$VIEW_MODE" == "navigate" ]]; then
                     # Enter selected directory
-                    local selected_path=$(get_path_at_cursor "$CURSOR_POS")
+                    local selected_path
+                    selected_path=$(get_path_at_cursor "$CURSOR_POS")
                     if [[ -n "$selected_path" ]] && [[ -d "$selected_path" ]]; then
                         CURRENT_PATH="$selected_path"
                         CURSOR_POS=0
@@ -2194,7 +2300,8 @@ interactive_mode() {
             "ENTER")
                 if [[ "$VIEW_MODE" == "navigate" ]]; then
                     # Same as RIGHT
-                    local selected_path=$(get_path_at_cursor "$CURSOR_POS")
+                    local selected_path
+                    selected_path=$(get_path_at_cursor "$CURSOR_POS")
                     if [[ -n "$selected_path" ]] && [[ -d "$selected_path" ]]; then
                         CURRENT_PATH="$selected_path"
                         CURSOR_POS=0
@@ -2231,7 +2338,8 @@ export_to_csv() {
     {
         echo "Size (Bytes),Size (Human),Path"
         while IFS='|' read -r size path; do
-            local human=$(bytes_to_human "$size")
+            local human
+            human=$(bytes_to_human "$size")
             echo "$size,\"$human\",\"$path\""
         done < "$temp_dirs"
     } > "$output_file"
@@ -2260,7 +2368,8 @@ export_to_json() {
         while IFS='|' read -r size path; do
             [[ "$first" == "false" ]] && echo ","
             first=false
-            local human=$(bytes_to_human "$size")
+            local human
+            human=$(bytes_to_human "$size")
             printf '    {"size": %d, "size_human": "%s", "path": "%s"}' "$size" "$human" "$path"
         done < "$temp_dirs"
 
@@ -2273,7 +2382,8 @@ export_to_json() {
             while IFS='|' read -r size path; do
                 [[ "$first" == "false" ]] && echo ","
                 first=false
-                local human=$(bytes_to_human "$size")
+                local human
+                human=$(bytes_to_human "$size")
                 printf '    {"size": %d, "size_human": "%s", "path": "%s"}' "$size" "$human" "$path"
             done < "$temp_large"
             echo ""

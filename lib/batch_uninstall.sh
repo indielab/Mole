@@ -192,17 +192,42 @@ batch_uninstall_applications() {
         if [[ -n "$freed_display" ]]; then
             success_line+=", freed ${GREEN}${freed_display}${NC}"
         fi
+
+        # Format app list with max 3 per line
         if [[ -n "$success_list" ]]; then
-            local -a formatted_apps=()
+            local idx=0
+            local is_first_line=true
+            local current_line=""
+
             for app_name in "${success_items[@]}"; do
-                formatted_apps+=("${GREEN}${app_name}${NC}")
+                local display_item="${GREEN}${app_name}${NC}"
+
+                if (( idx % 3 == 0 )); then
+                    # Start new line
+                    if [[ -n "$current_line" ]]; then
+                        summary_details+=("$current_line")
+                    fi
+                    if [[ "$is_first_line" == true ]]; then
+                        # First line: append to success_line
+                        current_line="${success_line}: $display_item"
+                        is_first_line=false
+                    else
+                        # Subsequent lines: just the apps
+                        current_line="$display_item"
+                    fi
+                else
+                    # Add to current line
+                    current_line="$current_line, $display_item"
+                fi
+                ((idx++))
             done
-            if [[ ${#formatted_apps[@]} -gt 0 ]]; then
-                local IFS=', '
-                success_line+=": ${formatted_apps[*]}"
+            # Add the last line
+            if [[ -n "$current_line" ]]; then
+                summary_details+=("$current_line")
             fi
+        else
+            summary_details+=("$success_line")
         fi
-        summary_details+=("$success_line")
     fi
 
     if [[ $failed_count -gt 0 ]]; then

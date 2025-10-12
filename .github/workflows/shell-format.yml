@@ -25,12 +25,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -d '' FILES < <(git ls-files -z '*.sh' 'mole' || true)
-          if (( ${#FILES[@]} == 0 )); then
+          count=0
+          : > files-null.list
+          while IFS= read -r -d '' f; do
+            printf '%s\0' "$f" >> files-null.list
+            count=$((count+1))
+          done < <(git ls-files -z '*.sh' 'mole' || true)
+
+          if [[ $count -eq 0 ]]; then
             echo "found=0" >> "$GITHUB_OUTPUT"
+            rm -f files-null.list
           else
-            printf '%s\0' "${FILES[@]}" > files-null.list
-            echo "found=${#FILES[@]}" >> "$GITHUB_OUTPUT"
+            echo "found=$count" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run shfmt (diff mode, indent=4, simplify)

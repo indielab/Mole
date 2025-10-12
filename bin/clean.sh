@@ -146,21 +146,21 @@ start_spinner() {
     local message="$1"
 
     if [[ ! -t 1 ]]; then
-        echo -n "  ${BLUE}◎${NC} $message"
+        echo -n "  ${BLUE}${ICON_CONFIRM}${NC} $message"
         return
     fi
 
-    echo -n "  ${BLUE}◎${NC} $message"
+    echo -n "  ${BLUE}${ICON_CONFIRM}${NC} $message"
     (
         local delay=0.5
         while true; do
-            printf "\r  ${BLUE}◎${NC} $message.  "
+            printf "\r  ${BLUE}${ICON_CONFIRM}${NC} $message.  "
             sleep $delay
-            printf "\r  ${BLUE}◎${NC} $message.. "
+            printf "\r  ${BLUE}${ICON_CONFIRM}${NC} $message.. "
             sleep $delay
-            printf "\r  ${BLUE}◎${NC} $message..."
+            printf "\r  ${BLUE}${ICON_CONFIRM}${NC} $message..."
             sleep $delay
-            printf "\r  ${BLUE}◎${NC} $message   "
+            printf "\r  ${BLUE}${ICON_CONFIRM}${NC} $message   "
             sleep $delay
         done
     ) &
@@ -179,9 +179,9 @@ stop_spinner() {
         kill "$SPINNER_PID" 2>/dev/null
         wait "$SPINNER_PID" 2>/dev/null
         SPINNER_PID=""
-        printf "\r  ${GREEN}✓${NC} %s\n" "$result_message"
+        printf "\r  ${GREEN}${ICON_SUCCESS}${NC} %s\n" "$result_message"
     else
-        echo "  ${GREEN}✓${NC} $result_message"
+        echo "  ${GREEN}${ICON_SUCCESS}${NC} $result_message"
     fi
 }
 
@@ -189,12 +189,12 @@ start_section() {
     TRACK_SECTION=1
     SECTION_ACTIVITY=0
     echo ""
-    echo -e "${PURPLE}▶ $1${NC}"
+    echo -e "${PURPLE}${ICON_ARROW} $1${NC}"
 }
 
 end_section() {
     if [[ $TRACK_SECTION -eq 1 && $SECTION_ACTIVITY -eq 0 ]]; then
-        echo -e "  ${BLUE}○${NC} Nothing to tidy"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Nothing to tidy"
     fi
     TRACK_SECTION=0
 }
@@ -331,7 +331,7 @@ safe_clean() {
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "  ${YELLOW}→${NC} $label ${YELLOW}($size_human dry)${NC}"
         else
-            echo -e "  ${GREEN}✓${NC} $label ${GREEN}($size_human)${NC}"
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $label ${GREEN}($size_human)${NC}"
         fi
         ((files_cleaned+=total_count))
         ((total_size_cleaned+=total_size_bytes))
@@ -363,7 +363,7 @@ start_cleanup() {
 
     if [[ -t 0 ]]; then
         echo ""
-        echo -ne "${PURPLE}☛${NC} System caches need sudo — ${GREEN}Enter${NC} continue, other key skip: "
+        echo -ne "${PURPLE}${ICON_ARROW}${NC} System caches need sudo — ${GREEN}Enter${NC} continue, other key skip: "
 
         # Use IFS= and read without -n to allow Ctrl+C to work properly
         IFS= read -r -s -n 1 choice
@@ -385,7 +385,7 @@ start_cleanup() {
             printf "\r\033[K"  # Clear the prompt line
             if request_sudo_access "System cleanup requires admin access"; then
                 SYSTEM_CLEAN=true
-                echo -e "${GREEN}✓${NC} Admin access granted"
+                echo -e "${GREEN}${ICON_SUCCESS}${NC} Admin access granted"
                 echo ""
                 # Start sudo keepalive with error handling
                 (
@@ -427,16 +427,15 @@ start_cleanup() {
 }
 
 perform_cleanup() {
-    echo ""
-    echo "${ICON_SYSTEM} $(detect_architecture) | Free space: $(get_free_space)"
+    echo -e "${BLUE}${ICON_ADMIN}${NC} $(detect_architecture) | Free space: $(get_free_space)"
     
     # Show whitelist info if patterns are active
     local active_count=${#WHITELIST_PATTERNS[@]}
     if [[ $active_count -gt 2 ]]; then
         local custom_count=$((active_count - 2))
-        echo -e "${BLUE}✓${NC} Whitelist: $custom_count custom + 2 core patterns active"
+        echo -e "${BLUE}${ICON_SUCCESS}${NC} Whitelist: $custom_count custom + 2 core patterns active"
     elif [[ $active_count -eq 2 ]]; then
-        echo -e "${BLUE}✓${NC} Whitelist: 2 core patterns active"
+        echo -e "${BLUE}${ICON_SUCCESS}${NC} Whitelist: 2 core patterns active"
     fi
 
     # Get initial space
@@ -480,7 +479,7 @@ perform_cleanup() {
     if [[ ${#WHITELIST_WARNINGS[@]} -gt 0 ]]; then
         echo ""
         for warning in "${WHITELIST_WARNINGS[@]}"; do
-            echo -e "  ${YELLOW}☼${NC} Whitelist: $warning"
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Whitelist: $warning"
         done
     fi
 
@@ -1106,7 +1105,7 @@ perform_cleanup() {
 
     local app_count=$(wc -l < "$installed_bundles" | tr -d ' ')
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $app_count active/installed apps"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $app_count active/installed apps"
 
     # Track statistics
     local orphaned_count=0
@@ -1181,7 +1180,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $cache_found orphaned caches"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $cache_found orphaned caches"
 
     # Clean orphaned logs
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned logs..."
@@ -1201,7 +1200,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $logs_found orphaned log directories"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $logs_found orphaned log directories"
 
     # Clean orphaned saved states
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned saved states..."
@@ -1221,7 +1220,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $states_found orphaned saved states"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $states_found orphaned saved states"
 
     # Clean orphaned containers
     # NOTE: Container cleanup is DISABLED by default due to naming mismatch issues
@@ -1246,7 +1245,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${BLUE}○${NC} Skipped $containers_found potential orphaned containers"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Skipped $containers_found potential orphaned containers"
 
     # Clean orphaned WebKit data
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned WebKit data..."
@@ -1266,7 +1265,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $webkit_found orphaned WebKit data"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $webkit_found orphaned WebKit data"
 
     # Clean orphaned HTTP storages
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned HTTP storages..."
@@ -1286,7 +1285,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $http_found orphaned HTTP storages"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $http_found orphaned HTTP storages"
 
     # Clean orphaned cookies
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned cookies..."
@@ -1306,7 +1305,7 @@ perform_cleanup() {
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}✓${NC} Found $cookies_found orphaned cookie files"
+    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $cookies_found orphaned cookie files"
 
     # Calculate total
     orphaned_count=$((cache_found + logs_found + states_found + containers_found + webkit_found + http_found + cookies_found))
@@ -1314,10 +1313,10 @@ perform_cleanup() {
     # Summary
     if [[ $orphaned_count -gt 0 ]]; then
         local orphaned_mb=$(echo "$total_orphaned_kb" | awk '{printf "%.1f", $1/1024}')
-        echo "  ${BLUE}●${NC} Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)"
+        echo "  ${GREEN}${ICON_SUCCESS}${NC} Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)"
         note_activity
     else
-        echo "  ${BLUE}○${NC} No old orphaned app data found"
+        echo "  ${GREEN}${ICON_SUCCESS}${NC} No old orphaned app data found"
     fi
 
     # Clean up temp files
@@ -1346,6 +1345,113 @@ perform_cleanup() {
             echo -e "  Found ${GREEN}${backup_human}${NC} iOS backups"
             echo -e "  You can delete them manually: ${backup_dir}"
         fi
+    fi
+    end_section
+
+    # ===== 16. Time Machine failed backups =====
+    start_section "Time Machine failed backups"
+    local tm_cleaned=0
+
+    # Check all mounted volumes for Time Machine backups
+    if [[ -d "/Volumes" ]]; then
+        for volume in /Volumes/*; do
+            [[ -d "$volume" ]] || continue
+
+            # Skip system volume and network volumes
+            [[ "$volume" == "/Volumes/MacintoshHD" || "$volume" == "/" ]] && continue
+            local fs_type=$(df -T "$volume" 2>/dev/null | tail -1 | awk '{print $2}')
+            case "$fs_type" in
+                nfs|smbfs|afpfs|cifs|webdav) continue ;;
+            esac
+
+            # Look for HFS+ style backups (Backups.backupdb)
+            local backupdb_dir="$volume/Backups.backupdb"
+            if [[ -d "$backupdb_dir" ]]; then
+                # Find all .inProgress and .inprogress files (failed backups)
+                # Support both .inProgress (official) and .inprogress (lowercase variant)
+                while IFS= read -r inprogress_file; do
+                    [[ -d "$inprogress_file" ]] || continue
+
+                    local size_kb=$(du -sk "$inprogress_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                    if [[ "$size_kb" -gt 0 ]]; then
+                        local backup_name=$(basename "$inprogress_file")
+
+                        if [[ "$DRY_RUN" != "true" ]]; then
+                            # Use tmutil to safely delete the failed backup
+                            if command -v tmutil >/dev/null 2>&1; then
+                                if tmutil delete "$inprogress_file" 2>/dev/null; then
+                                    local size_human=$(bytes_to_human "$((size_kb * 1024))")
+                                    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Failed backup: $backup_name ${GREEN}($size_human)${NC}"
+                                    ((tm_cleaned++))
+                                    ((files_cleaned++))
+                                    ((total_size_cleaned+=size_kb))
+                                    ((total_items++))
+                                    note_activity
+                                else
+                                    echo -e "  ${YELLOW}!${NC} Could not delete: $backup_name (try manually with sudo)"
+                                fi
+                            else
+                                echo -e "  ${YELLOW}!${NC} tmutil not available, skipping: $backup_name"
+                            fi
+                        else
+                            local size_human=$(bytes_to_human "$((size_kb * 1024))")
+                            echo -e "  ${YELLOW}→${NC} Failed backup: $backup_name ${YELLOW}($size_human dry)${NC}"
+                            ((tm_cleaned++))
+                            note_activity
+                        fi
+                    fi
+                done < <(find "$backupdb_dir" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2>/dev/null || true)
+            fi
+
+            # Look for APFS style backups (.backupbundle or .sparsebundle)
+            # Note: These bundles are typically auto-mounted by macOS when needed
+            # We check if they're already mounted to avoid mounting operations
+            for bundle in "$volume"/*.backupbundle "$volume"/*.sparsebundle; do
+                [[ -e "$bundle" ]] || continue
+                [[ -d "$bundle" ]] || continue
+
+                # Check if bundle is already mounted by looking at hdiutil info
+                local bundle_name=$(basename "$bundle")
+                local mounted_path=$(hdiutil info 2>/dev/null | grep -A 5 "image-path.*$bundle_name" | grep "/Volumes/" | awk '{print $1}' | head -1 || echo "")
+
+                if [[ -n "$mounted_path" && -d "$mounted_path" ]]; then
+                    # Bundle is already mounted, safe to check
+                    while IFS= read -r inprogress_file; do
+                        [[ -d "$inprogress_file" ]] || continue
+
+                        local size_kb=$(du -sk "$inprogress_file" 2>/dev/null | awk '{print $1}' || echo "0")
+                        if [[ "$size_kb" -gt 0 ]]; then
+                            local backup_name=$(basename "$inprogress_file")
+
+                            if [[ "$DRY_RUN" != "true" ]]; then
+                                if command -v tmutil >/dev/null 2>&1; then
+                                    if tmutil delete "$inprogress_file" 2>/dev/null; then
+                                        local size_human=$(bytes_to_human "$((size_kb * 1024))")
+                                        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Failed APFS backup in $bundle_name: $backup_name ${GREEN}($size_human)${NC}"
+                                        ((tm_cleaned++))
+                                        ((files_cleaned++))
+                                        ((total_size_cleaned+=size_kb))
+                                        ((total_items++))
+                                        note_activity
+                                    else
+                                        echo -e "  ${YELLOW}!${NC} Could not delete from bundle: $backup_name"
+                                    fi
+                                fi
+                            else
+                                local size_human=$(bytes_to_human "$((size_kb * 1024))")
+                                echo -e "  ${YELLOW}→${NC} Failed APFS backup in $bundle_name: $backup_name ${YELLOW}($size_human dry)${NC}"
+                                ((tm_cleaned++))
+                                note_activity
+                            fi
+                        fi
+                    done < <(find "$mounted_path" -type d \( -name "*.inProgress" -o -name "*.inprogress" \) 2>/dev/null || true)
+                fi
+            done
+        done
+    fi
+
+    if [[ $tm_cleaned -eq 0 ]]; then
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} No failed Time Machine backups found"
     fi
     end_section
 

@@ -211,7 +211,9 @@ safe_clean() {
         description="$1"
         targets=("$1")
     else
-        description="${@: -1}"
+        # Get last argument as description
+        description="${*: -1}"
+        # Get all arguments except last as targets array
         targets=("${@:1:$#-1}")
     fi
 

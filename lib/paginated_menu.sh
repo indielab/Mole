@@ -262,14 +262,8 @@ EOF
                     fi
                 done
 
-                if [[ ${#selected_indices[@]} -eq 0 ]]; then
-                    local default_idx=$((top_index + cursor_pos))
-                    if [[ $default_idx -ge 0 && $default_idx -lt $total_items ]]; then
-                        selected[default_idx]=true
-                        selected_indices=("$default_idx")
-                    fi
-                fi
-
+                # Allow empty selection - don't auto-select cursor position
+                # This fixes the bug where unselecting all items would still select the last cursor position
                 local final_result=""
                 if [[ ${#selected_indices[@]} -gt 0 ]]; then
                     local IFS=','

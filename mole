@@ -47,7 +47,8 @@ check_for_updates() {
 
     # Background version check (save to file, don't output)
     (
-        local latest=$(get_latest_version)
+        local latest
+        latest=$(get_latest_version)
 
         if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
             printf "\nUpdate available: %s → %s, run %smo update%s\n\n" "$VERSION" "$latest" "$GREEN" "$NC" > "$msg_cache"
@@ -155,7 +156,8 @@ update_mole() {
     fi
 
     # Check for updates
-    local latest=$(get_latest_version)
+    local latest
+    latest=$(get_latest_version)
 
     if [[ -z "$latest" ]]; then
         log_error "Unable to check for updates. Check network connection."
@@ -449,9 +451,11 @@ show_main_menu() {
 interactive_main_menu() {
     # Show intro animation only once per terminal tab
     if [[ -t 1 ]]; then
-        local tty_name=$(tty 2>/dev/null || echo "")
+        local tty_name
+        tty_name=$(tty 2>/dev/null || echo "")
         if [[ -n "$tty_name" ]]; then
-            local flag_file="/tmp/mole_intro_$(echo "$tty_name" | tr -c '[:alnum:]_' '_')"
+            local flag_file
+            flag_file="/tmp/mole_intro_$(echo "$tty_name" | tr -c '[:alnum:]_' '_')"
             if [[ ! -f "$flag_file" ]]; then
                 animate_mole_intro
                 touch "$flag_file" 2>/dev/null || true
@@ -489,8 +493,10 @@ interactive_main_menu() {
         # Drain any pending input to prevent touchpad scroll issues
         drain_pending_input
 
-        local key=$(read_key)
-        [[ $? -ne 0 ]] && continue
+        local key
+        if ! key=$(read_key); then
+            continue
+        fi
 
         case "$key" in
             "UP") ((current_option > 1)) && ((current_option--)) ;;

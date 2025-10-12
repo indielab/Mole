@@ -77,8 +77,19 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/common.sh"
 source "$PROJECT_ROOT/lib/batch_uninstall.sh"
-source "$PROJECT_ROOT/tests/helpers/uninstall_stubs.sh"
-setup_uninstall_stubs
+
+# Test stubs
+request_sudo_access() { return 0; }
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+enter_alt_screen() { :; }
+leave_alt_screen() { :; }
+hide_cursor() { :; }
+show_cursor() { :; }
+remove_apps_from_dock() { :; }
+pgrep() { return 1; }
+pkill() { return 0; }
+sudo() { return 0; }
 
 app_bundle="$HOME/Applications/TestApp.app"
 mkdir -p "$app_bundle"

@@ -3,35 +3,33 @@
 ## Setup
 
 ```bash
-# Install tools
+# Install development tools
 brew install shfmt shellcheck bats-core
-
-# Install git hooks (optional)
-./scripts/install-hooks.sh
 ```
 
 ## Development
+
+Run all quality checks before committing:
+
+```bash
+./scripts/check.sh
+```
+
+This command runs:
+
+- Code formatting check
+- ShellCheck linting
+- Unit tests
+
+Individual commands:
 
 ```bash
 # Format code
 ./scripts/format.sh
 
-# Run tests
+# Run tests only
 ./tests/run.sh
-
-# Check quality
-shellcheck -S warning mole bin/*.sh lib/*.sh
 ```
-
-## Git Hooks
-
-Pre-commit hook will auto-format your code. Install with:
-
-```bash
-./scripts/install-hooks.sh
-```
-
-Skip if needed: `git commit --no-verify`
 
 ## Code Style
 
@@ -47,9 +45,8 @@ Config: `.editorconfig` and `.shellcheckrc`
 
 1. Fork and create branch
 2. Make changes
-3. Format: `./scripts/format.sh`
-4. Test: `./tests/run.sh`
-5. Commit and push
-6. Open PR
+3. Run checks: `./scripts/check.sh`
+4. Commit and push
+5. Open PR
 
-CI will check formatting, lint, and run tests.
+CI will verify formatting, linting, and tests.

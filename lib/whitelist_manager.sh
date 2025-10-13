@@ -60,6 +60,7 @@ EOF
 get_all_cache_items() {
     # Format: "display_name|pattern|category"
     cat << 'EOF'
+Apple Mail cache|$HOME/Library/Caches/com.apple.mail/*|system_cache
 Gradle build cache (Android Studio, Gradle projects)|$HOME/.gradle/caches/*|ide_cache
 Gradle daemon processes cache|$HOME/.gradle/daemon/*|ide_cache
 Xcode DerivedData (build outputs, indexes)|$HOME/Library/Developer/Xcode/DerivedData/*|ide_cache
@@ -159,10 +160,9 @@ is_whitelisted() {
 
     for existing in "${CURRENT_WHITELIST_PATTERNS[@]}"; do
         local existing_expanded="${existing/#\~/$HOME}"
-        if [[ "$check_pattern" == "$existing_expanded" ]]; then
-            return 0
-        fi
-        if [[ "$check_pattern" == "$existing_expanded" ]]; then
+        # Support both exact match and glob pattern match
+        # shellcheck disable=SC2053
+        if [[ "$check_pattern" == "$existing_expanded" ]] || [[ $check_pattern == $existing_expanded ]]; then
             return 0
         fi
     done

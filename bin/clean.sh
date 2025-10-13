@@ -226,7 +226,8 @@ safe_clean() {
         if [[ ${#WHITELIST_PATTERNS[@]} -gt 0 ]]; then
             for w in "${WHITELIST_PATTERNS[@]}"; do
                 # Match both exact path and glob pattern
-                if [[ "$path" == "$w" ]] || [[ "$path" == "$w" ]]; then
+                # shellcheck disable=SC2053
+                if [[ "$path" == "$w" ]] || [[ $path == $w ]]; then
                     skip=true
                     ((skipped_count++))
                     break
@@ -491,7 +492,7 @@ perform_cleanup() {
     safe_clean ~/Library/Logs/* "User app logs"
     safe_clean ~/.Trash/* "Trash"
 
-    # Empty trash on mounted volumes (skip network/readonly volumes)
+    # Empty trash on mounted volumes
     if [[ -d "/Volumes" ]]; then
         for volume in /Volumes/*; do
             [[ -d "$volume" && -d "$volume/.Trashes" && -w "$volume" ]] || continue
@@ -515,10 +516,12 @@ perform_cleanup() {
     safe_clean ~/Library/DiagnosticReports/* "Diagnostic reports"
     safe_clean ~/Library/Caches/com.apple.QuickLook.thumbnailcache "QuickLook thumbnails"
     safe_clean ~/Library/Caches/Quick\ Look/* "QuickLook cache"
-    safe_clean ~/Library/Caches/com.apple.LaunchServices* "Launch services cache"
+    # Skip: affects Bluetooth audio service registration
+    # safe_clean ~/Library/Caches/com.apple.LaunchServices* "Launch services cache"
     safe_clean ~/Library/Caches/com.apple.iconservices* "Icon services cache"
     safe_clean ~/Library/Caches/CloudKit/* "CloudKit cache"
-    safe_clean ~/Library/Caches/com.apple.bird* "iCloud cache"
+    # Skip: may affect renamed Bluetooth device pairing
+    # safe_clean ~/Library/Caches/com.apple.bird* "iCloud cache"
 
     # Clean incomplete downloads
     safe_clean ~/Downloads/*.download "Incomplete downloads (Safari)"
@@ -530,7 +533,8 @@ perform_cleanup() {
     start_section "macOS system caches"
     safe_clean ~/Library/Saved\ Application\ State/* "Saved application states"
     safe_clean ~/Library/Caches/com.apple.spotlight "Spotlight cache"
-    safe_clean ~/Library/Caches/com.apple.metadata "Metadata cache"
+    # Skip: may store Bluetooth device info
+    # safe_clean ~/Library/Caches/com.apple.metadata "Metadata cache"
     safe_clean ~/Library/Caches/com.apple.FontRegistry "Font registry cache"
     safe_clean ~/Library/Caches/com.apple.ATS "Font cache"
     safe_clean ~/Library/Caches/com.apple.photoanalysisd "Photo analysis cache"
@@ -543,40 +547,33 @@ perform_cleanup() {
 
     # ===== 4. Sandboxed App Caches =====
     start_section "Sandboxed app caches"
-    # Clean specific high-usage apps first for better user feedback
     safe_clean ~/Library/Containers/com.apple.wallpaper.agent/Data/Library/Caches/* "Wallpaper agent cache"
     safe_clean ~/Library/Containers/com.apple.mediaanalysisd/Data/Library/Caches/* "Media analysis cache"
     safe_clean ~/Library/Containers/com.apple.AppStore/Data/Library/Caches/* "App Store cache"
-    # General pattern last (may match many apps)
     safe_clean ~/Library/Containers/*/Data/Library/Caches/* "Sandboxed app caches"
     end_section
 
     # ===== 5. Browsers =====
     start_section "Browser cleanup"
-    # Safari (cache only, NOT local storage or databases to preserve login states)
     safe_clean ~/Library/Caches/com.apple.Safari/* "Safari cache"
 
-    # Chrome/Chromium family
+    # Chrome/Chromium
     safe_clean ~/Library/Caches/Google/Chrome/* "Chrome cache"
     safe_clean ~/Library/Application\ Support/Google/Chrome/*/Application\ Cache/* "Chrome app cache"
     safe_clean ~/Library/Application\ Support/Google/Chrome/*/GPUCache/* "Chrome GPU cache"
     safe_clean ~/Library/Caches/Chromium/* "Chromium cache"
 
-    # Other browsers
     safe_clean ~/Library/Caches/com.microsoft.edgemac/* "Edge cache"
     safe_clean ~/Library/Caches/company.thebrowser.Browser/* "Arc cache"
     safe_clean ~/Library/Caches/BraveSoftware/Brave-Browser/* "Brave cache"
     safe_clean ~/Library/Caches/Firefox/* "Firefox cache"
     safe_clean ~/Library/Caches/com.operasoftware.Opera/* "Opera cache"
     safe_clean ~/Library/Caches/com.vivaldi.Vivaldi/* "Vivaldi cache"
-
-    # Browser support files
     safe_clean ~/Library/Application\ Support/Firefox/Profiles/*/cache2/* "Firefox profile cache"
     end_section
 
     # ===== 6. Cloud Storage =====
     start_section "Cloud storage caches"
-    # Only cache files, not sync state or login credentials
     safe_clean ~/Library/Caches/com.dropbox.* "Dropbox cache"
     safe_clean ~/Library/Caches/com.getdropbox.dropbox "Dropbox cache"
     safe_clean ~/Library/Caches/com.google.GoogleDrive "Google Drive cache"
@@ -600,7 +597,6 @@ perform_cleanup() {
 
     # ===== 8. Developer tools =====
     start_section "Developer tools"
-    # Node.js ecosystem
     if command -v npm > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "npm cache" npm cache clean --force
@@ -615,7 +611,6 @@ perform_cleanup() {
     safe_clean ~/.yarn/cache/* "Yarn cache"
     safe_clean ~/.bun/install/cache/* "Bun cache"
 
-    # Python ecosystem
     if command -v pip3 > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "pip cache" pip3 cache purge
@@ -629,7 +624,6 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/pip/* "pip cache (macOS)"
     safe_clean ~/.pyenv/cache/* "pyenv cache"
 
-    # Go ecosystem
     if command -v go > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "Go cache" bash -c 'go clean -modcache >/dev/null 2>&1 || true; go clean -cache >/dev/null 2>&1 || true'
@@ -641,11 +635,9 @@ perform_cleanup() {
 
     safe_clean ~/Library/Caches/go-build/* "Go build cache"
     safe_clean ~/go/pkg/mod/cache/* "Go module cache"
-
-    # Rust
     safe_clean ~/.cargo/registry/cache/* "Rust cargo cache"
 
-    # Docker (only clean build cache, preserve images and volumes)
+    # Docker build cache
     if command -v docker > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "Docker build cache" docker builder prune -af
@@ -655,22 +647,16 @@ perform_cleanup() {
         note_activity
     fi
 
-    # Container tools
     safe_clean ~/.kube/cache/* "Kubernetes cache"
     safe_clean ~/.local/share/containers/storage/tmp/* "Container storage temp"
-
-    # Cloud CLI tools
     safe_clean ~/.aws/cli/cache/* "AWS CLI cache"
     safe_clean ~/.config/gcloud/logs/* "Google Cloud logs"
     safe_clean ~/.azure/logs/* "Azure CLI logs"
-
-    # Homebrew cleanup
     safe_clean ~/Library/Caches/Homebrew/* "Homebrew cache"
     safe_clean /opt/homebrew/var/homebrew/locks/* "Homebrew lock files (M series)"
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
     if command -v brew > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            # Use -s (scrub cache) for faster cleanup, --prune=all removes old versions
             MOLE_CMD_TIMEOUT=300 clean_tool_cache "Homebrew cleanup" brew cleanup -s --prune=all
         else
             echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup)"
@@ -678,14 +664,11 @@ perform_cleanup() {
         note_activity
     fi
 
-    # Git
     safe_clean ~/.gitconfig.lock "Git config lock"
     end_section
 
     # ===== 9. Extended developer caches =====
     start_section "Extended developer caches"
-
-    # Additional Node.js and frontend tools
     safe_clean ~/.pnpm-store/* "pnpm store cache"
     safe_clean ~/.local/share/pnpm/store/* "pnpm global store"
     safe_clean ~/.cache/typescript/* "TypeScript cache"
@@ -698,8 +681,6 @@ perform_cleanup() {
     safe_clean ~/.cache/vite/* "Vite global cache"
     safe_clean ~/.cache/webpack/* "Webpack cache"
     safe_clean ~/.parcel-cache/* "Parcel cache"
-
-    # Design and development tools
     safe_clean ~/Library/Caches/Google/AndroidStudio*/* "Android Studio cache"
     safe_clean ~/Library/Caches/com.unity3d.*/* "Unity cache"
     safe_clean ~/Library/Caches/com.jetbrains.toolbox/* "JetBrains Toolbox cache"
@@ -711,15 +692,11 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.github.GitHubDesktop/* "GitHub Desktop cache"
     safe_clean ~/Library/Caches/com.microsoft.VSCode/* "VS Code cache"
     safe_clean ~/Library/Caches/com.sublimetext.*/* "Sublime Text cache"
-
-    # Python tooling
     safe_clean ~/.cache/poetry/* "Poetry cache"
     safe_clean ~/.cache/uv/* "uv cache"
     safe_clean ~/.cache/ruff/* "Ruff cache"
     safe_clean ~/.cache/mypy/* "MyPy cache"
     safe_clean ~/.pytest_cache/* "Pytest cache"
-
-    # AI/ML and Data Science tools
     safe_clean ~/.jupyter/runtime/* "Jupyter runtime cache"
     safe_clean ~/.cache/huggingface/* "Hugging Face cache"
     safe_clean ~/.cache/torch/* "PyTorch cache"
@@ -727,35 +704,23 @@ perform_cleanup() {
     safe_clean ~/.conda/pkgs/* "Conda packages cache"
     safe_clean ~/anaconda3/pkgs/* "Anaconda packages cache"
     safe_clean ~/.cache/wandb/* "Weights & Biases cache"
-
-    # Rust tooling
     safe_clean ~/.cargo/git/* "Cargo git cache"
     safe_clean ~/.rustup/toolchains/*/share/doc/* "Rust documentation cache"
     safe_clean ~/.rustup/downloads/* "Rust downloads cache"
-
-    # Java tooling
     safe_clean ~/.gradle/caches/* "Gradle caches"
     safe_clean ~/.m2/repository/* "Maven repository cache"
     safe_clean ~/.sbt/* "SBT cache"
-
-    # Cloud and container tools
     safe_clean ~/.docker/buildx/cache/* "Docker BuildX cache"
     safe_clean ~/.cache/terraform/* "Terraform cache"
-
-    # API and network development tools
     safe_clean ~/Library/Caches/com.getpaw.Paw/* "Paw API cache"
     safe_clean ~/Library/Caches/com.charlesproxy.charles/* "Charles Proxy cache"
     safe_clean ~/Library/Caches/com.proxyman.NSProxy/* "Proxyman cache"
-
-    # CI/CD tools
     safe_clean ~/.grafana/cache/* "Grafana cache"
     safe_clean ~/.prometheus/data/wal/* "Prometheus WAL cache"
     safe_clean ~/.jenkins/workspace/*/target/* "Jenkins workspace cache"
     safe_clean ~/.cache/gitlab-runner/* "GitLab Runner cache"
     safe_clean ~/.github/cache/* "GitHub Actions cache"
     safe_clean ~/.circleci/cache/* "CircleCI cache"
-
-    # Additional development tools
     safe_clean ~/.oh-my-zsh/cache/* "Oh My Zsh cache"
     safe_clean ~/.config/fish/fish_history.bak* "Fish shell backup"
     safe_clean ~/.bash_history.bak* "Bash history backup"
@@ -763,62 +728,46 @@ perform_cleanup() {
     safe_clean ~/.sonar/* "SonarQube cache"
     safe_clean ~/.cache/eslint/* "ESLint cache"
     safe_clean ~/.cache/prettier/* "Prettier cache"
-
-    # Mobile development
     safe_clean ~/Library/Caches/CocoaPods/* "CocoaPods cache"
     safe_clean ~/.bundle/cache/* "Ruby Bundler cache"
     safe_clean ~/.composer/cache/* "PHP Composer cache"
     safe_clean ~/.nuget/packages/* "NuGet packages cache"
     safe_clean ~/.ivy2/cache/* "Ivy cache"
     safe_clean ~/.pub-cache/* "Dart Pub cache"
-
-    # Network tools cache
     safe_clean ~/.cache/curl/* "curl cache"
     safe_clean ~/.cache/wget/* "wget cache"
     safe_clean ~/Library/Caches/curl/* "curl cache (macOS)"
     safe_clean ~/Library/Caches/wget/* "wget cache (macOS)"
-
-    # Git and version control
     safe_clean ~/.cache/pre-commit/* "pre-commit cache"
     safe_clean ~/.gitconfig.bak* "Git config backup"
-
-    # Mobile development additional
     safe_clean ~/.cache/flutter/* "Flutter cache"
     safe_clean ~/.gradle/daemon/* "Gradle daemon logs"
     safe_clean ~/.android/build-cache/* "Android build cache"
     safe_clean ~/.android/cache/* "Android SDK cache"
     safe_clean ~/Library/Developer/Xcode/iOS\ DeviceSupport/*/Symbols/System/Library/Caches/* "iOS device cache"
     safe_clean ~/Library/Developer/Xcode/UserData/IB\ Support/* "Xcode Interface Builder cache"
-
-    # Other language tool caches
     safe_clean ~/.cache/swift-package-manager/* "Swift package manager cache"
     safe_clean ~/.cache/bazel/* "Bazel cache"
     safe_clean ~/.cache/zig/* "Zig cache"
     safe_clean ~/Library/Caches/deno/* "Deno cache"
-
-    # Database tools
     safe_clean ~/Library/Caches/com.sequel-ace.sequel-ace/* "Sequel Ace cache"
     safe_clean ~/Library/Caches/com.eggerapps.Sequel-Pro/* "Sequel Pro cache"
     safe_clean ~/Library/Caches/redis-desktop-manager/* "Redis Desktop Manager cache"
     safe_clean ~/Library/Caches/com.navicat.* "Navicat cache"
     safe_clean ~/Library/Caches/com.dbeaver.* "DBeaver cache"
     safe_clean ~/Library/Caches/com.redis.RedisInsight "Redis Insight cache"
-
-    # Crash reports and debugging
     safe_clean ~/Library/Caches/SentryCrash/* "Sentry crash reports"
     safe_clean ~/Library/Caches/KSCrash/* "KSCrash reports"
     safe_clean ~/Library/Caches/com.crashlytics.data/* "Crashlytics data"
-    # Note: HTTPStorages contains cookies and login sessions, NOT safe to delete
+    # Skip: HTTPStorages contains login sessions
     # safe_clean ~/Library/HTTPStorages/* "HTTP storage cache"
 
     end_section
 
     # ===== 10. Applications =====
     start_section "Applications"
-
-    # Xcode & iOS development
     safe_clean ~/Library/Developer/Xcode/DerivedData/* "Xcode derived data"
-    # Note: Archives contain signed App Store builds - NOT safe to auto-delete
+    # Skip: Archives contain signed App Store builds
     # safe_clean ~/Library/Developer/Xcode/Archives/* "Xcode archives"
     safe_clean ~/Library/Developer/CoreSimulator/Caches/* "Simulator cache"
     safe_clean ~/Library/Developer/CoreSimulator/Devices/*/data/tmp/* "Simulator temp files"
@@ -826,14 +775,10 @@ perform_cleanup() {
     safe_clean ~/Library/Developer/Xcode/iOS\ Device\ Logs/* "iOS device logs"
     safe_clean ~/Library/Developer/Xcode/watchOS\ Device\ Logs/* "watchOS device logs"
     safe_clean ~/Library/Developer/Xcode/Products/* "Xcode build products"
-
-    # VS Code family
     safe_clean ~/Library/Application\ Support/Code/logs/* "VS Code logs"
     safe_clean ~/Library/Application\ Support/Code/Cache/* "VS Code cache"
     safe_clean ~/Library/Application\ Support/Code/CachedExtensions/* "VS Code extension cache"
     safe_clean ~/Library/Application\ Support/Code/CachedData/* "VS Code data cache"
-
-    # JetBrains IDEs
     safe_clean ~/Library/Logs/IntelliJIdea*/* "IntelliJ IDEA logs"
     safe_clean ~/Library/Logs/PhpStorm*/* "PhpStorm logs"
     safe_clean ~/Library/Logs/PyCharm*/* "PyCharm logs"
@@ -842,8 +787,6 @@ perform_cleanup() {
     safe_clean ~/Library/Logs/CLion*/* "CLion logs"
     safe_clean ~/Library/Logs/DataGrip*/* "DataGrip logs"
     safe_clean ~/Library/Caches/JetBrains/* "JetBrains cache"
-
-    # Communication and social apps
     safe_clean ~/Library/Application\ Support/discord/Cache/* "Discord cache"
     safe_clean ~/Library/Application\ Support/Slack/Cache/* "Slack cache"
     safe_clean ~/Library/Caches/us.zoom.xos/* "Zoom cache"
@@ -862,38 +805,26 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.tencent.meeting/* "Tencent Meeting cache"
     safe_clean ~/Library/Caches/com.tencent.WeWorkMac/* "WeCom cache"
     safe_clean ~/Library/Caches/com.feishu.*/* "Feishu cache"
-
-    # Design and creative software
     safe_clean ~/Library/Caches/com.bohemiancoding.sketch3/* "Sketch cache"
     safe_clean ~/Library/Application\ Support/com.bohemiancoding.sketch3/cache/* "Sketch app cache"
     safe_clean ~/Library/Caches/net.telestream.screenflow10/* "ScreenFlow cache"
-
-    # Adobe Creative Suite
     safe_clean ~/Library/Caches/Adobe/* "Adobe cache"
     safe_clean ~/Library/Caches/com.adobe.*/* "Adobe app caches"
     safe_clean ~/Library/Application\ Support/Adobe/Common/Media\ Cache\ Files/* "Adobe media cache"
     safe_clean ~/Library/Application\ Support/Adobe/Common/Peak\ Files/* "Adobe peak files"
-
-    # Video editing software
     safe_clean ~/Library/Caches/com.apple.FinalCut/* "Final Cut Pro cache"
     safe_clean ~/Library/Application\ Support/Final\ Cut\ Pro/*/Render\ Files/* "Final Cut render cache"
     safe_clean ~/Library/Application\ Support/Motion/*/Render\ Files/* "Motion render cache"
     safe_clean ~/Library/Caches/com.blackmagic-design.DaVinciResolve/* "DaVinci Resolve cache"
     safe_clean ~/Library/Caches/com.adobe.PremierePro.*/* "Premiere Pro cache"
-
-    # 3D modeling and design
     safe_clean ~/Library/Caches/org.blenderfoundation.blender/* "Blender cache"
     safe_clean ~/Library/Caches/com.maxon.cinema4d/* "Cinema 4D cache"
     safe_clean ~/Library/Caches/com.autodesk.*/* "Autodesk cache"
     safe_clean ~/Library/Caches/com.sketchup.*/* "SketchUp cache"
-
-    # Productivity and dev utilities
     safe_clean ~/Library/Caches/com.raycast.macos/* "Raycast cache"
     safe_clean ~/Library/Caches/com.tw93.MiaoYan/* "MiaoYan cache"
     safe_clean ~/Library/Caches/com.filo.client/* "Filo cache"
     safe_clean ~/Library/Caches/com.flomoapp.mac/* "Flomo cache"
-
-    # Music and entertainment
     safe_clean ~/Library/Caches/com.spotify.client/* "Spotify cache"
     safe_clean ~/Library/Caches/com.apple.Music "Apple Music cache"
     safe_clean ~/Library/Caches/com.apple.podcasts "Apple Podcasts cache"
@@ -911,16 +842,12 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/tv.danmaku.bili/* "Bilibili cache"
     safe_clean ~/Library/Caches/com.douyu.*/* "Douyu cache"
     safe_clean ~/Library/Caches/com.huya.*/* "Huya cache"
-
-    # Download tools
     safe_clean ~/Library/Caches/net.xmac.aria2gui "Aria2 cache"
     safe_clean ~/Library/Caches/org.m0k.transmission "Transmission cache"
     safe_clean ~/Library/Caches/com.qbittorrent.qBittorrent "qBittorrent cache"
     safe_clean ~/Library/Caches/com.downie.Downie-* "Downie cache"
     safe_clean ~/Library/Caches/com.folx.*/* "Folx cache"
     safe_clean ~/Library/Caches/com.charlessoft.pacifist/* "Pacifist cache"
-
-    # Gaming platforms
     safe_clean ~/Library/Caches/com.valvesoftware.steam/* "Steam cache"
     safe_clean ~/Library/Application\ Support/Steam/appcache/* "Steam app cache"
     safe_clean ~/Library/Application\ Support/Steam/htmlcache/* "Steam web cache"
@@ -930,32 +857,20 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.ea.*/* "EA Origin cache"
     safe_clean ~/Library/Caches/com.gog.galaxy/* "GOG Galaxy cache"
     safe_clean ~/Library/Caches/com.riotgames.*/* "Riot Games cache"
-
-    # Translation tools
     safe_clean ~/Library/Caches/com.youdao.YoudaoDict "Youdao Dictionary cache"
     safe_clean ~/Library/Caches/com.eudic.* "Eudict cache"
     safe_clean ~/Library/Caches/com.bob-build.Bob "Bob Translation cache"
-
-    # Screenshot and recording tools
     safe_clean ~/Library/Caches/com.cleanshot.* "CleanShot cache"
     safe_clean ~/Library/Caches/com.reincubate.camo "Camo cache"
     safe_clean ~/Library/Caches/com.xnipapp.xnip "Xnip cache"
-
-    # Email clients (only cache, NOT database files)
     safe_clean ~/Library/Caches/com.readdle.smartemail-Mac "Spark cache"
     safe_clean ~/Library/Caches/com.airmail.* "Airmail cache"
-
-    # Task management
     safe_clean ~/Library/Caches/com.todoist.mac.Todoist "Todoist cache"
     safe_clean ~/Library/Caches/com.any.do.* "Any.do cache"
-
-    # Shell and command line
     safe_clean ~/.zcompdump* "Zsh completion cache"
     safe_clean ~/.lesshst "less history"
     safe_clean ~/.viminfo.tmp "Vim temporary files"
     safe_clean ~/.wget-hsts "wget HSTS cache"
-
-    # Utilities and productivity (only cache, avoid license/settings data)
     safe_clean ~/Library/Caches/com.runjuu.Input-Source-Pro/* "Input Source Pro cache"
     safe_clean ~/Library/Caches/macos-wakatime.WakaTime/* "WakaTime cache"
     safe_clean ~/Library/Caches/notion.id/* "Notion cache"
@@ -966,14 +881,10 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.yinxiang.*/* "Yinxiang Note cache"
     safe_clean ~/Library/Caches/com.runningwithcrayons.Alfred/* "Alfred cache"
     safe_clean ~/Library/Caches/cx.c3.theunarchiver/* "The Unarchiver cache"
-
-    # Remote desktop and collaboration
     safe_clean ~/Library/Caches/com.teamviewer.*/* "TeamViewer cache"
     safe_clean ~/Library/Caches/com.anydesk.*/* "AnyDesk cache"
     safe_clean ~/Library/Caches/com.todesk.*/* "ToDesk cache"
     safe_clean ~/Library/Caches/com.sunlogin.*/* "Sunlogin cache"
-
-    # Note: Skipping App Cleaner, 1Password and similar apps to preserve licenses
 
     end_section
 
@@ -1015,19 +926,14 @@ perform_cleanup() {
     end_section
 
     # ===== 13. Orphaned app data cleanup =====
-    # Deep cleanup of leftover files from uninstalled apps
-    #
-    # SAFETY POLICY:
-    # - Only touch apps missing from the 10+ location scan
-    # - Require 60+ days of inactivity; skip protected vendors (Adobe, Office, etc.)
-    # - Keep Preferences/Application Support; only remove caches/logs/temp data
-    # Safeguards: retains unusual locations in use, recent apps, and critical/licensed data
+    # Only touch apps missing from comprehensive scan + 60+ days inactive
+    # Skip protected vendors, keep Preferences/Application Support
     start_section "Orphaned app data cleanup"
 
     local -r ORPHAN_AGE_THRESHOLD=$ORPHAN_AGE_DAYS
 
-    # Build a comprehensive list of installed application bundle identifiers
-    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning installed applications..." # ensure spinner function exists above
+    # Build list of installed application bundle identifiers
+    MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning installed applications..."
     local installed_bundles=$(create_temp_file)
     local running_bundles=$(create_temp_file)
     local launch_agents=$(create_temp_file)
@@ -1060,7 +966,7 @@ perform_cleanup() {
     [[ -d "/opt/local/Applications" ]] && search_paths+=("/opt/local/Applications")
     [[ -d "/usr/local/apps" ]] && search_paths+=("/usr/local/apps")
 
-    # Scan for .app bundles in all search paths (with depth limit for performance)
+    # Scan for .app bundles in all search paths
     for search_path in "${search_paths[@]}"; do
         if [[ -d "$search_path" ]]; then
             while IFS= read -r app; do
@@ -1071,8 +977,7 @@ perform_cleanup() {
         fi
     done
 
-    # Use Spotlight as fallback to catch apps in unusual locations
-    # This significantly reduces false positives
+    # Use Spotlight fallback for apps in unusual locations
     if command -v mdfind > /dev/null 2>&1; then
         while IFS= read -r app; do
             [[ -f "$app/Contents/Info.plist" ]] || continue
@@ -1081,11 +986,11 @@ perform_cleanup() {
         done < <(mdfind "kMDItemKind == 'Application'" 2> /dev/null | grep "\.app$" || true)
     fi
 
-    # Get running applications (if an app is running, it's definitely not orphaned)
+    # Get running applications
     local running_apps=$(osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2> /dev/null || echo "")
     echo "$running_apps" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' > "$running_bundles"
 
-    # Check LaunchAgents and LaunchDaemons (if app has launch items, it likely exists)
+    # Check LaunchAgents and LaunchDaemons
     find ~/Library/LaunchAgents /Library/LaunchAgents /Library/LaunchDaemons \
         -name "*.plist" -type f 2> /dev/null | while IFS= read -r plist; do
         bundle_id=$(basename "$plist" .plist)
@@ -1104,54 +1009,46 @@ perform_cleanup() {
     local orphaned_count=0
     local total_orphaned_kb=0
 
-    # Function to check if bundle is SAFELY orphaned (ULTRA-CONSERVATIVE)
-    # Returns 0 (true) only if we are VERY CONFIDENT the app is uninstalled
+    # Check if bundle is orphaned - conservative approach
     is_orphaned() {
         local bundle_id="$1"
-        local directory_path="$2" # The actual directory we're considering deleting
+        local directory_path="$2"
 
-        # SAFETY CHECK 1: Skip system-critical and protected apps (MOST IMPORTANT)
+        # Skip system-critical and protected apps
         if should_protect_data "$bundle_id"; then
             return 1
         fi
 
-        # SAFETY CHECK 2: Check if app bundle exists in our comprehensive scan
+        # Check if app exists in our scan
         if grep -q "^$bundle_id$" "$installed_bundles" 2> /dev/null; then
             return 1
         fi
 
-        # SAFETY CHECK 3: Extra check for system bundles (belt and suspenders)
+        # Extra check for system bundles
         case "$bundle_id" in
             com.apple.* | loginwindow | dock | systempreferences | finder | safari)
                 return 1
                 ;;
         esac
 
-        # SAFETY CHECK 4: If it's a very common/important prefix, be extra careful
-        # For major vendors, we NEVER auto-clean (too risky)
+        # Skip major vendors
         case "$bundle_id" in
             com.adobe.* | com.microsoft.* | com.google.* | org.mozilla.* | com.jetbrains.* | com.docker.*)
                 return 1
                 ;;
         esac
 
-        # SAFETY CHECK 5: Check file age - CRITICAL SAFETY NET
-        # Only consider it orphaned if files haven't been accessed in 60+ days
-        # This protects against apps in unusual locations we didn't scan
+        # Check file age - only clean if 60+ days inactive
         if [[ -e "$directory_path" ]]; then
-            # Get last access time (days ago)
             local last_access_epoch=$(stat -f%a "$directory_path" 2> /dev/null || echo "0")
             local current_epoch=$(date +%s)
             local days_since_access=$(((current_epoch - last_access_epoch) / 86400))
 
-            # If accessed in the last 60 days, DO NOT DELETE
-            # This means app is likely still installed somewhere
             if [[ $days_since_access -lt $ORPHAN_AGE_THRESHOLD ]]; then
                 return 1
             fi
         fi
 
-        # All checks passed - likely orphaned AND old
         return 0
     }
 
@@ -1216,10 +1113,7 @@ perform_cleanup() {
     echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $states_found orphaned saved states"
 
     # Clean orphaned containers
-    # NOTE: Container cleanup is DISABLED by default due to naming mismatch issues
-    # Some apps create containers with names that don't strictly match their Bundle ID,
-    # especially when system extensions are registered. This can cause false positives.
-    # To avoid deleting data from installed apps, we skip container cleanup.
+    # Note: Disabled by default - container names may not match Bundle IDs
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned containers..."
     local containers_found=0
     if ls ~/Library/Containers/com.* > /dev/null 2>&1; then
@@ -1303,16 +1197,14 @@ perform_cleanup() {
     # Calculate total
     orphaned_count=$((cache_found + logs_found + states_found + containers_found + webkit_found + http_found + cookies_found))
 
-    # Summary
     if [[ $orphaned_count -gt 0 ]]; then
         local orphaned_mb=$(echo "$total_orphaned_kb" | awk '{printf "%.1f", $1/1024}')
         echo "  ${GREEN}${ICON_SUCCESS}${NC} Cleaned $orphaned_count orphaned items (~${orphaned_mb}MB)"
         note_activity
     else
-        echo "  ${GREEN}${ICON_SUCCESS}${NC} No old orphaned app data found"
+        echo "  ${GREEN}${ICON_SUCCESS}${NC} No orphaned app data found"
     fi
 
-    # Clean up temp files
     rm -f "$installed_bundles" "$running_bundles" "$launch_agents"
 
     end_section
@@ -1323,7 +1215,8 @@ perform_cleanup() {
         safe_clean /Library/Apple/usr/share/rosetta/rosetta_update_bundle "Rosetta 2 cache"
         safe_clean ~/Library/Caches/com.apple.rosetta.update "Rosetta 2 user cache"
         safe_clean ~/Library/Caches/com.apple.amp.mediasevicesd "Apple Silicon media service cache"
-        safe_clean ~/Library/Caches/com.apple.bird.lsuseractivity "User activity cache"
+        # Skip: iCloud sync cache, may affect device pairing
+        # safe_clean ~/Library/Caches/com.apple.bird.lsuseractivity "User activity cache"
         end_section
     fi
 

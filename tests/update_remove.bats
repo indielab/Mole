@@ -4,6 +4,10 @@ setup_file() {
     PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     export PROJECT_ROOT
 
+    # Read current version from mole file (single source of truth)
+    CURRENT_VERSION="$(grep '^VERSION=' "$PROJECT_ROOT/mole" | head -1 | sed 's/VERSION="\(.*\)"/\1/')"
+    export CURRENT_VERSION
+
     ORIGINAL_HOME="${HOME:-}"
     export ORIGINAL_HOME
 
@@ -72,7 +76,7 @@ if [[ -n "$out" ]]; then
 echo "Installer executed"
 INSTALLER
 else
-  echo 'VERSION="1.7.9"'
+  echo "VERSION=\"$CURRENT_VERSION\""
 fi
 SCRIPT
 chmod +x "$HOME/fake-bin/curl"

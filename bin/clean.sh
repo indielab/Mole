@@ -540,8 +540,7 @@ perform_cleanup() {
     safe_clean ~/Library/Caches/com.apple.photoanalysisd "Photo analysis cache"
     safe_clean ~/Library/Caches/com.apple.akd "Apple ID cache"
     safe_clean ~/Library/Caches/com.apple.Safari/Webpage\ Previews/* "Safari webpage previews"
-    safe_clean ~/Library/Mail/V*/MailData/Envelope\ Index* "Mail envelope index"
-    safe_clean ~/Library/Mail/V*/MailData/BackupTOC.plist "Mail backup index"
+    # Mail envelope index and backup index are intentionally not cleaned (issue #32)
     safe_clean ~/Library/Application\ Support/CloudDocs/session/db/* "iCloud session cache"
     end_section
 
@@ -1116,6 +1115,7 @@ perform_cleanup() {
     # Note: Disabled by default - container names may not match Bundle IDs
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned containers..."
     local containers_found=0
+    local containers_size_kb=0
     if ls ~/Library/Containers/com.* > /dev/null 2>&1; then
         # Count potential orphaned containers but don't delete them
         for container_dir in ~/Library/Containers/com.* ~/Library/Containers/org.* ~/Library/Containers/net.* ~/Library/Containers/io.*; do
@@ -1124,15 +1124,20 @@ perform_cleanup() {
             if is_orphaned "$bundle_id" "$container_dir"; then
                 local size_kb=$(du -sk "$container_dir" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
-                    # DISABLED: safe_clean "$container_dir" "Orphaned container: $bundle_id"
+                    # DISABLED: Not cleaned due to potential Bundle ID mismatch risk
                     ((containers_found++))
-                    ((total_orphaned_kb += size_kb))
+                    ((containers_size_kb += size_kb))
                 fi
             fi
         done
     fi
     stop_inline_spinner
-    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Skipped $containers_found potential orphaned containers"
+    if [[ $containers_found -gt 0 ]]; then
+        local containers_mb=$(echo "$containers_size_kb" | awk '{printf "%.1f", $1/1024}')
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Skipped $containers_found potential orphaned containers (~${containers_mb}MB)"
+    else
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} No potential orphaned containers found"
+    fi
 
     # Clean orphaned WebKit data
     MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned WebKit data..."
@@ -1194,8 +1199,8 @@ perform_cleanup() {
     stop_inline_spinner
     echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Found $cookies_found orphaned cookie files"
 
-    # Calculate total
-    orphaned_count=$((cache_found + logs_found + states_found + containers_found + webkit_found + http_found + cookies_found))
+    # Calculate total (exclude containers since they were not cleaned)
+    orphaned_count=$((cache_found + logs_found + states_found + webkit_found + http_found + cookies_found))
 
     if [[ $orphaned_count -gt 0 ]]; then
         local orphaned_mb=$(echo "$total_orphaned_kb" | awk '{printf "%.1f", $1/1024}')

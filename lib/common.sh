@@ -186,9 +186,9 @@ read_key() {
             return 0
         fi
         case "$key" in
-            $'\n'|$'\r') echo "ENTER" ;;
-            $'\x7f'|$'\x08') echo "DELETE" ;;
-            $'\x1b') echo "QUIT" ;;   # ESC cancels filter
+            $'\n' | $'\r') echo "ENTER" ;;
+            $'\x7f' | $'\x08') echo "DELETE" ;;
+            $'\x1b') echo "QUIT" ;; # ESC cancels filter
             *)
                 case "$key" in
                     [[:print:]]) echo "CHAR:$key" ;;

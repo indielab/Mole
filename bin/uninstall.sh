@@ -66,7 +66,7 @@ scan_applications() {
     local cache_dir="$HOME/.cache/mole"
     local cache_file="$cache_dir/app_scan_cache"
     local cache_meta="$cache_dir/app_scan_meta"
-    local cache_ttl=3600 # 1 hour cache validity
+    local cache_ttl=86400 # 24 hours cache validity (app count change will trigger refresh)
 
     mkdir -p "$cache_dir" 2> /dev/null
 
@@ -87,11 +87,13 @@ scan_applications() {
 
         # Cache is valid if: age < TTL AND app count matches
         if [[ $cache_age -lt $cache_ttl && "$cached_app_count" == "$current_app_count" ]]; then
-            # Silent - cache hit, no need to show progress
+            # Silent - cache hit, return immediately without any output
             echo "$cache_file"
             return 0
         fi
     fi
+
+    # Cache miss - show scanning feedback below
 
     local temp_file
     temp_file=$(create_temp_file)
@@ -541,7 +543,24 @@ main() {
     # Hide cursor during operation
     hide_cursor
 
-    if [[ $use_inline_loading == true ]]; then
+    # Quick cache validity check first (minimal I/O)
+    local cache_dir="$HOME/.cache/mole"
+    local cache_file="$cache_dir/app_scan_cache"
+    local cache_meta="$cache_dir/app_scan_meta"
+    local cache_ttl=86400
+    local needs_scanning=true
+
+    # Fast preliminary check: cache exists and not expired
+    if [[ -f "$cache_file" && -f "$cache_meta" ]]; then
+        local cache_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2> /dev/null || echo 86401)))
+        if [[ $cache_age -lt $cache_ttl ]]; then
+            # Cache age is OK, now check app count (delegate to scan_applications)
+            needs_scanning=false
+        fi
+    fi
+
+    # Only enter alt screen if we need scanning (shows progress)
+    if [[ $needs_scanning == true && $use_inline_loading == true ]]; then
         enter_alt_screen
         export MOLE_ALT_SCREEN_ACTIVE=1
         export MOLE_INLINE_LOADING=1
@@ -554,7 +573,7 @@ main() {
     # Scan applications
     local apps_file=""
     if ! apps_file=$(scan_applications); then
-        if [[ $use_inline_loading == true ]]; then
+        if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
             printf "\033[2J\033[H" >&2
             leave_alt_screen
             unset MOLE_ALT_SCREEN_ACTIVE
@@ -563,13 +582,13 @@ main() {
         return 1
     fi
 
-    if [[ $use_inline_loading == true ]]; then
+    if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
         printf "\033[2J\033[H" >&2
     fi
 
     if [[ ! -f "$apps_file" ]]; then
         # Error message already shown by scan_applications
-        if [[ $use_inline_loading == true ]]; then
+        if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
             leave_alt_screen
             unset MOLE_ALT_SCREEN_ACTIVE
             unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
@@ -579,7 +598,7 @@ main() {
 
     # Load applications
     if ! load_applications "$apps_file"; then
-        if [[ $use_inline_loading == true ]]; then
+        if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
             leave_alt_screen
             unset MOLE_ALT_SCREEN_ACTIVE
             unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
@@ -590,7 +609,7 @@ main() {
 
     # Interactive selection using paginated menu
     if ! select_apps_for_uninstall; then
-        if [[ $use_inline_loading == true ]]; then
+        if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
             leave_alt_screen
             unset MOLE_ALT_SCREEN_ACTIVE
             unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN
@@ -599,7 +618,7 @@ main() {
         return 0
     fi
 
-    if [[ $use_inline_loading == true ]]; then
+    if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
         leave_alt_screen
         unset MOLE_ALT_SCREEN_ACTIVE
         unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN

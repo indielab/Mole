@@ -141,43 +141,6 @@ Total: 156.8GB
 └─ 📁 Desktop                                        12.7GB
 ```
 
-## Development
-
-### Setup
-
-Install development tools:
-
-```bash
-brew install shfmt shellcheck bats-core
-```
-
-### Code Quality
-
-Format and lint shell scripts:
-
-```bash
-# Format all scripts
-./scripts/format.sh
-
-# Check without modifying
-./scripts/format.sh --check
-
-# Install git hooks for auto-formatting
-./scripts/install-hooks.sh
-```
-
-See [scripts/README.md](scripts/README.md) for detailed development workflow.
-
-### Testing
-
-Run automated tests:
-
-```bash
-./tests/run.sh
-```
-
-GitHub Actions automatically runs tests and formatting checks on PRs.
-
 ## Support
 
 - If Mole reclaimed storage for you, consider starring the repo or sharing it with friends needing a cleaner Mac.

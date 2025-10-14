@@ -29,11 +29,11 @@ _pm_parse_csv_to_array() {
 
 # Non-blocking input drain (bash 3.2)
 drain_pending_input() {
-  local _k
-  # -t 0 is non-blocking; -n 1 consumes one byte at a time
-  while IFS= read -r -s -n 1 -t 0 _k; do
-    IFS= read -r -s -n 1 _k || break
-  done
+    local _k
+    # -t 0 is non-blocking; -n 1 consumes one byte at a time
+    while IFS= read -r -s -n 1 -t 0 _k; do
+        IFS= read -r -s -n 1 _k || break
+    done
 }
 
 # Main paginated multi-select menu function
@@ -57,8 +57,8 @@ paginated_multi_select() {
     local cursor_pos=0
     local top_index=0
     local filter_query=""
-    local filter_mode="false"                              # filter mode toggle
-    local sort_mode="${MOLE_MENU_SORT_DEFAULT:-date}"     # date|name|size
+    local filter_mode="false"                         # filter mode toggle
+    local sort_mode="${MOLE_MENU_SORT_DEFAULT:-date}" # date|name|size
     local sort_reverse="false"
     # Live query vs applied query
     local applied_query=""
@@ -97,11 +97,11 @@ paginated_multi_select() {
     _pm_escape_glob() {
         local s="${1-}" out="" c
         local i len=${#s}
-        for ((i=0; i<len; i++)); do
+        for ((i = 0; i < len; i++)); do
             c="${s:i:1}"
             case "$c" in
-                '\'|'*'|'?'|'['|']') out+="\\$c" ;;
-                *)                   out+="$c"  ;;
+                '\' | '*' | '?' | '[' | ']') out+="\\$c" ;;
+                *) out+="$c" ;;
             esac
         done
         printf '%s' "$out"
@@ -191,11 +191,12 @@ paginated_multi_select() {
 
     # Print footer lines wrapping only at separators
     _print_wrapped_controls() {
-        local sep="$1"; shift
+        local sep="$1"
+        shift
         local -a segs=("$@")
 
         local cols="${COLUMNS:-}"
-        [[ -z "$cols" ]] && cols=$(tput cols 2>/dev/null || echo 80)
+        [[ -z "$cols" ]] && cols=$(tput cols 2> /dev/null || echo 80)
 
         _strip_ansi_len() {
             local text="$1"
@@ -212,7 +213,7 @@ paginated_multi_select() {
             else
                 candidate="$line${sep}${s}"
             fi
-            if (( $(_strip_ansi_len "$candidate") > cols )); then
+            if (($(_strip_ansi_len "$candidate") > cols)); then
                 printf "%s%s\n" "$clear_line" "$line" >&2
                 line="$s"
             else
@@ -280,14 +281,14 @@ paginated_multi_select() {
 
             # Create temporary file for sorting
             local tmpfile
-            tmpfile=$(mktemp 2>/dev/null) || tmpfile=""
+            tmpfile=$(mktemp 2> /dev/null) || tmpfile=""
             if [[ -n "$tmpfile" ]]; then
                 local k id
                 for id in "${filtered[@]}"; do
                     case "$sort_mode" in
                         date) k="${epochs[id]:-0}" ;;
                         size) k="${sizekb[id]:-0}" ;;
-                        name|*) k="${items[id]}|${id}" ;;
+                        name | *) k="${items[id]}|${id}" ;;
                     esac
                     printf "%s\t%s\n" "$k" "$id" >> "$tmpfile"
                 done
@@ -296,7 +297,7 @@ paginated_multi_select() {
                 while IFS=$'\t' read -r _key _id; do
                     [[ -z "$_id" ]] && continue
                     view_indices+=("$_id")
-                done < <(LC_ALL=C sort -t $'\t' $sort_key -- "$tmpfile" 2>/dev/null)
+                done < <(LC_ALL=C sort -t $'\t' $sort_key -- "$tmpfile" 2> /dev/null)
 
                 rm -f "$tmpfile"
             else
@@ -485,7 +486,6 @@ paginated_multi_select() {
         printf "${clear_line}" >&2
     }
 
-
     # Main interaction loop
     while true; do
         draw_menu
@@ -494,18 +494,19 @@ paginated_multi_select() {
 
         case "$key" in
             "QUIT")
-            if [[ "$filter_mode" == "true" ]]; then
-                filter_mode="false"
-                unset MOLE_READ_KEY_FORCE_CHAR
-                filter_query=""
-                applied_query=""
-                top_index=0; cursor_pos=0
-                rebuild_view
-                continue
-            fi
-            cleanup
-            return 1
-            ;;
+                if [[ "$filter_mode" == "true" ]]; then
+                    filter_mode="false"
+                    unset MOLE_READ_KEY_FORCE_CHAR
+                    filter_query=""
+                    applied_query=""
+                    top_index=0
+                    cursor_pos=0
+                    rebuild_view
+                    continue
+                fi
+                cleanup
+                return 1
+                ;;
             "UP")
                 if [[ ${#view_indices[@]} -eq 0 ]]; then
                     :
@@ -560,7 +561,7 @@ paginated_multi_select() {
                     rebuild_view
                 fi
                 ;;
-            "CHAR:s"|"CHAR:S")
+            "CHAR:s" | "CHAR:S")
                 if [[ "$filter_mode" == "true" ]]; then
                     local ch="${key#CHAR:}"
                     filter_query+="$ch"
@@ -583,7 +584,7 @@ paginated_multi_select() {
                 cursor_pos=0
                 rebuild_view
                 ;;
-            "CHAR:f"|"CHAR:F")
+            "CHAR:f" | "CHAR:F")
                 if [[ "$filter_mode" == "true" ]]; then
                     filter_query+="${key#CHAR:}"
                 fi
@@ -625,11 +626,12 @@ paginated_multi_select() {
                     applied_query="$filter_query"
                     filter_mode="false"
                     unset MOLE_READ_KEY_FORCE_CHAR
-                    top_index=0; cursor_pos=0
+                    top_index=0
+                    cursor_pos=0
 
                     searching="true"
-                    draw_menu              # paint "searching..."
-                    drain_pending_input    # drop any extra keypresses (e.g., double-Enter)
+                    draw_menu           # paint "searching..."
+                    drain_pending_input # drop any extra keypresses (e.g., double-Enter)
                     rebuild_view
                     searching="false"
                     draw_menu

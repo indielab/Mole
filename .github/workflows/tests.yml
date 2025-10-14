@@ -16,5 +16,8 @@ jobs:
       - name: Install tools
         run: brew install bats-core shfmt shellcheck
 
+      - name: Format code
+        run: ./scripts/format.sh
+
       - name: Run all checks
         run: ./scripts/check.sh

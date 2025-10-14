@@ -2392,50 +2392,6 @@ export_to_json() {
 main() {
     local target_path="$HOME"
 
-    # Parse arguments - only support --help
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h | --help)
-                echo "Usage: mole analyze"
-                echo ""
-                echo "Interactive disk space explorer - Navigate folders sorted by size"
-                echo ""
-                echo "Keyboard Controls:"
-                echo "  ${ICON_NAV_UP}/${ICON_NAV_DOWN}         Navigate items"
-                echo "  Enter / ${ICON_NAV_RIGHT}   Open selected folder"
-                echo "  ${ICON_NAV_LEFT}           Go back to parent directory"
-                echo "  Delete      Delete selected file/folder (requires confirmation)"
-                echo "  O           Reveal current directory in Finder"
-                echo "  Q / ESC     Quit the explorer"
-                echo ""
-                echo "Features:"
-                echo "  ${ICON_LIST} Files and folders sorted by size (largest first)"
-                echo "  ${ICON_LIST} Shows top 16 items per directory"
-                echo "  ${ICON_LIST} Fast parallel scanning with smart timeout"
-                echo "  ${ICON_LIST} Session cache for instant navigation"
-                echo "  ${ICON_LIST} Color coding for large folders (Red >10GB, Yellow >1GB)"
-                echo "  ${ICON_LIST} Safe deletion with confirmation"
-                echo ""
-                echo "Examples:"
-                echo "  mole analyze           Start exploring from home directory"
-                echo ""
-                exit 0
-                ;;
-            -*)
-                echo "Error: Unknown option: $1" >&2
-                echo "Usage: mole analyze" >&2
-                echo "Use 'mole analyze --help' for more information" >&2
-                exit 1
-                ;;
-            *)
-                echo "Error: Paths are not supported in beta version" >&2
-                echo "Usage: mole analyze" >&2
-                echo "The explorer will start from your home directory" >&2
-                exit 1
-                ;;
-        esac
-    done
-
     CURRENT_PATH="$target_path"
 
     # Create cache directory

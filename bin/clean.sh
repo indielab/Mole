@@ -1412,7 +1412,7 @@ perform_cleanup() {
 }
 
 main() {
-    # Parse args (only dry-run and help for minimal impact)
+    # Parse args (only dry-run and whitelist)
     for arg in "$@"; do
         case "$arg" in
             "--dry-run" | "-n")
@@ -1421,19 +1421,6 @@ main() {
             "--whitelist")
                 source "$SCRIPT_DIR/../lib/whitelist_manager.sh"
                 manage_whitelist
-                exit 0
-                ;;
-            "--help" | "-h")
-                echo "Mole - Deeper system cleanup"
-                echo "Usage: clean.sh [options]"
-                echo ""
-                echo "Options:"
-                echo "  --help, -h        Show this help"
-                echo "  --dry-run, -n     Preview what would be cleaned without deleting"
-                echo "  --whitelist       Manage protected caches"
-                echo ""
-                echo "Interactive cleanup with smart password handling"
-                echo ""
                 exit 0
                 ;;
         esac

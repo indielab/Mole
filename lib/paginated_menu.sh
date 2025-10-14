@@ -637,7 +637,26 @@ paginated_multi_select() {
                     draw_menu
                     continue
                 fi
-                # In normal mode: confirm and exit with current selections
+                # In normal mode: smart Enter behavior
+                # 1. Check if any items are already selected
+                local has_selection=false
+                for ((i = 0; i < total_items; i++)); do
+                    if [[ ${selected[i]} == true ]]; then
+                        has_selection=true
+                        break
+                    fi
+                done
+
+                # 2. If nothing selected, auto-select current item
+                if [[ $has_selection == false ]]; then
+                    local idx=$((top_index + cursor_pos))
+                    if [[ $idx -lt ${#view_indices[@]} ]]; then
+                        local real="${view_indices[idx]}"
+                        selected[real]=true
+                    fi
+                fi
+
+                # 3. Confirm and exit with current selections
                 local -a selected_indices=()
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then

@@ -14,7 +14,7 @@
 
 <p align="center">
   <img src="https://cdn.tw93.fun/img/mole.jpeg" alt="Mole - 95.50GB freed" width="800" />
-  <p>由于 Mole 还在初级版本，如果这台 Mac 对你非常重要，建议再等等。</p>
+  <p align="center">由于 Mole 还在初级版本，如果这台 Mac 对你非常重要，建议再等等。</p>
 </p>
 
 ## Features

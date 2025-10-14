@@ -4,8 +4,16 @@
 set -euo pipefail
 
 # Terminal control functions
-enter_alt_screen() { tput smcup 2> /dev/null || true; }
-leave_alt_screen() { tput rmcup 2> /dev/null || true; }
+enter_alt_screen() {
+    if command -v tput > /dev/null 2>&1 && [[ -t 1 ]]; then
+        tput smcup 2> /dev/null || true
+    fi
+}
+leave_alt_screen() {
+    if command -v tput > /dev/null 2>&1 && [[ -t 1 ]]; then
+        tput rmcup 2> /dev/null || true
+    fi
+}
 
 # Parse CSV into newline list (Bash 3.2)
 _pm_parse_csv_to_array() {
@@ -61,11 +69,19 @@ paginated_multi_select() {
     # sizekb[i]   -> size in KB (numeric) for item i
     local -a epochs=()
     local -a sizekb=()
+    local has_metadata="false"
     if [[ -n "${MOLE_MENU_META_EPOCHS:-}" ]]; then
         while IFS= read -r v; do epochs+=("${v:-0}"); done < <(_pm_parse_csv_to_array "$MOLE_MENU_META_EPOCHS")
+        has_metadata="true"
     fi
     if [[ -n "${MOLE_MENU_META_SIZEKB:-}" ]]; then
         while IFS= read -r v; do sizekb+=("${v:-0}"); done < <(_pm_parse_csv_to_array "$MOLE_MENU_META_SIZEKB")
+        has_metadata="true"
+    fi
+
+    # If no metadata, force name sorting and disable sorting controls
+    if [[ "$has_metadata" == "false" && "$sort_mode" != "name" ]]; then
+        sort_mode="name"
     fi
 
     # Index mappings
@@ -91,20 +107,11 @@ paginated_multi_select() {
         printf '%s' "$out"
     }
 
-    # Case-insensitive: substring by default, prefix if query starts with '
+    # Case-insensitive fuzzy match (substring search)
     _pm_match() {
-        local hay="$1" q="$2" anchored=0
-        if [[ "$q" == \'* ]]; then
-            anchored=1
-            q="${q:1}"
-        fi
+        local hay="$1" q="$2"
         q="$(_pm_escape_glob "$q")"
-        local pat
-        if [[ $anchored -eq 1 ]]; then
-            pat="${q}*"
-        else
-            pat="*${q}*"
-        fi
+        local pat="*${q}*"
 
         shopt -s nocasematch
         local ok=1
@@ -221,10 +228,10 @@ paginated_multi_select() {
         local -a filtered=()
         local effective_query=""
         if [[ "$filter_mode" == "true" ]]; then
-            # Live editing: empty query -> show nothing; non-empty -> match
+            # Live editing: empty query -> show all items
             effective_query="$filter_query"
             if [[ -z "$effective_query" ]]; then
-                filtered=()
+                filtered=("${orig_indices[@]}")
             else
                 local idx
                 for ((idx = 0; idx < total_items; idx++)); do
@@ -248,42 +255,54 @@ paginated_multi_select() {
             fi
         fi
 
-        # Sort
-        local tmpfile
-        tmpfile=$(mktemp) || tmpfile=""
-        if [[ -n "$tmpfile" ]]; then
-            : > "$tmpfile"
-            local k id
-            if [[ ${#filtered[@]} -gt 0 ]]; then
+        # Sort (skip if no metadata)
+        if [[ "$has_metadata" == "false" ]]; then
+            # No metadata: just use filtered list (already sorted by name naturally)
+            view_indices=("${filtered[@]}")
+        elif [[ ${#filtered[@]} -eq 0 ]]; then
+            view_indices=()
+        else
+            # Build sort key
+            local sort_key
+            if [[ "$sort_mode" == "date" ]]; then
+                # Date: ascending by default (oldest first)
+                sort_key="-k1,1n"
+                [[ "$sort_reverse" == "true" ]] && sort_key="-k1,1nr"
+            elif [[ "$sort_mode" == "size" ]]; then
+                # Size: descending by default (largest first)
+                sort_key="-k1,1nr"
+                [[ "$sort_reverse" == "true" ]] && sort_key="-k1,1n"
+            else
+                # Name: ascending by default (A to Z)
+                sort_key="-k1,1f"
+                [[ "$sort_reverse" == "true" ]] && sort_key="-k1,1fr"
+            fi
+
+            # Create temporary file for sorting
+            local tmpfile
+            tmpfile=$(mktemp 2>/dev/null) || tmpfile=""
+            if [[ -n "$tmpfile" ]]; then
+                local k id
                 for id in "${filtered[@]}"; do
                     case "$sort_mode" in
-                        date) k="${epochs[id]:-${id}}" ;;
+                        date) k="${epochs[id]:-0}" ;;
                         size) k="${sizekb[id]:-0}" ;;
                         name|*) k="${items[id]}|${id}" ;;
                     esac
                     printf "%s\t%s\n" "$k" "$id" >> "$tmpfile"
                 done
-            fi
 
-            # Build sort key once and stream results into view_indices
-            local sort_key
-            if [[ "$sort_mode" == "date" || "$sort_mode" == "size" ]]; then
-                sort_key="-k1,1n"
-                [[ "$sort_reverse" == "true" ]] && sort_key="-k1,1nr"
+                view_indices=()
+                while IFS=$'\t' read -r _key _id; do
+                    [[ -z "$_id" ]] && continue
+                    view_indices+=("$_id")
+                done < <(LC_ALL=C sort -t $'\t' $sort_key -- "$tmpfile" 2>/dev/null)
+
+                rm -f "$tmpfile"
             else
-                sort_key="-k1,1f"
-                [[ "$sort_reverse" == "true" ]] && sort_key="-k1,1fr"
+                # Fallback: no sorting
+                view_indices=("${filtered[@]}")
             fi
-
-            view_indices=()
-            while IFS=$'\t' read -r _key _id; do
-                [[ -z "$_id" ]] && continue
-                view_indices+=("$_id")
-            done < <(LC_ALL=C sort -t $'\t' $sort_key -- "$tmpfile")
-
-            rm -f "$tmpfile"
-        else
-            view_indices=("${filtered[@]}")
         fi
 
         # Clamp cursor into visible range
@@ -334,38 +353,9 @@ paginated_multi_select() {
             [[ ${selected[i]} == true ]] && ((selected_count++))
         done
 
-        # Header
+        # Header only
         printf "${clear_line}${PURPLE}%s${NC}  ${GRAY}%d/%d selected${NC}\n" "${title}" "$selected_count" "$total_items" >&2
-        # Sort + Filter status
-        local sort_label=""
-        case "$sort_mode" in
-            date) sort_label="Date" ;;
-            name) sort_label="Name" ;;
-            size) sort_label="Size" ;;
-        esac
-        local arrow="↑"
-        [[ "$sort_reverse" == "true" ]] && arrow="↓"
-
-        local filter_label=""
-        if [[ "$filter_mode" == "true" ]]; then
-            filter_label="${YELLOW}${filter_query:-}${NC}${GRAY} [editing]${NC}"
-        else
-            if [[ -n "$applied_query" ]]; then
-                if [[ "$searching" == "true" ]]; then
-                    filter_label="${GREEN}${applied_query}${NC}${GRAY} [searching…]${NC}"
-                else
-                    filter_label="${GREEN}${applied_query}${NC}"
-                fi
-            else
-                filter_label="${GRAY}—${NC}"
-            fi
-        fi
-        printf "${clear_line}${GRAY}Sort:${NC} %s %s  ${GRAY}|${NC}  ${GRAY}Filter:${NC} %s\n" "$sort_label" "$arrow" "$filter_label" >&2
-
-        # Filter-mode hint line
-        if [[ "$filter_mode" == "true" ]]; then
-            printf "${clear_line}${GRAY}Tip:${NC} prefix with ${YELLOW}'${NC} to match from start\n" >&2
-        fi
+        printf "${clear_line}\n" >&2
 
         # Visible slice
         local visible_total=${#view_indices[@]}
@@ -384,7 +374,7 @@ paginated_multi_select() {
                     for ((i = 0; i < items_per_page + 2; i++)); do
                         printf "${clear_line}\n" >&2
                     done
-                    printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}S/s${NC} Sort  ${GRAY}|${NC}  ${GRAY}R/r${NC} Reverse  ${GRAY}|${NC}  ${GRAY}F/f${NC} Filter  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
+                    printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Nav  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}/${NC} Filter  ${GRAY}|${NC}  ${GRAY}S${NC} Sort  ${GRAY}|${NC}  ${GRAY}Q${NC} Quit\n" >&2
                     printf "${clear_line}" >&2
                     return
                 else
@@ -393,7 +383,7 @@ paginated_multi_select() {
                     for ((i = 0; i < items_per_page + 2; i++)); do
                         printf "${clear_line}\n" >&2
                     done
-                    printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}S${NC} Sort  ${GRAY}|${NC}  ${GRAY}R/r${NC} Reverse  ${GRAY}|${NC}  ${GRAY}F${NC} Filter  ${GRAY}|${NC}  ${GRAY}Q/ESC${NC} Quit\n" >&2
+                    printf "${clear_line}${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Nav  ${GRAY}|${NC}  ${GRAY}Space${NC} Select  ${GRAY}|${NC}  ${GRAY}Enter${NC} Confirm  ${GRAY}|${NC}  ${GRAY}/${NC} Filter  ${GRAY}|${NC}  ${GRAY}S${NC} Sort  ${GRAY}|${NC}  ${GRAY}Q${NC} Quit\n" >&2
                     printf "${clear_line}" >&2
                     return
                 fi
@@ -430,55 +420,71 @@ paginated_multi_select() {
         done
 
         printf "${clear_line}\n" >&2
-        # Footer with wrapped controls
+
+        # Build sort and filter status
+        local sort_label=""
+        case "$sort_mode" in
+            date) sort_label="Date" ;;
+            name) sort_label="Name" ;;
+            size) sort_label="Size" ;;
+        esac
+        local arrow="↑"
+        [[ "$sort_reverse" == "true" ]] && arrow="↓"
+        local sort_status="${sort_label} ${arrow}"
+
+        local filter_status=""
+        if [[ "$filter_mode" == "true" ]]; then
+            filter_status="${YELLOW}${filter_query:-}${NC}"
+        elif [[ -n "$applied_query" ]]; then
+            filter_status="${GREEN}${applied_query}${NC}"
+        else
+            filter_status="${GRAY}—${NC}"
+        fi
+
+        # Footer with two lines: basic controls and advanced options
         local sep="  ${GRAY}|${NC}  "
         if [[ "$filter_mode" == "true" ]]; then
+            # Filter mode: single line with all filter controls
             local -a _segs_filter=(
-                "${GRAY}Type to filter${NC}"
-                "${GRAY}Delete${NC} Backspace"
+                "${GRAY}Filter Input:${NC} ${filter_status}"
+                "${GRAY}Delete${NC} Back"
                 "${GRAY}Enter${NC} Apply"
+                "${GRAY}/${NC} Clear"
                 "${GRAY}ESC${NC} Cancel"
             )
             _print_wrapped_controls "$sep" "${_segs_filter[@]}"
         else
-            local -a _segs_normal=(
-                "${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate"
-                "${GRAY}Space${NC} Select"
-                "${GRAY}Enter${NC} Confirm"
-                "${GRAY}S/s${NC} Sort"
-                "${GRAY}R/r${NC} Reverse"
-                "${GRAY}F/f${NC} Filter"
-                "${GRAY}A${NC} All"
-                "${GRAY}N${NC} None"
-                "${GRAY}Q/ESC${NC} Quit"
-            )
-            _print_wrapped_controls "$sep" "${_segs_normal[@]}"
+            # Normal mode
+            if [[ "$has_metadata" == "true" ]]; then
+                # With metadata: two lines (basic + advanced)
+                local -a _segs_basic=(
+                    "${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate"
+                    "${GRAY}Space${NC} Select"
+                    "${GRAY}Enter${NC} Confirm"
+                    "${GRAY}Q/ESC${NC} Quit"
+                )
+                _print_wrapped_controls "$sep" "${_segs_basic[@]}"
+                local -a _segs_advanced=(
+                    "${GRAY}S${NC} ${sort_status}"
+                    "${GRAY}R${NC} Reverse"
+                    "${GRAY}/${NC} Filter"
+                )
+                _print_wrapped_controls "$sep" "${_segs_advanced[@]}"
+            else
+                # Without metadata: single line (basic only)
+                local -a _segs_simple=(
+                    "${GRAY}${ICON_NAV_UP}/${ICON_NAV_DOWN}${NC} Navigate"
+                    "${GRAY}Space${NC} Select"
+                    "${GRAY}Enter${NC} Confirm"
+                    "${GRAY}/${NC} Filter"
+                    "${GRAY}Q/ESC${NC} Quit"
+                )
+                _print_wrapped_controls "$sep" "${_segs_simple[@]}"
+            fi
         fi
         printf "${clear_line}" >&2
     }
 
-    # Show help screen
-    show_help() {
-        printf "\033[H\033[J" >&2
-        cat >&2 << EOF
-Help - Navigation Controls
-==========================
-
-  ${ICON_NAV_UP} / ${ICON_NAV_DOWN}      Navigate up/down
-  Space              Select/deselect item
-  Enter              Confirm selection
-  S                  Change sort mode (Date / Name / Size)
-  R                  Reverse current sort (asc/desc)
-  F                  Toggle filter mode, type to filter (case-insensitive; prefix with ' to match from start)
-  A                  Select all (visible items)
-  N                  Deselect all (visible items)
-  Delete             Backspace filter (in filter mode)
-  Q / ESC            Exit (ESC exits filter mode first)
-
-Press any key to continue...
-EOF
-        read -n 1 -s >&2
-    }
 
     # Main interaction loop
     while true; do
@@ -543,37 +549,23 @@ EOF
                     fi
                 fi
                 ;;
-            "ALL")
-                # Select only currently visible (filtered) rows
-                if [[ ${#view_indices[@]} -gt 0 ]]; then
-                    for real in "${view_indices[@]}"; do
-                        selected[real]=true
-                    done
-                fi
-                ;;
-            "NONE")
-                # Deselect only currently visible (filtered) rows
-                if [[ ${#view_indices[@]} -gt 0 ]]; then
-                    for real in "${view_indices[@]}"; do
-                        selected[real]=false
-                    done
-                fi
-                ;;
             "RETRY")
-                # 'R' toggles reverse order
-                if [[ "$sort_reverse" == "true" ]]; then
-                    sort_reverse="false"
-                else
-                    sort_reverse="true"
+                # 'R' toggles reverse order (only if metadata available)
+                if [[ "$has_metadata" == "true" ]]; then
+                    if [[ "$sort_reverse" == "true" ]]; then
+                        sort_reverse="false"
+                    else
+                        sort_reverse="true"
+                    fi
+                    rebuild_view
                 fi
-                rebuild_view
                 ;;
-            "HELP") show_help ;;
             "CHAR:s"|"CHAR:S")
                 if [[ "$filter_mode" == "true" ]]; then
                     local ch="${key#CHAR:}"
                     filter_query+="$ch"
-                else
+                elif [[ "$has_metadata" == "true" ]]; then
+                    # Cycle sort mode (only if metadata available)
                     case "$sort_mode" in
                         date) sort_mode="name" ;;
                         name) sort_mode="size" ;;
@@ -582,16 +574,18 @@ EOF
                     rebuild_view
                 fi
                 ;;
+            "FILTER")
+                # Trigger filter mode with /
+                filter_mode="true"
+                export MOLE_READ_KEY_FORCE_CHAR=1
+                filter_query=""
+                top_index=0
+                cursor_pos=0
+                rebuild_view
+                ;;
             "CHAR:f"|"CHAR:F")
                 if [[ "$filter_mode" == "true" ]]; then
-                    filter_query+="f"
-                else
-                    filter_mode="true"
-                    export MOLE_READ_KEY_FORCE_CHAR=1
-                    filter_query=""       # start empty -> 0 results
-                    top_index=0           # reset viewport
-                    cursor_pos=0
-                    rebuild_view
+                    filter_query+="${key#CHAR:}"
                 fi
                 ;;
             "CHAR:r")
@@ -616,8 +610,12 @@ EOF
             CHAR:*)
                 if [[ "$filter_mode" == "true" ]]; then
                     local ch="${key#CHAR:}"
+                    # Special handling for /: clear filter
+                    if [[ "$ch" == "/" ]]; then
+                        filter_query=""
+                        rebuild_view
                     # avoid accidental leading spaces
-                    if [[ -n "$filter_query" || "$ch" != " " ]]; then
+                    elif [[ -n "$filter_query" || "$ch" != " " ]]; then
                         filter_query+="$ch"
                     fi
                 fi
@@ -637,6 +635,7 @@ EOF
                     draw_menu
                     continue
                 fi
+                # In normal mode: confirm and exit with current selections
                 local -a selected_indices=()
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then
@@ -644,23 +643,19 @@ EOF
                     fi
                 done
 
-                # Allow empty selection - don't auto-select cursor position
                 local final_result=""
                 if [[ ${#selected_indices[@]} -gt 0 ]]; then
                     local IFS=','
                     final_result="${selected_indices[*]}"
                 fi
 
-                # Remove the trap to avoid cleanup on normal exit
                 trap - EXIT INT TERM
-
-                # Store result in global variable
                 MOLE_SELECTION_RESULT="$final_result"
-
-                # Manually cleanup terminal before returning
                 restore_terminal
-
                 return 0
+                ;;
+            "HELP")
+                # Removed help screen, users can explore the interface
                 ;;
         esac
     done

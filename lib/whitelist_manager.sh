@@ -7,7 +7,7 @@ set -euo pipefail
 # Get script directory and source dependencies
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
-source "$SCRIPT_DIR/paginated_menu.sh"
+source "$SCRIPT_DIR/simple_menu.sh"
 
 # Config file path
 WHITELIST_CONFIG="$HOME/.config/mole/whitelist"

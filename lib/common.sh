@@ -208,12 +208,10 @@ read_key() {
     case "$key" in
         $'\n' | $'\r') echo "ENTER" ;;
         ' ') echo "SPACE" ;;
-        'q' | 'Q') echo "QUIT" ;;
-        'A') echo "ALL" ;;
-        'N') echo "NONE" ;;
+        'Q') echo "QUIT" ;;
         'R') echo "RETRY" ;;
-        '?') echo "HELP" ;;
         'o' | 'O') echo "OPEN" ;;
+        '/') echo "FILTER" ;;               # Trigger filter mode
         $'\x03') echo "QUIT" ;;             # Ctrl+C
         $'\x7f' | $'\x08') echo "DELETE" ;; # Backspace/Delete key
         $'\x1b')

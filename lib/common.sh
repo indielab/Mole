@@ -175,8 +175,17 @@ show_cursor() {
 
 # Keyboard input handling (simple and robust)
 read_key() {
-    local key rest
-    IFS= read -r -s -n 1 key || return 1
+    local key rest read_status
+
+    # Read with explicit status check
+    IFS= read -r -s -n 1 key
+    read_status=$?
+
+    # Handle read failure (Ctrl+D, EOF, etc.) - treat as quit
+    if [[ $read_status -ne 0 ]]; then
+        echo "QUIT"
+        return 0
+    fi
 
     # Raw typing mode (filter): map most keys to CHAR:<key>
     if [[ "${MOLE_READ_KEY_FORCE_CHAR:-}" == "1" ]]; then

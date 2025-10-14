@@ -137,33 +137,6 @@ disable_touchid() {
     fi
 }
 
-# Show help
-show_help() {
-    cat << EOF
-Usage: mo touchid [command]
-
-Configure Touch ID for sudo to avoid repeated password prompts.
-
-Commands:
-  enable      Enable Touch ID for sudo
-  disable     Disable Touch ID for sudo
-  status      Show current Touch ID configuration
-  help        Show this help message
-
-Examples:
-  mo touchid              # Show status and options
-  mo touchid enable       # Enable Touch ID
-  mo touchid status       # Check current status
-
-Notes:
-  - Requires macOS with Touch ID sensor
-  - Changes are applied to /etc/pam.d/sudo
-  - Automatic backup is created before changes
-  - You can restore from backup at ${PAM_SUDO_FILE}.mole-backup
-
-EOF
-}
-
 # Interactive menu
 show_menu() {
     echo ""
@@ -220,16 +193,11 @@ main() {
         status)
             show_status
             ;;
-        help | --help | -h)
-            show_help
-            ;;
         "")
             show_menu
             ;;
         *)
             log_error "Unknown command: $command"
-            echo ""
-            show_help
             exit 1
             ;;
     esac

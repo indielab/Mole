@@ -21,40 +21,6 @@ source "$SCRIPT_DIR/../lib/batch_uninstall.sh"
 
 # Note: Bundle preservation logic is now in lib/common.sh
 
-# Help information
-show_help() {
-    echo "Usage: mole uninstall"
-    echo ""
-    echo "Interactive application uninstaller - Remove apps completely"
-    echo ""
-    echo "Keyboard Controls:"
-    echo "  ${ICON_NAV_UP}/${ICON_NAV_DOWN}         Navigate items"
-    echo "  Space       Select/deselect"
-    echo "  Enter       Confirm and uninstall"
-    echo "  Q / ESC     Quit"
-    echo ""
-    echo "What gets cleaned:"
-    echo "  ${ICON_LIST} Application bundle"
-    echo "  ${ICON_LIST} Application Support data (12+ locations)"
-    echo "  ${ICON_LIST} Cache files"
-    echo "  ${ICON_LIST} Preference files"
-    echo "  ${ICON_LIST} Log files"
-    echo "  ${ICON_LIST} Saved application state"
-    echo "  ${ICON_LIST} Container data (sandboxed apps)"
-    echo "  ${ICON_LIST} WebKit storage, HTTP storage, cookies"
-    echo "  ${ICON_LIST} Extensions, plugins, services"
-    echo ""
-    echo "Examples:"
-    echo "  mole uninstall         Launch interactive uninstaller"
-    echo ""
-}
-
-# Parse arguments
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    show_help
-    exit 0
-fi
-
 # Initialize global variables
 selected_apps=() # Global array for app selection
 declare -a apps_data=()

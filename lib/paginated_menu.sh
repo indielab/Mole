@@ -356,7 +356,6 @@ paginated_multi_select() {
 
         # Header only
         printf "${clear_line}${PURPLE}%s${NC}  ${GRAY}%d/%d selected${NC}\n" "${title}" "$selected_count" "$total_items" >&2
-        printf "${clear_line}\n" >&2
 
         # Visible slice
         local visible_total=${#view_indices[@]}

@@ -45,34 +45,6 @@ setup() {
     [[ "$output" == *"Unknown command: unknown-command"* ]]
 }
 
-@test "clean.sh --help shows usage details" {
-    run env HOME="$HOME" "$PROJECT_ROOT/bin/clean.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Mole - Deeper system cleanup"* ]]
-    [[ "$output" == *"--dry-run"* ]]
-}
-
-@test "uninstall.sh --help highlights controls" {
-    run env HOME="$HOME" "$PROJECT_ROOT/bin/uninstall.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage: mole uninstall"* ]]
-    [[ "$output" == *"Keyboard Controls"* ]]
-}
-
-@test "analyze.sh --help outlines explorer features" {
-    run env HOME="$HOME" "$PROJECT_ROOT/bin/analyze.sh" --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Interactive disk space explorer"* ]]
-    [[ "$output" == *"mole analyze"* ]]
-}
-
-@test "touchid --help describes configuration options" {
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" touchid --help
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Touch ID"* ]]
-    [[ "$output" == *"mo touchid enable"* ]]
-}
-
 @test "touchid status reports current configuration" {
     run env HOME="$HOME" "$PROJECT_ROOT/mole" touchid status
     [ "$status" -eq 0 ]

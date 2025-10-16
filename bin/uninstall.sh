@@ -15,9 +15,9 @@ export LANG=C
 # Get script directory and source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
-source "$SCRIPT_DIR/../lib/paginated_menu.sh"
-source "$SCRIPT_DIR/../lib/app_selector.sh"
-source "$SCRIPT_DIR/../lib/batch_uninstall.sh"
+source "$SCRIPT_DIR/../lib/menu_paginated.sh"
+source "$SCRIPT_DIR/../lib/ui_app_selector.sh"
+source "$SCRIPT_DIR/../lib/uninstall_batch.sh"
 
 # Note: Bundle preservation logic is now in lib/common.sh
 

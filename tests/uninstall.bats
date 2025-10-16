@@ -78,7 +78,7 @@ EOF
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/common.sh"
-source "$PROJECT_ROOT/lib/batch_uninstall.sh"
+source "$PROJECT_ROOT/lib/uninstall_batch.sh"
 
 # Test stubs
 request_sudo_access() { return 0; }

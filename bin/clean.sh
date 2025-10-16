@@ -25,6 +25,8 @@ readonly ORPHAN_AGE_DAYS=60   # Age threshold for orphaned data
 declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
+    "$HOME/.m2/repository/*"
+    "$HOME/.ollama/models/*"
 )
 declare -a WHITELIST_PATTERNS=()
 WHITELIST_WARNINGS=()
@@ -612,7 +614,7 @@ perform_cleanup() {
 
     if command -v pip3 > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            clean_tool_cache "pip cache" pip3 cache purge
+            clean_tool_cache "pip cache" bash -c 'pip3 cache purge >/dev/null 2>&1 || true'
         else
             echo -e "  ${YELLOW}→${NC} pip cache (would clean)"
         fi

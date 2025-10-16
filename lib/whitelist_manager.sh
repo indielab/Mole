@@ -17,6 +17,7 @@ declare -a DEFAULT_WHITELIST_PATTERNS=(
     "$HOME/Library/Caches/ms-playwright*"
     "$HOME/.cache/huggingface*"
     "$HOME/.m2/repository/*"
+    "$HOME/.ollama/models/*"
 )
 
 # Save whitelist patterns to config
@@ -27,7 +28,7 @@ save_whitelist_patterns() {
 
     cat > "$WHITELIST_CONFIG" << 'EOF'
 # Mole Whitelist - Protected paths won't be deleted
-# Default protections: Playwright browsers, HuggingFace models, Maven local repo (can be disabled)
+# Default protections: Playwright browsers, HuggingFace models, Maven repo, Ollama models
 # Add one pattern per line to keep items safe.
 EOF
 
@@ -69,31 +70,50 @@ Xcode iOS device support symbols|$HOME/Library/Developer/Xcode/iOS DeviceSupport
 Maven local repository (Java dependencies)|$HOME/.m2/repository/*|ide_cache
 JetBrains IDEs cache (IntelliJ, PyCharm, WebStorm)|$HOME/Library/Caches/JetBrains/*|ide_cache
 Android Studio cache and indexes|$HOME/Library/Caches/Google/AndroidStudio*/*|ide_cache
+Android build cache|$HOME/.android/build-cache/*|ide_cache
 VS Code runtime cache|$HOME/Library/Application Support/Code/Cache/*|ide_cache
 VS Code extension and update cache|$HOME/Library/Application Support/Code/CachedData/*|ide_cache
 VS Code system cache (Cursor, VSCodium)|$HOME/Library/Caches/com.microsoft.VSCode/*|ide_cache
 Cursor editor cache|$HOME/Library/Caches/com.todesktop.230313mzl4w4u92/*|ide_cache
 Bazel build cache|$HOME/.cache/bazel/*|compiler_cache
 Go build cache and module cache|$HOME/Library/Caches/go-build/*|compiler_cache
+Go module cache|$HOME/go/pkg/mod/cache/*|compiler_cache
 Rust Cargo registry cache|$HOME/.cargo/registry/cache/*|compiler_cache
 Rustup toolchain downloads|$HOME/.rustup/downloads/*|compiler_cache
 ccache compiler cache|$HOME/.ccache/*|compiler_cache
 sccache distributed compiler cache|$HOME/.cache/sccache/*|compiler_cache
+SBT Scala build cache|$HOME/.sbt/*|compiler_cache
+Ivy dependency cache|$HOME/.ivy2/cache/*|compiler_cache
+Turbo monorepo build cache|$HOME/.turbo/*|compiler_cache
+Next.js build cache|$HOME/.next/*|compiler_cache
+Vite build cache|$HOME/.vite/*|compiler_cache
+Parcel bundler cache|$HOME/.parcel-cache/*|compiler_cache
+pre-commit hooks cache|$HOME/.cache/pre-commit/*|compiler_cache
+Ruff Python linter cache|$HOME/.cache/ruff/*|compiler_cache
+MyPy type checker cache|$HOME/.cache/mypy/*|compiler_cache
+Pytest test cache|$HOME/.pytest_cache/*|compiler_cache
+Flutter SDK cache|$HOME/.cache/flutter/*|compiler_cache
+Swift Package Manager cache|$HOME/.cache/swift-package-manager/*|compiler_cache
+Zig compiler cache|$HOME/.cache/zig/*|compiler_cache
+Deno cache|$HOME/Library/Caches/deno/*|compiler_cache
 CocoaPods cache (iOS dependencies)|$HOME/Library/Caches/CocoaPods/*|package_manager
 npm package cache|$HOME/.npm/_cacache/*|package_manager
 pip Python package cache|$HOME/.cache/pip/*|package_manager
+uv Python package cache|$HOME/.cache/uv/*|package_manager
 Homebrew downloaded packages|$HOME/Library/Caches/Homebrew/*|package_manager
 Yarn package manager cache|$HOME/.cache/yarn/*|package_manager
 pnpm package store|$HOME/.pnpm-store/*|package_manager
 Composer PHP dependencies cache|$HOME/.composer/cache/*|package_manager
 RubyGems cache|$HOME/.gem/cache/*|package_manager
-Go module cache|$HOME/go/pkg/mod/cache/*|package_manager
+Conda packages cache|$HOME/.conda/pkgs/*|package_manager
+Anaconda packages cache|$HOME/anaconda3/pkgs/*|package_manager
 PyTorch model cache|$HOME/.cache/torch/*|ai_ml_cache
 TensorFlow model and dataset cache|$HOME/.cache/tensorflow/*|ai_ml_cache
 HuggingFace models and datasets|$HOME/.cache/huggingface/*|ai_ml_cache
 Playwright browser binaries|$HOME/Library/Caches/ms-playwright*|ai_ml_cache
 Selenium WebDriver binaries|$HOME/.cache/selenium/*|ai_ml_cache
 Ollama local AI models|$HOME/.ollama/models/*|ai_ml_cache
+Weights & Biases ML experiments cache|$HOME/.cache/wandb/*|ai_ml_cache
 Safari web browser cache|$HOME/Library/Caches/com.apple.Safari/*|browser_cache
 Chrome browser cache|$HOME/Library/Caches/Google/Chrome/*|browser_cache
 Firefox browser cache|$HOME/Library/Caches/Firefox/*|browser_cache

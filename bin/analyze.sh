@@ -19,7 +19,7 @@ source "$LIB_DIR/common.sh"
 # Constants
 readonly CACHE_DIR="${HOME}/.config/mole/cache"
 readonly TEMP_PREFIX="/tmp/mole_analyze_$$"
-readonly MIN_LARGE_FILE_SIZE="1000000000" # 1GB
+readonly MIN_LARGE_FILE_SIZE="500000000"  # 500MB (more sensitive)
 readonly MIN_MEDIUM_FILE_SIZE="100000000" # 100MB
 
 # Emoji badges for list displays only
@@ -105,9 +105,9 @@ scan_directories() {
 
     # Check if we can use parallel processing
     if command -v xargs &> /dev/null && [[ $depth -eq 1 ]]; then
-        # Fast parallel scan for depth 1
+        # Fast parallel scan for depth 1 (increased parallelism)
         find "$target_path" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null |
-            xargs -0 -P 4 -I {} du -sk {} 2> /dev/null |
+            xargs -0 -P 8 -I {} du -sk {} 2> /dev/null |
             sort -rn |
             while IFS=$'\t' read -r size path; do
                 echo "$((size * 1024))|$path"
@@ -1375,9 +1375,12 @@ scan_directory_contents_fast() {
     # Auto-detect optimal parallel jobs using common function
     local num_jobs
     num_jobs=$(get_optimal_parallel_jobs "io")
-    # Cap at reasonable limits for I/O operations
-    [[ $num_jobs -gt 24 ]] && num_jobs=24
-    [[ $num_jobs -lt 12 ]] && num_jobs=12
+    # Keep within practical limits to avoid IO thrashing on small machines
+    if [[ $num_jobs -gt 32 ]]; then
+        num_jobs=32
+    elif [[ $num_jobs -lt 4 ]]; then
+        num_jobs=4
+    fi
 
     local temp_dirs="$output_file.dirs"
     local temp_files="$output_file.files"
@@ -1448,7 +1451,7 @@ scan_directory_contents_fast() {
         fi
         [[ ${#spinner[@]} -eq 0 ]] && spinner=('|' '/' '-' '\\')
         local i=0
-        local max_wait=30 # Reduced to 30 seconds (fast fail)
+        local max_wait=45 # Balanced timeout (fast but not too aggressive)
         local elapsed=0
         local tick=0
         local spin_len=${#spinner[@]}
@@ -1563,12 +1566,19 @@ show_volumes_overview() {
         [[ -d "$HOME/Library" ]] && echo "700|$HOME/Library|User Library"
         [[ -d "/Library" ]] && echo "600|/Library|System Library"
 
-        # External volumes (if any)
+        # External volumes (filter obvious system mounts)
         if [[ -d "/Volumes" ]]; then
             local vol_priority=500
             find /Volumes -mindepth 1 -maxdepth 1 -type d 2> /dev/null | while IFS= read -r vol; do
                 local vol_name
                 vol_name=$(basename "$vol")
+
+                # Skip internal/system volumes and dmg helper mounts, but keep user disks
+                case "$vol_name" in
+                    "MacintoshHD" | "Macintosh HD" | "Macintosh HD - Data") continue ;;
+                    dmg.* | *.dmg) continue ;;
+                esac
+
                 echo "$((vol_priority))|$vol|Volume: $vol_name"
                 ((vol_priority--))
             done

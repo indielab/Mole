@@ -60,6 +60,44 @@ get_app_last_used() {
     fi
 }
 
+# Compact the "last used" descriptor for aligned summaries
+format_last_used_summary() {
+    local value="$1"
+
+    case "$value" in
+        "" | "Unknown")
+            echo "Unknown"
+            return 0
+            ;;
+        "Never" | "Recent" | "Today" | "Yesterday" | "This year" | "Old")
+            echo "$value"
+            return 0
+            ;;
+    esac
+
+    if [[ $value =~ ^([0-9]+)[[:space:]]+days?\ ago$ ]]; then
+        echo "${BASH_REMATCH[1]}d ago"
+        return 0
+    fi
+    if [[ $value =~ ^([0-9]+)[[:space:]]+weeks?\ ago$ ]]; then
+        echo "${BASH_REMATCH[1]}w ago"
+        return 0
+    fi
+    if [[ $value =~ ^([0-9]+)[[:space:]]+months?\ ago$ ]]; then
+        echo "${BASH_REMATCH[1]}m ago"
+        return 0
+    fi
+    if [[ $value =~ ^([0-9]+)[[:space:]]+month\(s\)\ ago$ ]]; then
+        echo "${BASH_REMATCH[1]}m ago"
+        return 0
+    fi
+    if [[ $value =~ ^([0-9]+)[[:space:]]+years?\ ago$ ]]; then
+        echo "${BASH_REMATCH[1]}y ago"
+        return 0
+    fi
+    echo "$value"
+}
+
 # Scan applications and collect information
 scan_applications() {
     # Cache configuration
@@ -195,7 +233,14 @@ scan_applications() {
     # Second pass: process each app with parallel size calculation
     local app_count=0
     local total_apps=${#app_data_tuples[@]}
-    local max_parallel=10 # Process 10 apps in parallel
+    # Bound parallelism so small machines stay responsive
+    local max_parallel
+    max_parallel=$(get_optimal_parallel_jobs "io")
+    if [[ $max_parallel -lt 4 ]]; then
+        max_parallel=4
+    elif [[ $max_parallel -gt 16 ]]; then
+        max_parallel=16
+    fi
     local pids=()
     local inline_loading=false
     if [[ "${MOLE_INLINE_LOADING:-}" == "1" || "${MOLE_INLINE_LOADING:-}" == "true" ]]; then
@@ -215,9 +260,9 @@ scan_applications() {
         local app_size="N/A"
         local app_size_kb="0"
         if [[ -d "$app_path" ]]; then
-            # numeric size (KB) for sorting + human-readable for display
+            # Get size in KB, then format for display (single du call)
             app_size_kb=$(du -sk "$app_path" 2> /dev/null | awk '{print $1}' || echo "0")
-            app_size=$(du -sh "$app_path" 2> /dev/null | cut -f1 || echo "N/A")
+            app_size=$(bytes_to_human "$((app_size_kb * 1024))")
         fi
 
         # Get real last used date from macOS metadata
@@ -633,26 +678,43 @@ main() {
         rm -f "$apps_file"
         return 0
     fi
-    # Show selected apps, max 3 per line
+    # Show selected apps with clean alignment
     echo -e "${BLUE}${ICON_CONFIRM}${NC} Selected ${selection_count} app(s):"
-    local idx=0
-    local line=""
+    local -a summary_rows=()
+    local max_name_width=0
+    local max_size_width=0
+    local name_trunc_limit=30
+
     for selected_app in "${selected_apps[@]}"; do
         IFS='|' read -r epoch app_path app_name bundle_id size last_used <<< "$selected_app"
-        local display_item="${app_name}(${size})"
 
-        if ((idx % 3 == 0)); then
-            # Start new line
-            [[ -n "$line" ]] && echo "  $line"
-            line="$display_item"
-        else
-            # Add to current line
-            line="$line, $display_item"
+        local display_name="$app_name"
+        if [[ ${#display_name} -gt $name_trunc_limit ]]; then
+            display_name="${display_name:0:$((name_trunc_limit - 3))}..."
         fi
-        ((idx++))
+        [[ ${#display_name} -gt $max_name_width ]] && max_name_width=${#display_name}
+
+        local size_display="$size"
+        if [[ -z "$size_display" || "$size_display" == "0" || "$size_display" == "N/A" ]]; then
+            size_display="Unknown"
+        fi
+        [[ ${#size_display} -gt $max_size_width ]] && max_size_width=${#size_display}
+
+        local last_display
+        last_display=$(format_last_used_summary "$last_used")
+
+        summary_rows+=("$display_name|$size_display|$last_display")
     done
-    # Print the last line
-    [[ -n "$line" ]] && echo "  $line"
+
+    ((max_name_width < 16)) && max_name_width=16
+    ((max_size_width < 5)) && max_size_width=5
+
+    local index=1
+    for row in "${summary_rows[@]}"; do
+        IFS='|' read -r name_cell size_cell last_cell <<< "$row"
+        printf "  %2d. %-*s  %*s  |  Last: %s\n" "$index" "$max_name_width" "$name_cell" "$max_size_width" "$size_cell" "$last_cell"
+        ((index++))
+    done
     echo ""
 
     # Execute batch uninstallation (handles confirmation)

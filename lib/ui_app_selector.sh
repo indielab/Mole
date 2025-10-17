@@ -7,17 +7,41 @@ set -euo pipefail
 format_app_display() {
     local display_name="$1" size="$2" last_used="$3"
 
-    # Truncate long names
+    # Compact last-used wording to keep column width tidy
+    local compact_last_used
+    case "$last_used" in
+        "" | "Unknown") compact_last_used="Unknown" ;;
+        "Never" | "Recent" | "Today" | "Yesterday" | "This year" | "Old") compact_last_used="$last_used" ;;
+        *)
+            if [[ $last_used =~ ^([0-9]+)[[:space:]]+days?\ ago$ ]]; then
+                compact_last_used="${BASH_REMATCH[1]}d ago"
+            elif [[ $last_used =~ ^([0-9]+)[[:space:]]+weeks?\ ago$ ]]; then
+                compact_last_used="${BASH_REMATCH[1]}w ago"
+            elif [[ $last_used =~ ^([0-9]+)[[:space:]]+months?\ ago$ ]]; then
+                compact_last_used="${BASH_REMATCH[1]}m ago"
+            elif [[ $last_used =~ ^([0-9]+)[[:space:]]+month\(s\)\ ago$ ]]; then
+                compact_last_used="${BASH_REMATCH[1]}m ago"
+            elif [[ $last_used =~ ^([0-9]+)[[:space:]]+years?\ ago$ ]]; then
+                compact_last_used="${BASH_REMATCH[1]}y ago"
+            else
+                compact_last_used="$last_used"
+            fi
+            ;;
+    esac
+
+    # Truncate long names with consistent width
     local truncated_name="$display_name"
-    if [[ ${#display_name} -gt 24 ]]; then
-        truncated_name="${display_name:0:21}..."
+    if [[ ${#display_name} -gt 22 ]]; then
+        truncated_name="${display_name:0:19}..."
     fi
 
     # Format size
     local size_str="Unknown"
     [[ "$size" != "0" && "$size" != "" && "$size" != "Unknown" ]] && size_str="$size"
 
-    printf "%-24s (%s) | %s" "$truncated_name" "$size_str" "$last_used"
+    # Use consistent column widths for perfect alignment:
+    # name column (22), right-aligned size column (9), then compact last-used value.
+    printf "%-22s %9s | %s" "$truncated_name" "$size_str" "$compact_last_used"
 }
 
 # Global variable to store selection result (bash 3.2 compatible)

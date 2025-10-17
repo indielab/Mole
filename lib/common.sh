@@ -217,7 +217,7 @@ read_key() {
     case "$key" in
         $'\n' | $'\r') echo "ENTER" ;;
         ' ') echo "SPACE" ;;
-        'Q') echo "QUIT" ;;
+        'q' | 'Q') echo "QUIT" ;;
         'R') echo "RETRY" ;;
         'o' | 'O') echo "OPEN" ;;
         '/') echo "FILTER" ;;               # Trigger filter mode
@@ -1425,13 +1425,27 @@ readonly DATA_PROTECTED_BUNDLES=(
 # Legacy function - preserved for backward compatibility
 # Use should_protect_from_uninstall() or should_protect_data() instead
 readonly PRESERVED_BUNDLE_PATTERNS=("${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}")
+
+# Check whether a bundle ID matches a pattern (supports globs)
+bundle_matches_pattern() {
+    local bundle_id="$1"
+    local pattern="$2"
+
+    [[ -z "$pattern" ]] && return 1
+
+    # shellcheck disable=SC2254  # allow glob pattern matching for bundle rules
+    case "$bundle_id" in
+        $pattern) return 0 ;;
+    esac
+    return 1
+}
+
 should_preserve_bundle() {
     local bundle_id="$1"
     for pattern in "${PRESERVED_BUNDLE_PATTERNS[@]}"; do
-        # Use case for safer glob matching
-        case "$bundle_id" in
-            "$pattern") return 0 ;;
-        esac
+        if bundle_matches_pattern "$bundle_id" "$pattern"; then
+            return 0
+        fi
     done
     return 1
 }
@@ -1440,10 +1454,9 @@ should_preserve_bundle() {
 should_protect_from_uninstall() {
     local bundle_id="$1"
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}"; do
-        # Use case for safer glob matching
-        case "$bundle_id" in
-            "$pattern") return 0 ;;
-        esac
+        if bundle_matches_pattern "$bundle_id" "$pattern"; then
+            return 0
+        fi
     done
     return 1
 }
@@ -1453,10 +1466,9 @@ should_protect_data() {
     local bundle_id="$1"
     # Protect both system critical and data protected bundles during cleanup
     for pattern in "${SYSTEM_CRITICAL_BUNDLES[@]}" "${DATA_PROTECTED_BUNDLES[@]}"; do
-        # Use case for safer glob matching
-        case "$bundle_id" in
-            "$pattern") return 0 ;;
-        esac
+        if bundle_matches_pattern "$bundle_id" "$pattern"; then
+            return 0
+        fi
     done
     return 1
 }
@@ -1598,6 +1610,36 @@ find_app_files() {
         files_to_clean+=("$framework")
     done < <(find ~/Library/PrivateFrameworks \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
 
+    # Audio Plug-Ins
+    while IFS= read -r -d '' plugin; do
+        files_to_clean+=("$plugin")
+    done < <(find ~/Library/Audio/Plug-Ins \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # Components
+    while IFS= read -r -d '' component; do
+        files_to_clean+=("$component")
+    done < <(find ~/Library/Components \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # Metadata
+    while IFS= read -r -d '' metadata; do
+        files_to_clean+=("$metadata")
+    done < <(find ~/Library/Metadata \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # Workflows
+    [[ -d ~/Library/Workflows/"$app_name".workflow ]] && files_to_clean+=("$HOME/Library/Workflows/$app_name.workflow")
+    while IFS= read -r -d '' workflow; do
+        files_to_clean+=("$workflow")
+    done < <(find ~/Library/Workflows \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # Favorites (excluding Safari)
+    while IFS= read -r -d '' favorite; do
+        # Skip Safari favorites
+        case "$favorite" in
+            *Safari*) continue ;;
+        esac
+        files_to_clean+=("$favorite")
+    done < <(find ~/Library/Favorites \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
     # Only print if array has elements to avoid unbound variable error
     if [[ ${#files_to_clean[@]} -gt 0 ]]; then
         printf '%s\n' "${files_to_clean[@]}"
@@ -1703,6 +1745,21 @@ find_app_system_files() {
     # System Caches
     [[ -d /Library/Caches/"$bundle_id" ]] && system_files+=("/Library/Caches/$bundle_id")
     [[ -d /Library/Caches/"$app_name" ]] && system_files+=("/Library/Caches/$app_name")
+
+    # System Audio Plug-Ins
+    while IFS= read -r -d '' plugin; do
+        system_files+=("$plugin")
+    done < <(find /Library/Audio/Plug-Ins \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # System Components
+    while IFS= read -r -d '' component; do
+        system_files+=("$component")
+    done < <(find /Library/Components \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
+
+    # System Extensions
+    while IFS= read -r -d '' extension; do
+        system_files+=("$extension")
+    done < <(find /Library/Extensions \( -name "$app_name*" -o -name "$bundle_id*" \) -print0 2> /dev/null)
 
     # Only print if array has elements
     if [[ ${#system_files[@]} -gt 0 ]]; then
